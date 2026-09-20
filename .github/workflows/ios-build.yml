@@ -8,8 +8,12 @@ on:
 jobs:
   build-ios:
     name: Build iOS with Xcode on Cloud Mac
-    runs-on: macos-14
-    timeout-minutes: 60
+    runs-on: macos-latest
+    timeout-minutes: 45
+    env:
+      APP_STORE_CONNECT_API_KEY: ${{ secrets.APP_STORE_CONNECT_API_KEY }}
+      APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+      APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
 
     steps:
       - name: 1. Checkout Repository
@@ -30,49 +34,45 @@ jobs:
       - name: 5. Sync Capacitor iOS Project
         run: npx cap sync ios
 
-      - name: 6. Setup Ruby & Fastlane
-        uses: ruby/setup-ruby@v1
-        with:
-          ruby-version: '3.2'
-          bundler-cache: false
-
-      - name: 7. Install Fastlane
-        run: gem install fastlane --no-document
-
-      - name: 8. Build Xcode Project (Simulator & Distribution Archive)
+      - name: 6. Build Xcode Project Archive
         run: |
           cd ios/App
-          # Build check using xcodebuild
-          xcodebuild -workspace App.xcworkspace \
-                     -scheme App \
-                     -destination 'generic/platform=iOS' \
-                     -configuration Release \
-                     CODE_SIGNING_ALLOWED=NO \
-                     clean archive \
-                     -archivePath ./build/App.xcarchive
+          if [ -d "App.xcworkspace" ]; then
+            xcodebuild -workspace App.xcworkspace \
+                       -scheme App \
+                       -destination 'generic/platform=iOS' \
+                       -configuration Release \
+                       CODE_SIGNING_ALLOWED=NO \
+                       CODE_SIGNING_REQUIRED=NO \
+                       clean archive \
+                       -archivePath ./build/App.xcarchive
+          else
+            xcodebuild -project App.xcodeproj \
+                       -scheme App \
+                       -destination 'generic/platform=iOS' \
+                       -configuration Release \
+                       CODE_SIGNING_ALLOWED=NO \
+                       CODE_SIGNING_REQUIRED=NO \
+                       clean archive \
+                       -archivePath ./build/App.xcarchive
+          fi
 
-      - name: 9. Upload Build Archive as GitHub Artifact
+      - name: 7. Upload Build Archive as GitHub Artifact
         uses: actions/upload-artifact@v4
         with:
           name: iOS-Release-Archive
           path: ios/App/build/App.xcarchive
           retention-days: 14
 
-      - name: 10. Deploy to Apple TestFlight (Optional: Requires Apple API Key Secrets)
-        if: "${{ env.APP_STORE_CONNECT_API_KEY != '' }}"
-        env:
-          APP_STORE_CONNECT_API_KEY: ${{ secrets.APP_STORE_CONNECT_API_KEY }}
-          APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
-          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+      - name: 8. Deploy to Apple TestFlight (When Secrets Are Added)
+        if: env.APP_STORE_CONNECT_API_KEY != ''
         run: |
-          echo "Apple App Store Connect API Key detected! Deploying to TestFlight..."
-          cd ios/App
-          # Generate private key file
+          echo "Apple App Store Connect API Key detected! Preparing TestFlight upload..."
           mkdir -p ~/.appstoreconnect/private_keys
           echo "$APP_STORE_CONNECT_API_KEY" > ~/.appstoreconnect/private_keys/AuthKey_${APP_STORE_CONNECT_KEY_ID}.p8
           
-          # Upload with altool / fastlane
-          xcrun altool --upload-app -f ./build/App.xcarchive/Products/Applications/App.app \
+          # Upload via xcrun altool
+          xcrun altool --upload-app -f ./ios/App/build/App.xcarchive/Products/Applications/App.app \
             -t ios \
             --apiKey "$APP_STORE_CONNECT_KEY_ID" \
             --apiIssuer "$APP_STORE_CONNECT_ISSUER_ID"
