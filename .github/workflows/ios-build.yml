@@ -1,0 +1,78 @@
+name: iOS Build & TestFlight Deploy
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build-ios:
+    name: Build iOS with Xcode on Cloud Mac
+    runs-on: macos-14
+    timeout-minutes: 60
+
+    steps:
+      - name: 1. Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: 2. Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+
+      - name: 3. Install Dependencies
+        run: npm install
+
+      - name: 4. Build Web Application
+        run: npm run build
+
+      - name: 5. Sync Capacitor iOS Project
+        run: npx cap sync ios
+
+      - name: 6. Setup Ruby & Fastlane
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.2'
+          bundler-cache: false
+
+      - name: 7. Install Fastlane
+        run: gem install fastlane --no-document
+
+      - name: 8. Build Xcode Project (Simulator & Distribution Archive)
+        run: |
+          cd ios/App
+          # Build check using xcodebuild
+          xcodebuild -workspace App.xcworkspace \
+                     -scheme App \
+                     -destination 'generic/platform=iOS' \
+                     -configuration Release \
+                     CODE_SIGNING_ALLOWED=NO \
+                     clean archive \
+                     -archivePath ./build/App.xcarchive
+
+      - name: 9. Upload Build Archive as GitHub Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: iOS-Release-Archive
+          path: ios/App/build/App.xcarchive
+          retention-days: 14
+
+      - name: 10. Deploy to Apple TestFlight (Optional: Requires Apple API Key Secrets)
+        if: "${{ env.APP_STORE_CONNECT_API_KEY != '' }}"
+        env:
+          APP_STORE_CONNECT_API_KEY: ${{ secrets.APP_STORE_CONNECT_API_KEY }}
+          APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+        run: |
+          echo "Apple App Store Connect API Key detected! Deploying to TestFlight..."
+          cd ios/App
+          # Generate private key file
+          mkdir -p ~/.appstoreconnect/private_keys
+          echo "$APP_STORE_CONNECT_API_KEY" > ~/.appstoreconnect/private_keys/AuthKey_${APP_STORE_CONNECT_KEY_ID}.p8
+          
+          # Upload with altool / fastlane
+          xcrun altool --upload-app -f ./build/App.xcarchive/Products/Applications/App.app \
+            -t ios \
+            --apiKey "$APP_STORE_CONNECT_KEY_ID" \
+            --apiIssuer "$APP_STORE_CONNECT_ISSUER_ID"

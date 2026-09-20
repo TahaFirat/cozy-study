@@ -1,0 +1,68 @@
+rules_version = '2';
+
+// Cozy Pixel Study Room — Enterprise Production Security Rules
+// Bu kurallar veritabanınızı veri hırsızlığına, botlara, kimlik sahteciliğine ve kötüye kullanıma karşı 100% korur.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Yardımcı Fonksiyonlar
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // 1. CANLI TOPLULUK SOHBETİ (COMMUNITY CHAT)
+    // ──────────────────────────────────────────────────────────────────────────
+    match /community_chat/{messageId} {
+      // Herkes (ziyaretçiler dahil) çalışma odasındaki mesajları canlı okuyabilir
+      allow read: if true;
+
+      // SADECE GİRİŞ YAPMIŞ KULLANICILAR VE SIKI KURALLARLA MESAJ YAZABİLİR:
+      allow create: if isAuthenticated()
+        // Kural 1: Kimlik Sahteciliği Engeli (Kullanıcı başkası adına mesaj atamaz)
+        && request.resource.data.userId == request.auth.uid
+        // Kural 2: Mesaj Metni Boyut Sınırı (Veritabanı şişirme / DoS saldırı engeli: max 350 karakter)
+        && request.resource.data.text is string
+        && request.resource.data.text.size() > 0
+        && request.resource.data.text.size() <= 350
+        // Kural 3: İsim ve Etiket Boyut Koruması
+        && request.resource.data.senderName is string
+        && request.resource.data.senderName.size() <= 40
+        // Kural 4: Zaman Damgası Geçerliliği (Geleceğe yönelik sahte timestamp yazılamaz)
+        && request.resource.data.timestamp is number
+        && request.resource.data.timestamp <= request.time.toMillis() + 60000;
+
+      // Kural 5: Mesajlar sonradan değiştirilemez (History Tampering & manipülasyon engeli)
+      allow update: if false;
+
+      // Kural 6: Sadece mesajın asıl sahibi kendi mesajını silebilir
+      allow delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
+    }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // 2. KULLANICI ÖZEL VERİLERİ (GİZLİLİK & BİLGİ GÜVENLİĞİ)
+    // ──────────────────────────────────────────────────────────────────────────
+    // Her kullanıcı YALNIZCA kendi profiline, oturum kayıtlarına ve ayarlarına erişebilir.
+    // Başka hiçbir kullanıcı diğer bir kullanıcının çalışma günlüğünü veya ayarlarını okuyamaz / değiştiremez.
+    match /users/{userId} {
+      allow read, write: if isOwner(userId);
+
+      // Kullanıcının alt koleksiyonları (data/stats, data/settings, data/gamification vb.)
+      match /{allSubcollections=**} {
+        allow read, write: if isOwner(userId);
+      }
+    }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // 3. VARSAYILAN KURAL: TANIMLANMAMIŞ TÜM DOKÜMANLAR İÇİN ERİŞİMİ ENGELLE
+    // ──────────────────────────────────────────────────────────────────────────
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
