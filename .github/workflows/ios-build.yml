@@ -116,18 +116,28 @@ jobs:
         run: |
           set -eo pipefail
 
-          echo "Setting up Apple API Keys in all required paths..."
+          KEY_ID=$(echo "$APP_STORE_CONNECT_KEY_ID" | tr -d '[:space:]')
+          ISSUER_ID=$(echo "$APP_STORE_CONNECT_ISSUER_ID" | tr -d '[:space:]')
+
+          echo "Target Key ID: ${KEY_ID}"
+          echo "Target Issuer ID: ${ISSUER_ID}"
+
           mkdir -p ~/.appstoreconnect/private_keys ~/.private_keys ./private_keys
-          printf "%s\n" "$APP_STORE_CONNECT_API_KEY" > ~/.appstoreconnect/private_keys/AuthKey_${APP_STORE_CONNECT_KEY_ID}.p8
-          printf "%s\n" "$APP_STORE_CONNECT_API_KEY" > ~/.private_keys/AuthKey_${APP_STORE_CONNECT_KEY_ID}.p8
-          printf "%s\n" "$APP_STORE_CONNECT_API_KEY" > ./private_keys/AuthKey_${APP_STORE_CONNECT_KEY_ID}.p8
-          chmod 600 ~/.appstoreconnect/private_keys/AuthKey_${APP_STORE_CONNECT_KEY_ID}.p8 ~/.private_keys/AuthKey_${APP_STORE_CONNECT_KEY_ID}.p8 ./private_keys/AuthKey_${APP_STORE_CONNECT_KEY_ID}.p8
+          printf "%s\n" "$APP_STORE_CONNECT_API_KEY" > ~/.appstoreconnect/private_keys/AuthKey_${KEY_ID}.p8
+          printf "%s\n" "$APP_STORE_CONNECT_API_KEY" > ~/.private_keys/AuthKey_${KEY_ID}.p8
+          printf "%s\n" "$APP_STORE_CONNECT_API_KEY" > ./private_keys/AuthKey_${KEY_ID}.p8
+          chmod 600 ~/.appstoreconnect/private_keys/AuthKey_${KEY_ID}.p8 ~/.private_keys/AuthKey_${KEY_ID}.p8 ./private_keys/AuthKey_${KEY_ID}.p8
+
+          echo "Verifying private key structure..."
+          head -n 2 ~/.appstoreconnect/private_keys/AuthKey_${KEY_ID}.p8
+          tail -n 2 ~/.appstoreconnect/private_keys/AuthKey_${KEY_ID}.p8
 
           echo "Uploading officially signed IPA to App Store Connect..."
           xcrun altool --upload-app \
             --type ios \
             --file ./ios/App/build/App.ipa \
-            --apiKey "$APP_STORE_CONNECT_KEY_ID" \
-            --apiIssuer "$APP_STORE_CONNECT_ISSUER_ID" \
+            --apiKey "${KEY_ID}" \
+            --apiIssuer "${ISSUER_ID}" \
             --verbose
+
 
