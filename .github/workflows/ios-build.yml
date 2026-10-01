@@ -69,10 +69,20 @@ jobs:
         run: |
           echo "Apple App Store Connect API Key detected! Preparing TestFlight upload..."
           mkdir -p ~/.appstoreconnect/private_keys
-          echo "$APP_STORE_CONNECT_API_KEY" > ~/.appstoreconnect/private_keys/AuthKey_${APP_STORE_CONNECT_KEY_ID}.p8
-          
-          # Upload via xcrun altool
-          xcrun altool --upload-app -f ./ios/App/build/App.xcarchive/Products/Applications/App.app \
+          printf "%s" "$APP_STORE_CONNECT_API_KEY" > ~/.appstoreconnect/private_keys/AuthKey_${APP_STORE_CONNECT_KEY_ID}.p8
+          chmod 600 ~/.appstoreconnect/private_keys/AuthKey_${APP_STORE_CONNECT_KEY_ID}.p8
+
+          echo "Packaging App bundle into Payload/App.ipa..."
+          cd ios/App/build
+          mkdir -p Payload
+          cp -R App.xcarchive/Products/Applications/App.app Payload/
+          zip -r App.ipa Payload
+          cd ../../..
+
+          echo "Uploading App.ipa to App Store Connect / TestFlight..."
+          xcrun altool --upload-app \
+            -f ./ios/App/build/App.ipa \
             -t ios \
             --apiKey "$APP_STORE_CONNECT_KEY_ID" \
             --apiIssuer "$APP_STORE_CONNECT_ISSUER_ID"
+
