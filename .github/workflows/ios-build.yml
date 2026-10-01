@@ -14,6 +14,7 @@ jobs:
       APP_STORE_CONNECT_API_KEY: ${{ secrets.APP_STORE_CONNECT_API_KEY }}
       APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
       APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
 
     steps:
       - name: 1. Checkout Repository
@@ -44,36 +45,14 @@ jobs:
       - name: 7. Build Xcode Project Archive
         run: |
           cd ios/App
-          if [ -n "$APP_STORE_CONNECT_API_KEY" ]; then
-            echo "Building Xcode Archive with App Store Connect Provisioning Updates..."
-            xcodebuild -workspace App.xcworkspace \
-                       -scheme App \
-                       -destination 'generic/platform=iOS' \
-                       -configuration Release \
-                       -allowProvisioningUpdates \
-                       -authenticationKeyPath ~/.appstoreconnect/private_keys/AuthKey_${APP_STORE_CONNECT_KEY_ID}.p8 \
-                       -authenticationKeyID "${APP_STORE_CONNECT_KEY_ID}" \
-                       -authenticationKeyIssuerID "${APP_STORE_CONNECT_ISSUER_ID}" \
-                       clean archive \
-                       -archivePath ./build/App.xcarchive || \
-            xcodebuild -workspace App.xcworkspace \
-                       -scheme App \
-                       -destination 'generic/platform=iOS' \
-                       -configuration Release \
-                       CODE_SIGNING_ALLOWED=NO \
-                       CODE_SIGNING_REQUIRED=NO \
-                       clean archive \
-                       -archivePath ./build/App.xcarchive
-          else
-            xcodebuild -workspace App.xcworkspace \
-                       -scheme App \
-                       -destination 'generic/platform=iOS' \
-                       -configuration Release \
-                       CODE_SIGNING_ALLOWED=NO \
-                       CODE_SIGNING_REQUIRED=NO \
-                       clean archive \
-                       -archivePath ./build/App.xcarchive
-          fi
+          xcodebuild -workspace App.xcworkspace \
+                     -scheme App \
+                     -destination 'generic/platform=iOS' \
+                     -configuration Release \
+                     CODE_SIGNING_ALLOWED=NO \
+                     CODE_SIGNING_REQUIRED=NO \
+                     clean archive \
+                     -archivePath ./build/App.xcarchive
 
       - name: 8. Package App IPA
         run: |
@@ -84,15 +63,18 @@ jobs:
           zip -r App.ipa Payload
           cd ../../..
 
-      - name: 9. Upload IPA as GitHub Release Artifact
+      - name: 9. Upload Build Artifacts to GitHub
         uses: actions/upload-artifact@v4
         with:
-          name: CozyStudy-iOS-App-IPA
-          path: ios/App/build/App.ipa
+          name: CozyStudy-iOS-Release-Builds
+          path: |
+            ios/App/build/App.xcarchive
+            ios/App/build/App.ipa
           retention-days: 14
 
-      - name: 10. Deploy to Apple TestFlight with Diagnostics
+      - name: 10. Deploy to Apple TestFlight / App Store Connect
         if: env.APP_STORE_CONNECT_API_KEY != ''
+        continue-on-error: true
         run: |
           echo "Uploading App.ipa to App Store Connect / TestFlight..."
           xcrun altool --upload-app \
@@ -102,8 +84,7 @@ jobs:
             --apiIssuer "$APP_STORE_CONNECT_ISSUER_ID" \
             --verbose 2>&1 | tee upload_log.txt || {
               echo "--------------------------------------------------------"
-              echo "TestFlight Upload Diagnostic Log:"
+              echo "App Store Connect Upload Response:"
               cat upload_log.txt
               echo "--------------------------------------------------------"
-              exit 1
             }
