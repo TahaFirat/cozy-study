@@ -14,7 +14,6 @@ jobs:
       APP_STORE_CONNECT_API_KEY: ${{ secrets.APP_STORE_CONNECT_API_KEY }}
       APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
       APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
-      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
 
     steps:
       - name: 1. Checkout Repository
@@ -35,56 +34,58 @@ jobs:
       - name: 5. Sync Capacitor iOS Project
         run: npx cap sync ios
 
-      - name: 6. Setup App Store Connect Private Key
-        if: env.APP_STORE_CONNECT_API_KEY != ''
-        run: |
-          mkdir -p ~/.appstoreconnect/private_keys
-          echo "$APP_STORE_CONNECT_API_KEY" > ~/.appstoreconnect/private_keys/AuthKey_${APP_STORE_CONNECT_KEY_ID}.p8
-          chmod 600 ~/.appstoreconnect/private_keys/AuthKey_${APP_STORE_CONNECT_KEY_ID}.p8
-
-      - name: 7. Build Xcode Project Archive
+      - name: 6. Build Xcode Project Archive
         run: |
           cd ios/App
-          xcodebuild -workspace App.xcworkspace \
-                     -scheme App \
-                     -destination 'generic/platform=iOS' \
-                     -configuration Release \
-                     CODE_SIGNING_ALLOWED=NO \
-                     CODE_SIGNING_REQUIRED=NO \
-                     clean archive \
-                     -archivePath ./build/App.xcarchive
+          if [ -d "App.xcworkspace" ]; then
+            xcodebuild -workspace App.xcworkspace \
+                       -scheme App \
+                       -destination 'generic/platform=iOS' \
+                       -configuration Release \
+                       CODE_SIGNING_ALLOWED=NO \
+                       CODE_SIGNING_REQUIRED=NO \
+                       clean archive \
+                       -archivePath ./build/App.xcarchive
+          else
+            xcodebuild -project App.xcodeproj \
+                       -scheme App \
+                       -destination 'generic/platform=iOS' \
+                       -configuration Release \
+                       CODE_SIGNING_ALLOWED=NO \
+                       CODE_SIGNING_REQUIRED=NO \
+                       clean archive \
+                       -archivePath ./build/App.xcarchive
+          fi
 
-      - name: 8. Package App IPA
+      - name: 7. Package App IPA
         run: |
-          echo "Packaging App bundle into Payload/App.ipa..."
           cd ios/App/build
           mkdir -p Payload
           cp -R App.xcarchive/Products/Applications/App.app Payload/
           zip -r App.ipa Payload
           cd ../../..
 
-      - name: 9. Upload Build Artifacts to GitHub
+      - name: 8. Upload iOS Release IPA and Archive
         uses: actions/upload-artifact@v4
         with:
-          name: CozyStudy-iOS-Release-Builds
+          name: LockIn-iOS-Release-Build
           path: |
-            ios/App/build/App.xcarchive
             ios/App/build/App.ipa
+            ios/App/build/App.xcarchive
           retention-days: 14
 
-      - name: 10. Deploy to Apple TestFlight / App Store Connect
+      - name: 9. Deploy to Apple TestFlight / App Store Connect
         if: env.APP_STORE_CONNECT_API_KEY != ''
         continue-on-error: true
         run: |
+          echo "Setting up App Store Connect API Key..."
+          mkdir -p ~/.appstoreconnect/private_keys
+          echo "$APP_STORE_CONNECT_API_KEY" > ~/.appstoreconnect/private_keys/AuthKey_${APP_STORE_CONNECT_KEY_ID}.p8
+          chmod 600 ~/.appstoreconnect/private_keys/AuthKey_${APP_STORE_CONNECT_KEY_ID}.p8
+
           echo "Uploading App.ipa to App Store Connect / TestFlight..."
           xcrun altool --upload-app \
             -f ./ios/App/build/App.ipa \
             -t ios \
             --apiKey "$APP_STORE_CONNECT_KEY_ID" \
-            --apiIssuer "$APP_STORE_CONNECT_ISSUER_ID" \
-            --verbose 2>&1 | tee upload_log.txt || {
-              echo "--------------------------------------------------------"
-              echo "App Store Connect Upload Response:"
-              cat upload_log.txt
-              echo "--------------------------------------------------------"
-            }
+            --apiIssuer "$APP_STORE_CONNECT_ISSUER_ID" || true
