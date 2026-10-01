@@ -114,11 +114,13 @@ jobs:
       - name: 10. Upload to Apple TestFlight / App Store Connect
         if: env.APP_STORE_CONNECT_API_KEY != ''
         run: |
+          set -eo pipefail
+
           echo "Setting up Apple API Keys in all required paths..."
           mkdir -p ~/.appstoreconnect/private_keys ~/.private_keys ./private_keys
-          echo "$APP_STORE_CONNECT_API_KEY" > ~/.appstoreconnect/private_keys/AuthKey_${APP_STORE_CONNECT_KEY_ID}.p8
-          echo "$APP_STORE_CONNECT_API_KEY" > ~/.private_keys/AuthKey_${APP_STORE_CONNECT_KEY_ID}.p8
-          echo "$APP_STORE_CONNECT_API_KEY" > ./private_keys/AuthKey_${APP_STORE_CONNECT_KEY_ID}.p8
+          printf "%s\n" "$APP_STORE_CONNECT_API_KEY" > ~/.appstoreconnect/private_keys/AuthKey_${APP_STORE_CONNECT_KEY_ID}.p8
+          printf "%s\n" "$APP_STORE_CONNECT_API_KEY" > ~/.private_keys/AuthKey_${APP_STORE_CONNECT_KEY_ID}.p8
+          printf "%s\n" "$APP_STORE_CONNECT_API_KEY" > ./private_keys/AuthKey_${APP_STORE_CONNECT_KEY_ID}.p8
           chmod 600 ~/.appstoreconnect/private_keys/AuthKey_${APP_STORE_CONNECT_KEY_ID}.p8 ~/.private_keys/AuthKey_${APP_STORE_CONNECT_KEY_ID}.p8 ./private_keys/AuthKey_${APP_STORE_CONNECT_KEY_ID}.p8
 
           echo "Uploading officially signed IPA to App Store Connect..."
@@ -127,14 +129,5 @@ jobs:
             --file ./ios/App/build/App.ipa \
             --apiKey "$APP_STORE_CONNECT_KEY_ID" \
             --apiIssuer "$APP_STORE_CONNECT_ISSUER_ID" \
-            --verbose 2>&1 | tee upload_result.log || {
-              echo "--------------------------------------------------------"
-              echo "Apple Server Response:"
-              cat upload_result.log
-              echo "--------------------------------------------------------"
-              echo "### Apple Upload Log" >> $GITHUB_STEP_SUMMARY
-              echo '```' >> $GITHUB_STEP_SUMMARY
-              cat upload_result.log >> $GITHUB_STEP_SUMMARY
-              echo '```' >> $GITHUB_STEP_SUMMARY
-              exit 1
-            }
+            --verbose
+
