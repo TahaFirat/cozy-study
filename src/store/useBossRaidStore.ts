@@ -2,12 +2,14 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { webAudioEngine } from '../audio/WebAudioEngine';
 import { useAppStore } from './useAppStore';
+import { useGamificationStore } from './useGamificationStore';
 
 export type BossId = 'horologium' | 'acedia' | 'cacophony' | 'oblivion';
 
 export interface BossData {
   id: BossId;
   name: string;
+  unlockLevel: number;
   titleTr: string;
   titleEn: string;
   subtitleTr: string;
@@ -29,6 +31,19 @@ export interface BossData {
   badgeId: string;
 }
 
+export interface LeaderboardEntry {
+  id: string;
+  rank: number;
+  name: string;
+  city: string;
+  flag: string;
+  damage: number;
+  contributionPct: number;
+  focusHours: number;
+  badge: string;
+  isSelf?: boolean;
+}
+
 export interface CombatLogEntry {
   id: string;
   timestamp: number;
@@ -42,32 +57,78 @@ export interface CombatLogEntry {
   location?: string;
 }
 
-export interface CommunityRaider {
-  name: string;
-  city: string;
+export interface LootReward {
+  bossId: BossId;
+  milestone: number;
+  xp: number;
+  charges: number;
+  titleTr: string;
+  titleEn: string;
 }
 
-const SAMPLE_RAIDERS: CommunityRaider[] = [
-  { name: 'Elena V.', city: 'Kyoto' },
-  { name: 'Mert Y.', city: 'Istanbul' },
-  { name: 'Liam K.', city: 'London' },
-  { name: 'Aoi S.', city: 'Tokyo' },
-  { name: 'Selin A.', city: 'Berlin' },
-  { name: 'David M.', city: 'New York' },
-  { name: 'Lucas P.', city: 'Paris' },
-  { name: 'Hana T.', city: 'Seoul' },
-  { name: 'Zeynep B.', city: 'Ankara' },
-  { name: 'Mateo C.', city: 'Madrid' },
-  { name: 'Oliver W.', city: 'Stockholm' },
-  { name: 'Camila R.', city: 'São Paulo' },
-  { name: 'Can E.', city: 'Izmir' },
-  { name: 'Nadia F.', city: 'Vienna' },
-];
+export const MILESTONE_REWARDS: Record<number, { xp: number; charges: number; titleTr: string; titleEn: string }> = {
+  75: {
+    xp: 100,
+    charges: 1,
+    titleTr: 'Zaman Kaşifi',
+    titleEn: 'Chrono Scout',
+  },
+  50: {
+    xp: 250,
+    charges: 2,
+    titleTr: 'Akın Kıdemlisi',
+    titleEn: 'Raid Veteran',
+  },
+  25: {
+    xp: 500,
+    charges: 3,
+    titleTr: 'Dev Avcısı',
+    titleEn: 'Titan Slayer',
+  },
+  0: {
+    xp: 1000,
+    charges: 5,
+    titleTr: 'Kronos Efsanevi Fatihi',
+    titleEn: 'Legendary Conqueror of Chronos',
+  },
+};
+
+export function getNextSundayMidnight(): number {
+  const now = new Date();
+  const dayOfWeek = now.getDay(); // 0 is Sunday
+  const daysUntilSunday = (7 - dayOfWeek) % 7;
+  const target = new Date(now);
+  target.setDate(now.getDate() + daysUntilSunday);
+  target.setHours(23, 59, 59, 999);
+  if (target.getTime() <= now.getTime()) {
+    target.setDate(target.getDate() + 7);
+  }
+  return target.getTime();
+}
+
+export function isFrenzyHour(): boolean {
+  const hour = new Date().getHours();
+  return (hour >= 16 && hour < 18) || (hour >= 21 && hour < 23);
+}
+
+export function getFrenzyRemainingMinutes(): number {
+  const now = new Date();
+  const hour = now.getHours();
+  const mins = now.getMinutes();
+  if (hour >= 16 && hour < 18) {
+    return (17 - hour) * 60 + (60 - mins);
+  }
+  if (hour >= 21 && hour < 23) {
+    return (22 - hour) * 60 + (60 - mins);
+  }
+  return 0;
+}
 
 export const DEFAULT_BOSSES: Record<BossId, BossData> = {
   horologium: {
     id: 'horologium',
     name: 'Horologium',
+    unlockLevel: 1,
     titleTr: 'Zamanın Mekanik Devi',
     titleEn: 'The Clockwork Titan',
     subtitleTr: 'Tik-tak seslerinin ve başlama kaygısının kadim mekanik devi',
@@ -91,6 +152,7 @@ export const DEFAULT_BOSSES: Record<BossId, BossData> = {
   acedia: {
     id: 'acedia',
     name: 'Acedia',
+    unlockLevel: 3,
     titleTr: 'Erteleme Hayaleti',
     titleEn: 'The Procrastination Phantom',
     subtitleTr: 'Seni rehavete ve uykuya çeken mor dumanlı gölge varlık',
@@ -114,6 +176,7 @@ export const DEFAULT_BOSSES: Record<BossId, BossData> = {
   cacophony: {
     id: 'cacophony',
     name: 'Cacophony',
+    unlockLevel: 6,
     titleTr: 'Dikkat Dağınıklığı Sireni',
     titleEn: 'The Distraction Siren',
     subtitleTr: 'Bildirim zilleri, telefon bağımlılığı ve gürültünün kaotik canavarı',
@@ -137,6 +200,7 @@ export const DEFAULT_BOSSES: Record<BossId, BossData> = {
   oblivion: {
     id: 'oblivion',
     name: 'Oblivion',
+    unlockLevel: 10,
     titleTr: 'Tükenmişliğin Kadim Devi',
     titleEn: 'The Burnout Colossus',
     subtitleTr: 'Aşırı yüklenme, yorgunluk ve tükenmişliğin volkanik lav devi',
@@ -159,6 +223,13 @@ export const DEFAULT_BOSSES: Record<BossId, BossData> = {
   },
 };
 
+export const DEFAULT_LEADERBOARDS: Record<BossId, LeaderboardEntry[]> = {
+  horologium: [],
+  acedia: [],
+  cacophony: [],
+  oblivion: [],
+};
+
 interface BossRaidState {
   currentBossId: BossId;
   bosses: Record<BossId, BossData>;
@@ -167,6 +238,7 @@ interface BossRaidState {
   personalDamagePerBoss: Record<string, number>;
   combatLogs: CombatLogEntry[];
   globalRaidersCount: number;
+  strikeCharges: number;
   lastAttackResult: {
     damage: number;
     isCritical: boolean;
@@ -175,14 +247,63 @@ interface BossRaidState {
     timestamp: number;
   } | null;
 
+  // New Progression & Habit Gamification Fields
+  seasonExpiresAt: number;
+  sessionCombo: number;
+  lastSessionCompletedAt: number;
+  hasWellRestedBuff: boolean;
+  catMoraleBuffUntil: number;
+  lastDailyBonusDate: string;
+  claimedMilestones: Record<string, number[]>;
+  activeLootReward: LootReward | null;
+  leaderboards: Record<BossId, LeaderboardEntry[]>;
+
   // Actions
   setCurrentBoss: (bossId: BossId) => void;
+  addStrikeCharges: (charges: number) => void;
+  executeStrike: (chargeCost: number, isCritical?: boolean) => { damage: number; isCritical: boolean; defeated: boolean; success: boolean };
   attackCurrentBoss: (focusMinutes: number, hasGoalPledge: boolean) => { damage: number; isCritical: boolean; defeated: boolean };
   quickPracticeStrike: () => { damage: number; isCritical: boolean; defeated: boolean };
   simulateCommunityAttack: () => void;
   resetBoss: (bossId: string) => void;
   unlockTrophy: (trophyId: string) => void;
   isTrophyUnlocked: (trophyId: string) => boolean;
+  getLeaderboard: (bossId: BossId) => LeaderboardEntry[];
+
+  // Advanced Gamification Actions
+  checkSeasonReset: () => void;
+  grantWellRestedBuff: () => void;
+  grantCatMoraleBuff: () => void;
+  hasCatMoraleBuff: () => boolean;
+  recordSessionCompleted: (minutes: number) => { bonusCharges: number; isComboIncreased: boolean; comboCount: number; isDawnBonus: boolean };
+  claimMilestoneChest: (bossId: BossId, milestone: number) => boolean;
+  dismissLootReward: () => void;
+  handleRemoteBossAttack: (data: any) => void;
+  getComboMultiplier: () => number;
+}
+
+let raidBroadcastChannel: BroadcastChannel | null = null;
+if (typeof window !== 'undefined' && typeof BroadcastChannel !== 'undefined') {
+  try {
+    raidBroadcastChannel = new BroadcastChannel('chronos_global_boss_raid');
+  } catch (e) {
+    console.warn('BroadcastChannel error', e);
+  }
+}
+
+function broadcastAttackOverNetwork(payload: any) {
+  if (raidBroadcastChannel) {
+    try {
+      raidBroadcastChannel.postMessage({ type: 'BOSS_ATTACK', ...payload });
+    } catch {}
+  }
+  if (typeof window !== 'undefined') {
+    fetch('/api/boss-attack', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ attack: payload }),
+    }).catch(() => {});
+  }
 }
 
 export const useBossRaidStore = create<BossRaidState>()(
@@ -193,59 +314,334 @@ export const useBossRaidStore = create<BossRaidState>()(
       unlockedTrophies: [],
       totalBossDamageDealt: 0,
       personalDamagePerBoss: {},
-      globalRaidersCount: 1428,
-      combatLogs: [
-        {
-          id: 'init-1',
-          timestamp: Date.now() - 14000,
-          bossId: 'horologium',
-          damage: 250,
-          isCritical: true,
-          minutes: 50,
-          isCommunity: true,
-          userName: 'Elena V.',
-          location: 'Kyoto',
-        },
-        {
-          id: 'init-2',
-          timestamp: Date.now() - 32000,
-          bossId: 'horologium',
-          damage: 100,
-          isCritical: false,
-          minutes: 25,
-          isCommunity: true,
-          userName: 'Mert Y.',
-          location: 'Istanbul',
-        },
-        {
-          id: 'init-3',
-          timestamp: Date.now() - 58000,
-          bossId: 'acedia',
-          damage: 200,
-          isCritical: true,
-          minutes: 30,
-          isCommunity: true,
-          userName: 'Liam K.',
-          location: 'London',
-        },
-      ],
+      globalRaidersCount: 1,
+      strikeCharges: 1,
+      combatLogs: [],
       lastAttackResult: null,
 
+      // Habit Gamification State
+      seasonExpiresAt: getNextSundayMidnight(),
+      sessionCombo: 1,
+      lastSessionCompletedAt: 0,
+      hasWellRestedBuff: false,
+      catMoraleBuffUntil: 0,
+      lastDailyBonusDate: '',
+      claimedMilestones: {},
+      activeLootReward: null,
+      leaderboards: { ...DEFAULT_LEADERBOARDS },
+
       setCurrentBoss: (currentBossId) => set({ currentBossId }),
+
+      addStrikeCharges: (charges: number) => {
+        set((state) => ({
+          strikeCharges: (state.strikeCharges ?? 1) + charges,
+        }));
+      },
+
+      grantWellRestedBuff: () => {
+        set({ hasWellRestedBuff: true });
+        const lang = useAppStore.getState().language;
+        useAppStore.getState().showToast(
+          lang === 'tr'
+            ? '☕ Mola İntizamı Bonusu: Dinlendin ve zihnin tazelendi! Sıradaki boss vuruşun GARANTİLİ KRİTİK olacak!'
+            : '☕ Well Rested Buff: Mind refreshed! Your next boss strike will be a GUARANTEED CRITICAL!',
+          5000
+        );
+      },
+
+      grantCatMoraleBuff: () => {
+        set({ catMoraleBuffUntil: Date.now() + 30 * 60 * 1000 });
+      },
+
+      hasCatMoraleBuff: () => (get().catMoraleBuffUntil || 0) > Date.now(),
+
+      getComboMultiplier: () => {
+        const combo = get().sessionCombo || 1;
+        if (combo >= 4) return 1.75;
+        if (combo === 3) return 1.5;
+        if (combo === 2) return 1.25;
+        return 1.0;
+      },
+
+      recordSessionCompleted: (minutes: number) => {
+        const state = get();
+        const now = Date.now();
+        const todayStr = new Date().toISOString().split('T')[0];
+
+        // 1. Dawn Bonus (First session of the day)
+        let isDawnBonus = false;
+        let bonusCharges = 0;
+        if (state.lastDailyBonusDate !== todayStr) {
+          isDawnBonus = true;
+          bonusCharges += 1;
+          try {
+            useGamificationStore.getState().addXp(50, 'Dawn Awakening');
+          } catch {}
+          const lang = useAppStore.getState().language;
+          setTimeout(() => {
+            useAppStore.getState().showToast(
+              lang === 'tr'
+                ? '🌅 Şafak Vakti Bonusu: Günün ilk odak seansını tamamladın! (+50 XP & +1 Ekstra Odak Yükü)'
+                : '🌅 Dawn Awakening Bonus: First session of the day completed! (+50 XP & +1 Bonus Strike Charge)',
+              6000
+            );
+          }, 1500);
+        }
+
+        // 2. Combo Meter (within 45 min of last session)
+        const isComboActive = state.lastSessionCompletedAt > 0 && (now - state.lastSessionCompletedAt) <= 45 * 60 * 1000;
+        const newCombo = isComboActive ? Math.min(5, (state.sessionCombo || 1) + 1) : 1;
+
+        set({
+          sessionCombo: newCombo,
+          lastSessionCompletedAt: now,
+          lastDailyBonusDate: todayStr,
+          strikeCharges: (state.strikeCharges ?? 1) + bonusCharges,
+        });
+
+        return {
+          bonusCharges,
+          isComboIncreased: newCombo > 1,
+          comboCount: newCombo,
+          isDawnBonus,
+        };
+      },
+
+      checkSeasonReset: () => {
+        const state = get();
+        const now = Date.now();
+        if (state.seasonExpiresAt && now < state.seasonExpiresAt) return;
+
+        const nextSunday = getNextSundayMidnight();
+        const resetBosses: Record<BossId, BossData> = { ...DEFAULT_BOSSES };
+        for (const key of Object.keys(DEFAULT_BOSSES) as BossId[]) {
+          resetBosses[key] = {
+            ...DEFAULT_BOSSES[key],
+            currentHp: DEFAULT_BOSSES[key].maxHp,
+            isDefeated: false,
+          };
+        }
+
+        set({
+          seasonExpiresAt: nextSunday,
+          bosses: resetBosses,
+          claimedMilestones: {},
+        });
+      },
+
+      claimMilestoneChest: (bossId: BossId, milestone: number) => {
+        const state = get();
+        const boss = state.bosses[bossId];
+        if (!boss) return false;
+
+        const currentClaimed = state.claimedMilestones?.[bossId] || [];
+        if (currentClaimed.includes(milestone)) return false;
+
+        const hpPct = boss.maxHp > 0 ? Math.round((boss.currentHp / boss.maxHp) * 100) : 0;
+        if (milestone === 0 ? (!boss.isDefeated && hpPct > 0) : hpPct > milestone) {
+          return false;
+        }
+
+        const reward = MILESTONE_REWARDS[milestone] || { xp: 100, charges: 1, titleTr: 'Akıncı', titleEn: 'Raider' };
+
+        try {
+          useGamificationStore.getState().addXp(reward.xp, `Boss Milestone %${milestone}`);
+        } catch {}
+
+        const newCharges = (state.strikeCharges ?? 1) + reward.charges;
+        const newClaimed = {
+          ...state.claimedMilestones,
+          [bossId]: [...currentClaimed, milestone],
+        };
+
+        set({
+          strikeCharges: newCharges,
+          claimedMilestones: newClaimed,
+          activeLootReward: {
+            bossId,
+            milestone,
+            xp: reward.xp,
+            charges: reward.charges,
+            titleTr: reward.titleTr,
+            titleEn: reward.titleEn,
+          },
+        });
+
+        try {
+          webAudioEngine.playBossVictory();
+        } catch {}
+
+        const lang = useAppStore.getState().language;
+        useAppStore.getState().showToast(
+          lang === 'tr'
+            ? `🎁 Ganimet Sandığı Açıldı! +${reward.xp} XP ve +${reward.charges} Yük kazandın!`
+            : `🎁 Milestone Chest Opened! +${reward.xp} XP and +${reward.charges} Charges earned!`,
+          4000
+        );
+
+        return true;
+      },
+
+      dismissLootReward: () => set({ activeLootReward: null }),
+
+      executeStrike: (chargeCost: number, isCritical = false) => {
+        const state = get();
+        const currentCharges = state.strikeCharges ?? 1;
+        if (currentCharges < chargeCost) {
+          const lang = useAppStore.getState().language;
+          const msg = lang === 'tr'
+            ? `⚡ Yetersiz Odak Yükü! (Gereken: ${chargeCost}, Mevcut: ${currentCharges}) 25 dk odaklanarak yük kazan.`
+            : `⚡ Insufficient Strike Charges! (Needs: ${chargeCost}, You have: ${currentCharges}) Study 25m to earn charges.`;
+          useAppStore.getState().showToast(msg, 3500);
+          return { damage: 0, isCritical: false, defeated: false, success: false };
+        }
+
+        const boss = state.bosses[state.currentBossId] || state.bosses.horologium;
+        if (boss.isDefeated) {
+          const lang = useAppStore.getState().language;
+          const msg = lang === 'tr' ? 'Bu boss zaten mağlup edildi! Yeniden meydan oku.' : 'Boss already defeated! Rematch to fight again.';
+          useAppStore.getState().showToast(msg, 3000);
+          return { damage: 0, isCritical: false, defeated: false, success: false };
+        }
+
+        // Deduct strike charges
+        const newCharges = currentCharges - chargeCost;
+
+        // Frenzy & Combo Multipliers
+        const isFrenzy = isFrenzyHour();
+        const frenzyMult = isFrenzy ? 1.5 : 1.0;
+        const comboCount = state.sessionCombo || 1;
+        const comboMult = comboCount >= 4 ? 1.75 : comboCount === 3 ? 1.5 : comboCount === 2 ? 1.25 : 1.0;
+
+        // Well Rested Buff guarantees critical strike
+        const hasWellRested = state.hasWellRestedBuff;
+        const critRoll = hasWellRested || isCritical || (chargeCost >= 2 ? Math.random() < 0.6 : Math.random() < 0.25);
+
+        let baseDmg = chargeCost === 1 ? 250 : 650;
+        if (critRoll && chargeCost === 1) baseDmg = 350;
+        if (critRoll && chargeCost >= 2) baseDmg = 800;
+
+        // Cat Morale Buff (+10% DMG from petting cat)
+        const hasCatMorale = (state.catMoraleBuffUntil || 0) > Date.now();
+        const catMult = hasCatMorale ? 1.10 : 1.0;
+
+        const totalDamage = Math.round(baseDmg * frenzyMult * comboMult * catMult);
+        const newHp = Math.max(0, boss.currentHp - totalDamage);
+        const defeated = newHp === 0 && !boss.isDefeated;
+
+        const updatedBoss: BossData = {
+          ...boss,
+          currentHp: newHp,
+          isDefeated: boss.isDefeated || defeated,
+        };
+
+        const newUnlockedTrophies = [...state.unlockedTrophies];
+        if (defeated && !newUnlockedTrophies.includes(boss.trophyId)) {
+          newUnlockedTrophies.push(boss.trophyId);
+        }
+
+        // Build rich note
+        const noteParts: string[] = [critRoll ? `⚡ ${chargeCost} Yük Kritik` : `⚡ ${chargeCost} Yük`];
+        if (isFrenzy) noteParts.push('🔥 Altın Saat (+50%)');
+        if (comboCount > 1) noteParts.push(`💥 ${comboCount}x Kombo`);
+        if (hasWellRested) noteParts.push('☕ Mola İntizamı');
+        if (hasCatMorale) noteParts.push('🐾 Kedi Huzur Desteği (+10%)');
+
+        const logEntry: CombatLogEntry = {
+          id: `combat-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+          timestamp: Date.now(),
+          bossId: boss.id,
+          damage: totalDamage,
+          isCritical: critRoll,
+          minutes: chargeCost * 25,
+          note: noteParts.join(' • '),
+        };
+
+        const currentBossPersonalDmg = (state.personalDamagePerBoss[boss.id] || 0) + totalDamage;
+
+        set({
+          strikeCharges: newCharges,
+          hasWellRestedBuff: false, // consumed
+          bosses: {
+            ...state.bosses,
+            [boss.id]: updatedBoss,
+          },
+          unlockedTrophies: newUnlockedTrophies,
+          totalBossDamageDealt: state.totalBossDamageDealt + totalDamage,
+          personalDamagePerBoss: {
+            ...state.personalDamagePerBoss,
+            [boss.id]: currentBossPersonalDmg,
+          },
+          combatLogs: [logEntry, ...state.combatLogs.slice(0, 49)],
+          lastAttackResult: {
+            damage: totalDamage,
+            isCritical: critRoll,
+            bossName: boss.name,
+            defeated,
+            timestamp: Date.now(),
+          },
+        });
+
+        // Audio & Toast Feedback
+        if (defeated) {
+          webAudioEngine.playBossVictory();
+          const lang = useAppStore.getState().language;
+          const msg = lang === 'tr'
+            ? `👑 KÜRESEL ZAFER! ${boss.name} (${boss.titleTr}) mağlup edildi! "${boss.trophyNameTr}" vitrinine eklendi!`
+            : `👑 GLOBAL VICTORY! ${boss.name} defeated! "${boss.trophyNameEn}" placed in your profile showcase!`;
+          useAppStore.getState().showToast(msg, 7000);
+        } else if (critRoll) {
+          webAudioEngine.playBossCrit();
+          const lang = useAppStore.getState().language;
+          const msg = lang === 'tr'
+            ? `⚡ KRİTİK VURUŞ! ${boss.name}'a ${totalDamage} HASAR verdin! (Kalan Yük: ${newCharges})`
+            : `⚡ CRITICAL STRIKE! Dealt ${totalDamage} DMG to ${boss.name}! (Remaining Charges: ${newCharges})`;
+          useAppStore.getState().showToast(msg, 4500);
+        } else {
+          webAudioEngine.playBossHit();
+          const lang = useAppStore.getState().language;
+          const msg = lang === 'tr'
+            ? `⚔️ ${boss.name}'a ${totalDamage} hasar verildi! Kalan Can: ${newHp.toLocaleString()}/${boss.maxHp.toLocaleString()} (Kalan Yük: ${newCharges})`
+            : `⚔️ Dealt ${totalDamage} DMG to ${boss.name}! Remaining HP: ${newHp.toLocaleString()} (Charges: ${newCharges})`;
+          useAppStore.getState().showToast(msg, 3500);
+        }
+
+        // Broadcast across network (Vite Live Relay & BroadcastChannel)
+        broadcastAttackOverNetwork({
+          bossId: boss.id,
+          damage: totalDamage,
+          isCritical: critRoll,
+          newHp,
+          defeated,
+          userName: 'Sen',
+          city: 'Senin Odan',
+          minutes: chargeCost * 25,
+          timestamp: Date.now(),
+        });
+
+        return { damage: totalDamage, isCritical: critRoll, defeated, success: true };
+      },
 
       attackCurrentBoss: (focusMinutes: number, hasGoalPledge: boolean) => {
         const state = get();
         const boss = state.bosses[state.currentBossId] || state.bosses.horologium;
 
-        // Base damage: 4 DMG per minute (25m = 100 DMG, 50m = 250 DMG with +50 flow bonus)
         let baseDamage = focusMinutes * 4;
         if (focusMinutes >= 50) {
           baseDamage += 50;
         }
 
-        // Critical Strike Multiplier: 2x if North Star goal was pledged and completed!
         const isCritical = hasGoalPledge;
-        const totalDamage = Math.round(isCritical ? baseDamage * 2.0 : baseDamage);
+        const isFrenzy = isFrenzyHour();
+        const frenzyMult = isFrenzy ? 1.5 : 1.0;
+        const comboCount = state.sessionCombo || 1;
+        const comboMult = comboCount >= 4 ? 1.75 : comboCount === 3 ? 1.5 : comboCount === 2 ? 1.25 : 1.0;
+
+        const hasCatMorale = (state.catMoraleBuffUntil || 0) > Date.now();
+        const catMult = hasCatMorale ? 1.10 : 1.0;
+
+        let totalDamage = Math.round(isCritical ? baseDamage * 2.0 : baseDamage);
+        totalDamage = Math.round(totalDamage * frenzyMult * comboMult * catMult);
 
         const newHp = Math.max(0, boss.currentHp - totalDamage);
         const defeated = newHp === 0 && !boss.isDefeated;
@@ -294,7 +690,6 @@ export const useBossRaidStore = create<BossRaidState>()(
           },
         });
 
-        // Audio & Toast Feedback
         if (defeated) {
           webAudioEngine.playBossVictory();
           const lang = useAppStore.getState().language;
@@ -318,114 +713,114 @@ export const useBossRaidStore = create<BossRaidState>()(
           useAppStore.getState().showToast(msg, 4000);
         }
 
+        broadcastAttackOverNetwork({
+          bossId: boss.id,
+          damage: totalDamage,
+          isCritical,
+          newHp,
+          defeated,
+          userName: 'Sen',
+          city: 'Senin Odan',
+          minutes: focusMinutes,
+          timestamp: Date.now(),
+        });
+
         return { damage: totalDamage, isCritical, defeated };
+      },
+
+      handleRemoteBossAttack: (data: any) => {
+        if (!data || !data.bossId) return;
+        const state = get();
+        const currentBoss = state.bosses[data.bossId as BossId];
+        if (!currentBoss) return;
+
+        const newHp = Math.max(0, Math.min(currentBoss.currentHp, data.newHp));
+        const defeated = data.defeated || (newHp === 0 && !currentBoss.isDefeated);
+
+        const logEntry: CombatLogEntry = {
+          id: `net-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+          timestamp: data.timestamp || Date.now(),
+          bossId: data.bossId,
+          damage: data.damage,
+          isCritical: data.isCritical,
+          minutes: data.minutes || 25,
+          isCommunity: true,
+          userName: data.userName || 'Çevrimiçi Akıncı',
+          location: data.city || 'Online',
+        };
+
+        const currentLb = [...(state.leaderboards?.[data.bossId as BossId] || [])];
+        const peerName = data.userName || 'Çevrimiçi Akıncı';
+        const existingPeer = currentLb.find((e) => e.name === peerName);
+        if (existingPeer) {
+          existingPeer.damage += data.damage;
+          existingPeer.contributionPct = currentBoss.maxHp > 0 ? Number(((existingPeer.damage / currentBoss.maxHp) * 100).toFixed(2)) : 0;
+          existingPeer.focusHours = Number((existingPeer.damage / 240).toFixed(1));
+        } else {
+          currentLb.push({
+            id: `peer-lb-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+            rank: currentLb.length + 1,
+            name: peerName,
+            city: data.city || 'Online',
+            flag: '🌍',
+            damage: data.damage,
+            contributionPct: currentBoss.maxHp > 0 ? Number(((data.damage / currentBoss.maxHp) * 100).toFixed(2)) : 0,
+            focusHours: Number((data.damage / 240).toFixed(1)),
+            badge: '🛡️ Çevrimiçi Akıncı',
+            isSelf: false,
+          });
+        }
+
+        set({
+          bosses: {
+            ...state.bosses,
+            [data.bossId]: {
+              ...currentBoss,
+              currentHp: newHp,
+              isDefeated: currentBoss.isDefeated || defeated,
+            },
+          },
+          leaderboards: {
+            ...state.leaderboards,
+            [data.bossId]: currentLb,
+          },
+          combatLogs: [logEntry, ...state.combatLogs.slice(0, 49)],
+          lastAttackResult: {
+            damage: data.damage,
+            isCritical: data.isCritical,
+            bossName: currentBoss.name,
+            defeated,
+            timestamp: Date.now(),
+          },
+        });
       },
 
       quickPracticeStrike: () => {
         const state = get();
         const boss = state.bosses[state.currentBossId] || state.bosses.horologium;
-        if (boss.isDefeated) return { damage: 0, isCritical: false, defeated: false };
 
-        const isCrit = Math.random() < 0.35;
-        const damage = isCrit ? 150 : 80;
-        const newHp = Math.max(0, boss.currentHp - damage);
-        const defeated = newHp === 0 && !boss.isDefeated;
-
-        const updatedBoss: BossData = {
-          ...boss,
-          currentHp: newHp,
-          isDefeated: boss.isDefeated || defeated,
-        };
-
-        const newUnlockedTrophies = [...state.unlockedTrophies];
-        if (defeated && !newUnlockedTrophies.includes(boss.trophyId)) {
-          newUnlockedTrophies.push(boss.trophyId);
-        }
-
-        const logEntry: CombatLogEntry = {
-          id: `practice-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-          timestamp: Date.now(),
-          bossId: boss.id,
-          damage,
-          isCritical: isCrit,
-          minutes: 15,
-          note: '⚡ Hızlı Test Vuruşu',
-        };
-
-        const currentBossPersonalDmg = (state.personalDamagePerBoss[boss.id] || 0) + damage;
+        webAudioEngine.playBossHit();
+        const lang = useAppStore.getState().language;
+        const msg = lang === 'tr'
+          ? '🎯 Hedef Tahtası: Test vuruşu yapıldı! (Can eksilmez, yük harcanmaz)'
+          : '🎯 Practice Target: Test strike executed! (0 DMG, 0 charges consumed)';
+        useAppStore.getState().showToast(msg, 2500);
 
         set({
-          bosses: {
-            ...state.bosses,
-            [boss.id]: updatedBoss,
-          },
-          unlockedTrophies: newUnlockedTrophies,
-          totalBossDamageDealt: state.totalBossDamageDealt + damage,
-          personalDamagePerBoss: {
-            ...state.personalDamagePerBoss,
-            [boss.id]: currentBossPersonalDmg,
-          },
-          combatLogs: [logEntry, ...state.combatLogs.slice(0, 49)],
           lastAttackResult: {
-            damage,
-            isCritical: isCrit,
+            damage: 0,
+            isCritical: false,
             bossName: boss.name,
-            defeated,
+            defeated: false,
             timestamp: Date.now(),
           },
         });
 
-        if (defeated) {
-          webAudioEngine.playBossVictory();
-        } else if (isCrit) {
-          webAudioEngine.playBossCrit();
-        } else {
-          webAudioEngine.playBossHit();
-        }
-
-        return { damage, isCritical: isCrit, defeated };
+        return { damage: 0, isCritical: false, defeated: false };
       },
 
       simulateCommunityAttack: () => {
-        const state = get();
-        const boss = state.bosses[state.currentBossId];
-        if (!boss || boss.isDefeated) return;
-
-        const raider = SAMPLE_RAIDERS[Math.floor(Math.random() * SAMPLE_RAIDERS.length)];
-        const isCrit = Math.random() < 0.35;
-        const minutes = Math.random() < 0.6 ? 25 : 50;
-        const damage = isCrit ? (minutes === 50 ? 500 : 200) : (minutes === 50 ? 250 : 100);
-
-        const newHp = Math.max(0, boss.currentHp - damage);
-        const defeated = newHp === 0 && !boss.isDefeated;
-
-        const logEntry: CombatLogEntry = {
-          id: `comm-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-          timestamp: Date.now(),
-          bossId: boss.id,
-          damage,
-          isCritical: isCrit,
-          minutes,
-          isCommunity: true,
-          userName: raider.name,
-          location: raider.city,
-        };
-
-        const delta = Math.floor(Math.random() * 7) - 3;
-        const newCount = Math.max(1200, state.globalRaidersCount + delta);
-
-        set({
-          bosses: {
-            ...state.bosses,
-            [boss.id]: {
-              ...boss,
-              currentHp: newHp,
-              isDefeated: boss.isDefeated || defeated,
-            },
-          },
-          globalRaidersCount: newCount,
-          combatLogs: [logEntry, ...state.combatLogs.slice(0, 49)],
-        });
+        // Disabled: fake bot attacks removed to display true real user interactions
       },
 
       resetBoss: (bossId: string) => {
@@ -454,19 +849,86 @@ export const useBossRaidStore = create<BossRaidState>()(
       isTrophyUnlocked: (trophyId: string) => {
         return get().unlockedTrophies.includes(trophyId);
       },
+
+      getLeaderboard: (bossId: BossId) => {
+        const state = get();
+        const baseEntries = state.leaderboards?.[bossId] || [];
+        const myDmg = state.personalDamagePerBoss[bossId] || 0;
+        const boss = state.bosses[bossId] || DEFAULT_BOSSES[bossId];
+        const myPct = boss.maxHp > 0 ? Number(((myDmg / boss.maxHp) * 100).toFixed(2)) : 0;
+        const myHours = Number((myDmg / 240).toFixed(1));
+
+        const entries: LeaderboardEntry[] = [];
+        if (myDmg > 0) {
+          entries.push({
+            id: 'self-entry',
+            rank: 1,
+            name: 'Sen',
+            city: 'Senin Odan',
+            flag: '⭐',
+            damage: myDmg,
+            contributionPct: myPct,
+            focusHours: myHours,
+            badge: myDmg > 5000 ? '⚔️ Elit Şampiyon' : (myDmg > 1000 ? '🛡️ Kıdemli Akıncı' : '🌱 Çaylak Akıncı'),
+            isSelf: true,
+          });
+        }
+
+        const all = [...entries, ...baseEntries.filter((e) => !e.isSelf)].sort((a, b) => b.damage - a.damage);
+        return all.map((entry, idx) => ({ ...entry, rank: idx + 1 }));
+      },
     }),
     {
       name: 'cozy_chronos_boss_raids',
-      version: 3,
+      version: 7,
       migrate: (persistedState: any) => {
         if (!persistedState) return persistedState;
+        persistedState.globalRaidersCount = 1;
+        persistedState.seasonExpiresAt = persistedState.seasonExpiresAt || getNextSundayMidnight();
+        persistedState.sessionCombo = persistedState.sessionCombo || 1;
+        persistedState.claimedMilestones = persistedState.claimedMilestones || {};
+        persistedState.hasWellRestedBuff = Boolean(persistedState.hasWellRestedBuff);
+        persistedState.catMoraleBuffUntil = persistedState.catMoraleBuffUntil || 0;
+        persistedState.leaderboards = persistedState.leaderboards || { ...DEFAULT_LEADERBOARDS };
+        persistedState.hasWellRestedBuff = Boolean(persistedState.hasWellRestedBuff);
+
+        const botNames = [
+          'Elena V.', 'Mert Y.', 'Liam K.', 'Elena Voronina', 'Liam Keller',
+          'Aoi Takahashi', 'David Miller', 'Selin Aydın', 'Lucas Petit', 'Hana Song'
+        ];
+        if (Array.isArray(persistedState.combatLogs)) {
+          persistedState.combatLogs = persistedState.combatLogs.filter(
+            (log: any) => !log.userName || log.userName === 'Sen' || !botNames.includes(log.userName)
+          );
+        }
         const validIds: BossId[] = ['horologium', 'acedia', 'cacophony', 'oblivion'];
         if (!validIds.includes(persistedState.currentBossId)) {
           persistedState.currentBossId = 'horologium';
         }
-        persistedState.bosses = { ...DEFAULT_BOSSES };
+        if (persistedState.bosses) {
+          validIds.forEach((id) => {
+            if (persistedState.bosses[id]) {
+              persistedState.bosses[id].unlockLevel = DEFAULT_BOSSES[id].unlockLevel;
+              persistedState.bosses[id].themeColor = DEFAULT_BOSSES[id].themeColor;
+            } else {
+              persistedState.bosses[id] = { ...DEFAULT_BOSSES[id] };
+            }
+          });
+        } else {
+          persistedState.bosses = { ...DEFAULT_BOSSES };
+        }
         return persistedState;
       },
     }
   )
 );
+
+// Real-time Incoming BroadcastChannel Listener
+if (raidBroadcastChannel) {
+  raidBroadcastChannel.onmessage = (event) => {
+    const data = event.data;
+    if (data && data.type === 'BOSS_ATTACK') {
+      useBossRaidStore.getState().handleRemoteBossAttack(data);
+    }
+  };
+}

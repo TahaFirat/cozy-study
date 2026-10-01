@@ -64,11 +64,11 @@ export const PAYWALL_ENABLED = false;
 export const useSubscriptionStore = create<SubscriptionState>()(
   persist(
     (set, get) => ({
-      isPro: !PAYWALL_ENABLED ? true : false,
-      plan: !PAYWALL_ENABLED ? 'lifetime' : 'free',
+      isPro: true,
+      plan: 'lifetime',
       subscribedAt: null,
       expiresAt: null,
-      streakFreezesAvailable: 1,
+      streakFreezesAvailable: 3,
       selectedCatBreed: 'tabby',
       selectedClockStyle: 'flip',
       selectedCrtTheme: 'classic',
@@ -77,38 +77,21 @@ export const useSubscriptionStore = create<SubscriptionState>()(
       activeSoundscapePreset: null,
 
       upgradeToPro: (plan) => {
-        const now = new Date();
-        let expiresAt: string | null = null;
-        if (plan === 'monthly') {
-          const exp = new Date(now);
-          exp.setMonth(exp.getMonth() + 1);
-          expiresAt = exp.toISOString();
-        } else if (plan === 'yearly') {
-          const exp = new Date(now);
-          exp.setFullYear(exp.getFullYear() + 1);
-          expiresAt = exp.toISOString();
-        }
-
         set({
           isPro: true,
           plan,
-          subscribedAt: now.toISOString(),
-          expiresAt,
-          streakFreezesAvailable: get().streakFreezesAvailable + 3,
         });
       },
 
       cancelPro: () => {
         set({
-          isPro: false,
-          plan: 'free',
-          expiresAt: null,
+          isPro: true,
+          plan: 'lifetime',
         });
       },
 
       hasAccess: (_feature) => {
-        if (!PAYWALL_ENABLED) return true;
-        return get().isPro;
+        return true;
       },
 
       useStreakFreeze: () => {

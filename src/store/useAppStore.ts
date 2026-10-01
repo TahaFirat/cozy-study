@@ -108,7 +108,12 @@ export const useAppStore = create<AppState>()(
         set({ language });
         get().showToast(language === 'tr' ? 'Türkçe dili etkinleştirildi 🇹🇷' : 'English language enabled 🇬🇧', 2000);
       },
-      setActiveRoom: (activeRoom) => set({ activeRoom }),
+      setActiveRoom: (activeRoom) => {
+        set({ activeRoom });
+        try {
+          useGamificationStore.getState().markRoomVisited(activeRoom);
+        } catch {}
+      },
       setTimeOfDay: (timeOfDay) => set({ timeOfDay }),
       setWeather: (weather) => {
         set({ weather });

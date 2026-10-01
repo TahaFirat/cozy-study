@@ -76,10 +76,11 @@ export class LightingSystem {
       }
     }
 
-    // Draw ambient darkness (recedes during blinding lightning strikes!)
-    if (lightningAlpha > 0.05) {
+    // Draw ambient darkness (gently pulls back during lightning to reveal warm interior textures)
+    if (lightningAlpha > 0.02) {
       ctx.save();
-      ctx.globalAlpha = Math.max(0.05, 1 - lightningAlpha * 0.92);
+      const shadowReduction = Math.min(0.50, lightningAlpha * 0.55);
+      ctx.globalAlpha = Math.max(0.40, 1 - shadowReduction);
       ctx.fillStyle = ambientColor;
       ctx.fillRect(0, 0, width, height);
       ctx.restore();
@@ -218,29 +219,42 @@ export class LightingSystem {
       ctx.fillRect(0, 0, width, height);
     }
 
-    // G. STORM LIGHTNING FLASH (Brilliant electric bloom & global room strobe)
-    if (lightningAlpha > 0.01) {
-      // 1. Intense electric bloom centered on the window pane
-      if (windowBounds) {
-        const winCenterX = windowBounds.x + windowBounds.w * 0.5;
-        const winCenterY = windowBounds.y + windowBounds.h * 0.5;
-        const flashRadius = Math.max(windowBounds.w, windowBounds.h) * 1.8;
-        const flashGrad = ctx.createRadialGradient(
-          winCenterX, winCenterY, 30,
-          winCenterX, winCenterY, flashRadius
-        );
-        flashGrad.addColorStop(0, `rgba(255, 255, 255, ${lightningAlpha * 0.95})`);
-        flashGrad.addColorStop(0.35, `rgba(219, 234, 254, ${lightningAlpha * 0.85})`);
-        flashGrad.addColorStop(0.7, `rgba(147, 197, 253, ${lightningAlpha * 0.45})`);
-        flashGrad.addColorStop(1, 'rgba(59, 130, 246, 0)');
+    // G. ATMOSPHERIC LIGHTNING EMISSION (Cozy Outside-In Light Diffusion, ZERO CS-Flashbang)
+    if (lightningAlpha > 0.01 && windowBounds) {
+      const winCenterX = windowBounds.x + windowBounds.w * 0.5;
+      const winCenterY = windowBounds.y + windowBounds.h * 0.42;
+      const sillY = windowBounds.y + windowBounds.h;
+      const bloomRadius = Math.max(windowBounds.w, windowBounds.h) * 1.6;
 
-        ctx.fillStyle = flashGrad;
-        ctx.fillRect(0, 0, width, height);
-      }
+      // 1. Soft radial ambient bloom emanating into the room from the window glass (Zero rectangular bounds)
+      const bloomGrad = ctx.createRadialGradient(
+        winCenterX, winCenterY, windowBounds.w * 0.10,
+        winCenterX, winCenterY, bloomRadius
+      );
+      bloomGrad.addColorStop(0, `rgba(224, 238, 255, ${(lightningAlpha * 0.28).toFixed(3)})`);
+      bloomGrad.addColorStop(0.35, `rgba(186, 215, 253, ${(lightningAlpha * 0.12).toFixed(3)})`);
+      bloomGrad.addColorStop(0.75, `rgba(147, 197, 253, ${(lightningAlpha * 0.03).toFixed(3)})`);
+      bloomGrad.addColorStop(1, 'rgba(99, 102, 241, 0)');
 
-      // 2. Global room strobe illumination
-      ctx.fillStyle = `rgba(235, 245, 255, ${lightningAlpha * 0.75})`;
+      ctx.fillStyle = bloomGrad;
       ctx.fillRect(0, 0, width, height);
+
+      // 2. Soft elliptical sill & desk bounce (organic feathered ellipse, ZERO sharp rectangular cuts!)
+      const bounceRadius = windowBounds.w * 0.75;
+      const bounceGrad = ctx.createRadialGradient(
+        winCenterX, sillY + 15, 5,
+        winCenterX, sillY + 30, bounceRadius
+      );
+      bounceGrad.addColorStop(0, `rgba(219, 234, 254, ${(lightningAlpha * 0.18).toFixed(3)})`);
+      bounceGrad.addColorStop(0.50, `rgba(165, 180, 252, ${(lightningAlpha * 0.06).toFixed(3)})`);
+      bounceGrad.addColorStop(1, 'rgba(129, 140, 248, 0)');
+
+      ctx.save();
+      ctx.fillStyle = bounceGrad;
+      ctx.beginPath();
+      ctx.ellipse(winCenterX, sillY + 25, windowBounds.w * 0.65, 55, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
     }
 
     ctx.restore();

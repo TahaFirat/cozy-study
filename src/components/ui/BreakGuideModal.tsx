@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Eye, Heart, Activity, Wind, X, Check, Smile } from 'lucide-react';
 import { useAppStore } from '../../store/useAppStore';
+import { useBossRaidStore } from '../../store/useBossRaidStore';
 
 interface BreakGuideModalProps {
   isOpen?: boolean;
@@ -11,7 +12,14 @@ export const BreakGuideModal: React.FC<BreakGuideModalProps> = ({ isOpen, onClos
   const { language, activeModal, setActiveModal } = useAppStore();
   const isTr = language === 'tr';
   const isModalOpen = isOpen !== undefined ? isOpen : activeModal === 'break_guide';
-  const handleClose = onClose || (() => setActiveModal('none'));
+  const handleClose = () => {
+    useBossRaidStore.getState().grantWellRestedBuff();
+    if (onClose) {
+      onClose();
+    } else {
+      setActiveModal('none');
+    }
+  };
 
   const [breathPhase, setBreathPhase] = useState<'inhale' | 'hold' | 'exhale' | 'pause'>('inhale');
   const [breathTimer, setBreathTimer] = useState(4);
@@ -45,8 +53,14 @@ export const BreakGuideModal: React.FC<BreakGuideModalProps> = ({ isOpen, onClos
   }[breathPhase];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in">
-      <div className="relative w-full max-w-lg bg-stone-900 border border-stone-800 rounded-2xl shadow-2xl p-6 text-stone-100 flex flex-col gap-6">
+    <div 
+      onClick={handleClose}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in"
+    >
+      <div 
+        onClick={(e) => e.stopPropagation()}
+        className="relative w-full max-w-lg bg-stone-900 border border-stone-800 rounded-2xl shadow-2xl p-6 text-stone-100 flex flex-col gap-6"
+      >
         <div className="flex items-center justify-between border-b border-stone-800 pb-3">
           <div className="flex items-center gap-2.5">
             <div className="p-2 rounded-lg bg-emerald-500/20 text-emerald-400">

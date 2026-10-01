@@ -110,7 +110,7 @@ export const GamificationModal: React.FC = () => {
                 <p className="text-[10px] text-stone-500">{tr ? 'Toplam Seans' : 'Total Sessions'}</p>
               </div>
               <div className="text-center">
-                <p className="text-base font-bold text-amber-300">{visitedRooms.length}/5</p>
+                <p className="text-base font-bold text-amber-300">{Math.min(7, visitedRooms.length)}/7</p>
                 <p className="text-[10px] text-stone-500">{tr ? 'Oda Keşfedildi' : 'Rooms Visited'}</p>
               </div>
               <div className="text-center">

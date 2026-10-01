@@ -13,6 +13,7 @@ import { SettingsModal } from './components/ui/SettingsModal';
 import { CustomTimerModal } from './components/ui/CustomTimerModal';
 import { SessionNotePromptModal } from './components/ui/SessionNotePromptModal';
 import { ToastNotification } from './components/ui/ToastNotification';
+import { AchievementPopup } from './components/ui/AchievementPopup';
 import { CommunityChatDrawer } from './components/ui/CommunityChatDrawer';
 import { AuthModal } from './components/ui/AuthModal';
 
@@ -20,6 +21,7 @@ import { useAppStore, getSystemTimeOfDay } from './store/useAppStore';
 import { useAudioStore } from './store/useAudioStore';
 import { useTimerStore } from './store/useTimerStore';
 import { useCommunityStore } from './store/useCommunityStore';
+import { useGamificationStore } from './store/useGamificationStore';
 import { webAudioEngine } from './audio/WebAudioEngine';
 
 import { ShortcutsModal } from './components/ui/ShortcutsModal';
@@ -36,11 +38,16 @@ import { UserProfileModal } from './components/ui/UserProfileModal';
 import { useSubscriptionStore } from './store/useSubscriptionStore';
 
 import { useBossRaidStore } from './store/useBossRaidStore';
+import { useStatsStore } from './store/useStatsStore';
+import { useTaskStore } from './store/useTaskStore';
 
 if (typeof window !== 'undefined') {
   (window as unknown as { __useAppStore: typeof useAppStore }).__useAppStore = useAppStore;
   (window as unknown as { __useTimerStore: typeof useTimerStore }).__useTimerStore = useTimerStore;
   (window as unknown as { __useBossRaidStore: typeof useBossRaidStore }).__useBossRaidStore = useBossRaidStore;
+  (window as unknown as { __useGamificationStore: typeof useGamificationStore }).__useGamificationStore = useGamificationStore;
+  (window as unknown as { __useStatsStore: typeof useStatsStore }).__useStatsStore = useStatsStore;
+  (window as unknown as { __useTaskStore: typeof useTaskStore }).__useTaskStore = useTaskStore;
 }
 
 export const App: React.FC = () => {
@@ -69,6 +76,13 @@ export const App: React.FC = () => {
     };
     document.addEventListener('fullscreenchange', handleFullscreenChange);
     return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+  }, []);
+
+  // Discover starting room on mount so user starts with at least 1/7 rooms discovered
+  useEffect(() => {
+    try {
+      useGamificationStore.getState().markRoomVisited(useAppStore.getState().activeRoom);
+    } catch {}
   }, []);
 
   // Global Keyboard Shortcuts
@@ -256,8 +270,9 @@ export const App: React.FC = () => {
       {/* 2. Cozy Vignette Lighting Edge */}
       <div className="vignette-overlay absolute inset-0 pointer-events-none z-10" />
 
-      {/* 3. Toast Notifications */}
+      {/* 3. Toast Notifications & Achievement Celebration Popups */}
       <ToastNotification />
+      <AchievementPopup />
 
       {/* 4. Floating UI Controls Layer (Fades in Immersive Mode) */}
       <div

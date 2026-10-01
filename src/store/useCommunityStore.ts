@@ -3,11 +3,16 @@ import { persist } from 'zustand/middleware';
 import { webAudioEngine } from '../audio/WebAudioEngine';
 import { useAppStore } from './useAppStore';
 import { useAuthStore } from './useAuthStore';
-import { sendFirebaseMessage, subscribeToFirebaseChat, FirebaseChatMessage } from '../firebase/chat';
+import { useTimerStore } from './useTimerStore';
+import { useStatsStore } from './useStatsStore';
+import { TRANSLATIONS } from '../i18n/translations';
+import { sendFirebaseMessage, subscribeToFirebaseChat } from '../firebase/chat';
 import { Unsubscribe } from 'firebase/firestore';
+import { useBossRaidStore } from './useBossRaidStore';
 
 export interface StudyBuddy {
   id: string;
+  sessionId?: string;
   name: string;
   avatar: string;
   country: string;
@@ -17,6 +22,7 @@ export interface StudyBuddy {
   minutesFocused: number;
   streakDays: number;
   status: 'focusing' | 'break' | 'just_started';
+  isSelf?: boolean;
 }
 
 export interface ChatMessage {
@@ -49,157 +55,8 @@ interface CommunityState {
   sendMessage: (text: string) => Promise<boolean>;
   sendReaction: (reaction: 'coffee' | 'cheer' | 'fire') => Promise<boolean>;
   initChatSubscription: () => Unsubscribe | null;
+  refreshStudyBuddies: () => void;
 }
-
-const INITIAL_BUDDIES: StudyBuddy[] = [
-  {
-    id: 'buddy-1',
-    name: 'Deniz Yılmaz',
-    avatar: '👨‍💻',
-    country: 'Türkiye',
-    flag: '🇹🇷',
-    task: 'Python Makine Öğrenimi & Veri',
-    roomName: 'Sıcak Yatak Odası',
-    minutesFocused: 45,
-    streakDays: 6,
-    status: 'focusing',
-  },
-  {
-    id: 'buddy-2',
-    name: 'Yuki Tanaka',
-    avatar: '👩‍🎨',
-    country: 'Japonya',
-    flag: '🇯🇵',
-    task: 'Mimari Çizim & 3D Modelleme',
-    roomName: 'Tokyo Yağmurlu Daire',
-    minutesFocused: 65,
-    streakDays: 14,
-    status: 'focusing',
-  },
-  {
-    id: 'buddy-3',
-    name: 'Maya Lin',
-    avatar: '👩‍⚕️',
-    country: 'Kanada',
-    flag: '🇨🇦',
-    task: 'Nöroloji Tıp Fakültesi Notları',
-    roomName: 'Antika Kütüphane',
-    minutesFocused: 30,
-    streakDays: 9,
-    status: 'focusing',
-  },
-  {
-    id: 'buddy-4',
-    name: 'Emre Kaya',
-    avatar: '📚',
-    country: 'Türkiye',
-    flag: '🇹🇷',
-    task: 'Yüksek Lisans Tez Yazımı',
-    roomName: 'Çam Dağı Kütük Evi',
-    minutesFocused: 85,
-    streakDays: 12,
-    status: 'focusing',
-  },
-  {
-    id: 'buddy-5',
-    name: 'Lucas Weber',
-    avatar: '⚡',
-    country: 'Almanya',
-    flag: '🇩🇪',
-    task: 'Rust ile Dağıtık Sistemler',
-    roomName: 'Gece Yarısı Caz Kafe',
-    minutesFocused: 25,
-    streakDays: 4,
-    status: 'break',
-  },
-  {
-    id: 'buddy-6',
-    name: 'Zeynep Demir',
-    avatar: '✍️',
-    country: 'Türkiye',
-    flag: '🇹🇷',
-    task: 'YKS Matematik Soru Çözümü',
-    roomName: 'Sıcak Yatak Odası',
-    minutesFocused: 55,
-    streakDays: 8,
-    status: 'focusing',
-  },
-  {
-    id: 'buddy-7',
-    name: 'Sora Sato',
-    avatar: '🎹',
-    country: 'Japonya',
-    flag: '🇯🇵',
-    task: 'Müzik Prodüksiyonu & Armoni',
-    roomName: 'Tokyo Yağmurlu Daire',
-    minutesFocused: 40,
-    streakDays: 5,
-    status: 'focusing',
-  },
-  {
-    id: 'buddy-8',
-    name: 'Aylin Çelik',
-    avatar: '🎨',
-    country: 'Türkiye',
-    flag: '🇹🇷',
-    task: 'Arayüz Tasarımı & İllüstrasyon',
-    roomName: 'Gece Yarısı Caz Kafe',
-    minutesFocused: 20,
-    streakDays: 3,
-    status: 'just_started',
-  },
-];
-
-const INITIAL_MESSAGES: ChatMessage[] = [
-  {
-    id: 'msg-1',
-    senderName: 'Yuki Tanaka',
-    avatar: '👩‍🎨',
-    flag: '🇯🇵',
-    text: 'Cama vuran yağmurun sesi muhteşem, çizimler çok huzurlu ilerliyor 🌧️',
-    timestamp: Date.now() - 1000 * 60 * 18,
-    isUser: false,
-    tag: 'Tokyo',
-  },
-  {
-    id: 'msg-2',
-    senderName: 'Deniz Yılmaz',
-    avatar: '👨‍💻',
-    flag: '🇹🇷',
-    text: 'Selamlar herkese! Bugün 3. odak seansıma başladım, kahveler taze ☕',
-    timestamp: Date.now() - 1000 * 60 * 11,
-    isUser: false,
-    tag: 'İstanbul',
-  },
-  {
-    id: 'msg-3',
-    senderName: 'Maya Lin',
-    avatar: '👩‍⚕️',
-    flag: '🇨🇦',
-    text: 'Kütüphane odasında çalışan var mı? Ortam sessiz ve derin odak için kusursuz ✨',
-    timestamp: Date.now() - 1000 * 60 * 5,
-    isUser: false,
-    tag: 'Vancouver',
-  },
-  {
-    id: 'msg-4',
-    senderName: 'Emre Kaya',
-    avatar: '📚',
-    flag: '🇹🇷',
-    text: 'Tezin son bölümü bitmek üzere. Birlikte odaklanan herkese kolay gelsin! 🙌',
-    timestamp: Date.now() - 1000 * 60 * 2,
-    isUser: false,
-    tag: 'Ankara',
-  },
-];
-
-const BOT_RESPONSES = [
-  { name: 'Deniz Yılmaz', flag: '🇹🇷', avatar: '👨‍💻', text: 'Harika odaklanmalar! Beraber bitireceğiz bu seansı 💪' },
-  { name: 'Maya Lin', flag: '🇨🇦', avatar: '👩‍⚕️', text: 'Kolay gelsin! Ben de 40 dakikalık seanstayım, iyi çalışmalar ☕' },
-  { name: 'Yuki Tanaka', flag: '🇯🇵', avatar: '👩‍🎨', text: 'Hoş geldin! Yağmurlu odada müzik çok iyi gidiyor, verimli saatler ✨' },
-  { name: 'Zeynep Demir', flag: '🇹🇷', avatar: '✍️', text: 'Süper, ben de soru çözümündeyim. Sessiz ve derin odaklanmalar! 📚' },
-  { name: 'Emre Kaya', flag: '🇹🇷', avatar: '📚', text: 'Tebrikler! Kahveni tazelemeyi unutma, sonuna kadar odaklanıyoruz 🔥' },
-];
 
 let chatUnsubscribe: Unsubscribe | null = null;
 let subscribersCount = 0;
@@ -207,22 +64,124 @@ const chatChannel = typeof window !== 'undefined' && 'BroadcastChannel' in windo
   ? new BroadcastChannel('cozypixel_chat_sync')
   : null;
 
+export const clientSessionId = (() => {
+  if (typeof window === 'undefined') return 'peer-1';
+  try {
+    let sid = sessionStorage.getItem('cozypixel_session_id');
+    if (!sid) {
+      sid = `peer-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+      sessionStorage.setItem('cozypixel_session_id', sid);
+    }
+    return sid;
+  } catch {
+    return `peer-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+  }
+})();
+
+export function getLocalBuddyInfo(): StudyBuddy {
+  const user = useAuthStore.getState().user;
+  const lang = useAppStore.getState().language;
+  const activeRoom = useAppStore.getState().activeRoom;
+  const roomConfig = TRANSLATIONS[lang]?.rooms?.[activeRoom];
+  const roomName = roomConfig?.name || (lang === 'tr' ? 'Sıcak Yatak Odası' : 'Cozy Bedroom');
+  const timer = useTimerStore.getState();
+  const stats = useStatsStore.getState();
+
+  const isFocusing = timer.timerState === 'running';
+  const status: 'focusing' | 'break' | 'just_started' = isFocusing 
+    ? 'focusing' 
+    : (timer.lastCompletedMinutes > 0 ? 'break' : 'just_started');
+
+  const defaultGuestName = lang === 'tr' ? 'Misafir Çalışmacı' : 'Guest Studier';
+  const name = user?.displayName || defaultGuestName;
+  const avatar = user?.photoURL || '🧑‍💻';
+  const task = timer.currentGoal || (lang === 'tr' ? 'Derin Odak Seansı' : 'Deep Focus Session');
+  const minutesFocused = typeof stats.getTodayMinutes === 'function' ? stats.getTodayMinutes() : 0;
+  const streakDays = stats.streakDays || 1;
+
+  return {
+    id: user?.uid || clientSessionId,
+    sessionId: clientSessionId,
+    name,
+    avatar,
+    country: 'Türkiye',
+    flag: '🇹🇷',
+    task,
+    roomName,
+    minutesFocused,
+    streakDays,
+    status,
+    isSelf: true,
+  };
+}
+
+const activePeers = new Map<string, { buddy: StudyBuddy; lastSeen: number }>();
+
+function updateBuddiesState() {
+  const threshold = Date.now() - 20000;
+  for (const [id, peer] of activePeers.entries()) {
+    if (peer.lastSeen < threshold) activePeers.delete(id);
+  }
+  const self = getLocalBuddyInfo();
+  const currentUserId = useAuthStore.getState().user?.uid;
+  const uniquePeers = new Map<string, StudyBuddy>();
+
+  for (const peer of activePeers.values()) {
+    const b = peer.buddy;
+    const isSelf = 
+      (b.sessionId && b.sessionId === clientSessionId) ||
+      b.id === clientSessionId ||
+      Boolean(currentUserId && (b.id === currentUserId || (b as any).userId === currentUserId));
+
+    if (!isSelf) {
+      const key = b.id || b.sessionId;
+      if (key && !uniquePeers.has(key)) {
+        uniquePeers.set(key, { ...b, isSelf: false });
+      }
+    }
+  }
+
+  const otherBuddies = Array.from(uniquePeers.values());
+  useCommunityStore.setState({
+    onlineCount: Math.max(1, otherBuddies.length + 1),
+    studyBuddies: [self, ...otherBuddies],
+  });
+}
+
+// Send presence ping over HTTP to Vite live relay (bridges normal & incognito tabs)
+export async function sendPresencePingHttp() {
+  if (typeof window === 'undefined') return;
+  try {
+    const buddy = getLocalBuddyInfo();
+    await fetch('/api/presence', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        clientId: clientSessionId,
+        buddy,
+      }),
+    });
+  } catch {}
+}
+
 export const useCommunityStore = create<CommunityState>()(
   persist(
     (set, get) => ({
       isChatOpen: false,
       activeTab: 'chat',
-      onlineCount: 15,
+      onlineCount: 1,
       unreadCount: 0,
-      studyBuddies: INITIAL_BUDDIES,
-      messages: INITIAL_MESSAGES,
+      studyBuddies: [getLocalBuddyInfo()],
+      messages: [],
       firestoreError: null,
+      isSubscribed: false,
 
       toggleChat: () => {
         const nextState = !get().isChatOpen;
         set({ isChatOpen: nextState });
         if (nextState) {
           set({ unreadCount: 0 });
+          updateBuddiesState();
         }
       },
 
@@ -230,12 +189,20 @@ export const useCommunityStore = create<CommunityState>()(
         set({ isChatOpen });
         if (isChatOpen) {
           set({ unreadCount: 0 });
+          updateBuddiesState();
         }
       },
 
-      setActiveTab: (activeTab) => set({ activeTab }),
+      setActiveTab: (activeTab) => {
+        set({ activeTab });
+        if (activeTab === 'buddies') {
+          updateBuddiesState();
+        }
+      },
 
-      isSubscribed: false,
+      refreshStudyBuddies: () => {
+        updateBuddiesState();
+      },
 
       initChatSubscription: () => {
         subscribersCount++;
@@ -270,12 +237,12 @@ export const useCommunityStore = create<CommunityState>()(
             });
 
             const prevMsgs = get().messages;
-            const isFirstLoad = prevMsgs === INITIAL_MESSAGES;
+            const isFirstLoad = !get().isSubscribed;
 
             set({
               isSubscribed: true,
               firestoreError: null,
-              messages: mapped.length > 0 ? mapped : INITIAL_MESSAGES,
+              messages: mapped,
               unreadCount: get().isChatOpen ? 0 : (isFirstLoad ? 0 : Math.max(0, mapped.length - prevMsgs.length)),
             });
 
@@ -343,9 +310,16 @@ export const useCommunityStore = create<CommunityState>()(
           messages: [...state.messages.filter((m) => m.id !== optimisticMsg.id), optimisticMsg],
         }));
 
-        // 2. Diğer açık sekmelere yayınla
+        // 2. Diğer açık sekmelere ve sunucu aktarıcısına yayınla
         chatChannel?.postMessage(optimisticMsg);
         webAudioEngine.playChatPing();
+        if (typeof window !== 'undefined') {
+          fetch('/api/chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ clientId: clientSessionId, message: optimisticMsg }),
+          }).catch(() => {});
+        }
 
         // 3. Bulut veritabanına yaz
         try {
@@ -426,6 +400,13 @@ export const useCommunityStore = create<CommunityState>()(
         }));
 
         chatChannel?.postMessage(optimisticMsg);
+        if (typeof window !== 'undefined') {
+          fetch('/api/chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ clientId: clientSessionId, message: optimisticMsg }),
+          }).catch(() => {});
+        }
         useAppStore.getState().showToast(toastText, 3000);
 
         try {
@@ -444,6 +425,23 @@ export const useCommunityStore = create<CommunityState>()(
     }),
     {
       name: 'cozy_community_store',
+      version: 5,
+      migrate: (persistedState: any) => {
+        if (!persistedState) return persistedState;
+        const botNames = [
+          'Yuki Tanaka', 'Deniz Yılmaz', 'Maya Lin', 'Emre Kaya',
+          'Lucas Weber', 'Zeynep Demir', 'Sora Sato', 'Aylin Çelik',
+          'Lucas Müller', 'Elena Voronina', 'Mert Yılmaz'
+        ];
+        if (Array.isArray(persistedState.messages)) {
+          persistedState.messages = persistedState.messages.filter(
+            (m: any) => m.isUser || !botNames.includes(m.senderName)
+          );
+        }
+        persistedState.studyBuddies = [getLocalBuddyInfo()];
+        persistedState.onlineCount = 1;
+        return persistedState;
+      },
       partialize: (state) => ({
         messages: state.messages.filter((m) => m.isUser).slice(-15),
       }),
@@ -451,92 +449,205 @@ export const useCommunityStore = create<CommunityState>()(
   )
 );
 
+// Cross-tab message listener (BroadcastChannel for same-origin tabs)
 if (typeof window !== 'undefined' && chatChannel) {
-  chatChannel.onmessage = (event) => {
-    const msg = event.data as ChatMessage;
-    if (!msg || !msg.id) return;
-    const store = useCommunityStore.getState();
-    const currentUserId = useAuthStore.getState().user?.uid;
-    if (store.messages.some((m) => m.id === msg.id || (m.timestamp === msg.timestamp && m.text === msg.text))) return;
-    const isMe = Boolean(currentUserId && msg.userId === currentUserId);
-    useCommunityStore.setState((state) => ({
-      messages: [...state.messages, { ...msg, isUser: isMe }],
-      unreadCount: state.isChatOpen ? 0 : state.unreadCount + 1,
-    }));
-    if (!isMe && useAppStore.getState().soundFxEnabled) {
-      webAudioEngine.playChatPing();
+  chatChannel.addEventListener('message', (event) => {
+    // 1. Chat Message Sync
+    if (event.data && event.data.id && event.data.text) {
+      const msg = event.data as ChatMessage;
+      const store = useCommunityStore.getState();
+      const currentUserId = useAuthStore.getState().user?.uid;
+      if (store.messages.some((m) => m.id === msg.id || (m.timestamp === msg.timestamp && m.text === msg.text))) return;
+      const isMe = Boolean(currentUserId && msg.userId === currentUserId);
+      useCommunityStore.setState((state) => ({
+        messages: [...state.messages, { ...msg, isUser: isMe }],
+        unreadCount: state.isChatOpen ? 0 : state.unreadCount + 1,
+      }));
+      if (!isMe && useAppStore.getState().soundFxEnabled) {
+        webAudioEngine.playChatPing();
+      }
     }
-  };
+
+    // 2. Real Presence & Study Buddy Ping Sync
+    if (event.data?.type === 'PRESENCE_PING' && event.data.clientId && event.data.clientId !== clientSessionId) {
+      if (event.data.buddy) {
+        const currentUserId = useAuthStore.getState().user?.uid;
+        const b = event.data.buddy;
+        const isSelf = Boolean(
+          (b.sessionId && b.sessionId === clientSessionId) ||
+          b.id === clientSessionId ||
+          (currentUserId && (b.id === currentUserId || b.userId === currentUserId))
+        );
+        if (!isSelf) {
+          activePeers.set(event.data.clientId, {
+            buddy: { ...b, isSelf: false },
+            lastSeen: Date.now(),
+          });
+        }
+      }
+      updateBuddiesState();
+    }
+
+    // 3. Presence Leave Sync
+    if (event.data?.type === 'PRESENCE_LEAVE' && event.data.clientId) {
+      activePeers.delete(event.data.clientId);
+      updateBuddiesState();
+    }
+  });
+
+  // Clear previous BC interval if present (prevents HMR timer leak)
+  if ((window as any).__cozy_bc_interval) {
+    clearInterval((window as any).__cozy_bc_interval);
+  }
+
+  // Heartbeat ping every 8s over BroadcastChannel
+  (window as any).__cozy_bc_interval = setInterval(() => {
+    try {
+      chatChannel.postMessage({
+        type: 'PRESENCE_PING',
+        clientId: clientSessionId,
+        buddy: getLocalBuddyInfo(),
+      });
+      updateBuddiesState();
+    } catch {}
+  }, 8000);
 }
 
-// Ambient simulation events for realistic, living room feel
-const AMBIENT_BUDDY_UPDATES = [
-  {
-    senderName: 'Yuki Tanaka',
-    avatar: '👩‍🎨',
-    flag: '🇯🇵',
-    textTr: '25 dakikalık çizim seansı tamamlandı, kısa bir yeşil çay molası 🍵',
-    textEn: 'Completed a 25-minute drawing session, taking a green tea break 🍵',
-  },
-  {
-    senderName: 'Deniz Yılmaz',
-    avatar: '👨‍💻',
-    flag: '🇹🇷',
-    textTr: 'Algoritma testi başarıyla geçti, şimdi 45 dakikalık derin odak zamanı 🚀',
-    textEn: 'Algorithm test passed! Diving into a 45-minute deep focus block now 🚀',
-  },
-  {
-    senderName: 'Lucas Müller',
-    avatar: '🎧',
-    flag: '🇩🇪',
-    textTr: 'Plak çıtırtısı ve arka plan yağmuru harika bir ambiyans yarattı 🌧️🎶',
-    textEn: 'Vinyl crackle and rain in the background make the coziest atmosphere 🌧️🎶',
-  },
-  {
-    senderName: 'Maya Lin',
-    avatar: '👩‍⚕️',
-    flag: '🇨🇦',
-    textTr: 'Kütüphanedeki sessiz odak enerjisi bana çok iyi geldi, herkese kolay gelsin 📖',
-    textEn: 'The quiet focus energy here is so grounding, happy studying everyone 📖',
-  },
-  {
-    senderName: 'Emre Kaya',
-    avatar: '📚',
-    flag: '🇹🇷',
-    textTr: 'Hedeflenen 2 saatin 1.5 saatini tamamladım, son seansa başlıyorum ☕',
-    textEn: 'Finished 1.5 hours out of my 2-hour daily goal, jumping into the final stretch ☕',
-  },
-  {
-    senderName: 'Zeynep Demir',
-    avatar: '✍️',
-    flag: '🇹🇷',
-    textTr: 'Önemli notları çıkardım, bu oda gerçekten derin odak katıyor ✨',
-    textEn: 'Summarized the key lecture notes, this room is such a focus booster ✨',
-  },
-];
-
+// Real-Time Live Stream (SSE) & HTTP Heartbeat: Bridges Normal & Incognito Windows
 if (typeof window !== 'undefined') {
-  setInterval(() => {
-    const store = useCommunityStore.getState();
-    const lang = useAppStore.getState().language;
+  let eventSource: EventSource | null = null;
 
-    // 1. Subtle online count drift (14 - 19)
-    const newCount = 14 + Math.floor(Math.random() * 6);
+  function connectLiveStream() {
+    try {
+      if (eventSource) {
+        eventSource.close();
+      }
+      eventSource = new EventSource(`/api/live-stream?clientId=${encodeURIComponent(clientSessionId)}`);
 
-    // 2. Slightly advance minutes on random buddy
-    const randomBuddyIdx = Math.floor(Math.random() * store.studyBuddies.length);
-    const updatedBuddies = [...store.studyBuddies];
-    const b = updatedBuddies[randomBuddyIdx];
-    if (b) {
-      updatedBuddies[randomBuddyIdx] = {
-        ...b,
-        minutesFocused: b.minutesFocused + 1,
+      eventSource.addEventListener('presence_sync', (e: MessageEvent) => {
+        try {
+          const data = JSON.parse(e.data);
+          if (data && Array.isArray(data.buddies)) {
+            const selfBuddy = getLocalBuddyInfo();
+            const currentUserId = useAuthStore.getState().user?.uid;
+            activePeers.clear();
+            const uniquePeers = new Map<string, StudyBuddy>();
+
+            for (const b of data.buddies) {
+              const isSelf = Boolean(
+                (b.sessionId && b.sessionId === clientSessionId) ||
+                (b.id && b.id === clientSessionId) ||
+                (currentUserId && (b.id === currentUserId || b.userId === currentUserId))
+              );
+
+              if (!isSelf) {
+                const peerKey = b.id || b.sessionId;
+                if (peerKey && !uniquePeers.has(peerKey)) {
+                  uniquePeers.set(peerKey, { ...b, isSelf: false });
+                  activePeers.set(peerKey, { buddy: { ...b, isSelf: false }, lastSeen: Date.now() });
+                }
+              }
+            }
+
+            const otherBuddies = Array.from(uniquePeers.values());
+            useCommunityStore.setState({
+              onlineCount: Math.max(1, otherBuddies.length + 1),
+              studyBuddies: [selfBuddy, ...otherBuddies],
+            });
+          }
+        } catch (err) {
+          console.error('[SSE presence_sync error]', err);
+        }
+      });
+
+      eventSource.addEventListener('chat_message', (e: MessageEvent) => {
+        try {
+          const msg = JSON.parse(e.data) as ChatMessage;
+          const store = useCommunityStore.getState();
+          const currentUserId = useAuthStore.getState().user?.uid;
+          if (store.messages.some((m) => m.id === msg.id || (m.timestamp === msg.timestamp && m.text === msg.text))) return;
+          const isMe = Boolean(currentUserId && msg.userId === currentUserId);
+          useCommunityStore.setState((state) => ({
+            messages: [...state.messages, { ...msg, isUser: isMe }],
+            unreadCount: state.isChatOpen ? 0 : state.unreadCount + 1,
+          }));
+          if (!isMe && useAppStore.getState().soundFxEnabled) {
+            webAudioEngine.playChatPing();
+          }
+        } catch (err) {
+          console.error('[SSE chat_message error]', err);
+        }
+      });
+
+      eventSource.addEventListener('boss_attack', (e: MessageEvent) => {
+        try {
+          const attack = JSON.parse(e.data);
+          const { handleRemoteBossAttack } = useBossRaidStore.getState() as any;
+          if (typeof handleRemoteBossAttack === 'function') {
+            handleRemoteBossAttack(attack);
+          }
+        } catch (err) {
+          console.error('[SSE boss_attack error]', err);
+        }
+      });
+
+      eventSource.onerror = () => {
+        // Handled automatically by EventSource retry
       };
-    }
+    } catch {}
+  }
 
-    useCommunityStore.setState({
-      onlineCount: newCount,
-      studyBuddies: updatedBuddies,
+  connectLiveStream();
+
+  // Clear previous HTTP presence interval if present (prevents HMR timer leak)
+  if ((window as any).__cozy_presence_interval) {
+    clearInterval((window as any).__cozy_presence_interval);
+  }
+
+  // Send periodic HTTP heartbeat to the live relay (every 6s)
+  (window as any).__cozy_presence_interval = setInterval(() => {
+    sendPresencePingHttp();
+  }, 6000);
+
+  // Send initial presence ping immediately
+  setTimeout(() => {
+    sendPresencePingHttp();
+  }, 300);
+
+  const handlePresenceLeave = () => {
+    try {
+      if (eventSource) eventSource.close();
+      chatChannel?.postMessage({
+        type: 'PRESENCE_LEAVE',
+        clientId: clientSessionId,
+      });
+      const payload = JSON.stringify({ clientId: clientSessionId });
+      if (typeof navigator !== 'undefined' && navigator.sendBeacon) {
+        navigator.sendBeacon('/api/presence-leave', payload);
+      } else {
+        fetch('/api/presence-leave', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: payload,
+          keepalive: true,
+        }).catch(() => {});
+      }
+    } catch {}
+  };
+
+  window.addEventListener('beforeunload', handlePresenceLeave);
+  window.addEventListener('pagehide', handlePresenceLeave);
+
+  // Clean up timers & sockets on Vite HMR
+  if (import.meta.hot) {
+    import.meta.hot.dispose(() => {
+      if ((window as any).__cozy_presence_interval) {
+        clearInterval((window as any).__cozy_presence_interval);
+      }
+      if ((window as any).__cozy_bc_interval) {
+        clearInterval((window as any).__cozy_bc_interval);
+      }
+      if (eventSource) eventSource.close();
     });
-  }, 45000);
+  }
 }

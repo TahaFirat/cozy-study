@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { webAudioEngine } from '../audio/WebAudioEngine';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -26,7 +27,7 @@ export interface DailyChallenge {
 
 // ─── Badge definitions ────────────────────────────────────────────────────────
 
-const INITIAL_BADGES: Badge[] = [
+export const INITIAL_BADGES: Badge[] = [
   {
     id: 'first_step',
     emoji: '🌱',
@@ -406,10 +407,16 @@ interface GamificationState {
   rainySessionCount: number;
   todaySessionCount: number;
   todaySessionDate: string;
+  lastCatPetTime: number;
+  catPetCount: number;
+  recentUnlockedBadge: Badge | null;
+  badgeQueue: Badge[];
 
   // Actions
   addXp: (amount: number, reason?: string) => void;
   checkAndUnlockBadge: (badgeId: string) => boolean;
+  dismissRecentUnlockedBadge: () => void;
+  petCat: () => { rewarded: boolean; xpAwarded: number; cooldownRemainingMs: number; totalPets: number };
   checkBadgesAfterSession: (session: {
     durationMinutes: number;
     roomId: string;
@@ -447,28 +454,95 @@ export const useGamificationStore = create<GamificationState>()(
       rainySessionCount: 0,
       todaySessionCount: 0,
       todaySessionDate: getTodayDateStr(),
+      lastCatPetTime: 0,
+      catPetCount: 0,
+      recentUnlockedBadge: null,
+      badgeQueue: [],
 
-      // ── Computed ────────────────────────────────────────────────────────────
-      getLevel: () => Math.floor(get().xp / 500) + 1,
-      getXpToNextLevel: () => 500 - (get().xp % 500),
-      getLevelProgress: () => Math.round(((get().xp % 500) / 500) * 100),
+      // ── Computed with NaN / Negative guards ─────────────────────────────────
+      getLevel: () => {
+        const xp = Math.max(0, Number(get().xp) || 0);
+        return Math.floor(xp / 500) + 1;
+      },
+      getXpToNextLevel: () => {
+        const xp = Math.max(0, Number(get().xp) || 0);
+        const rem = xp % 500;
+        return rem === 0 && xp > 0 ? 500 : 500 - rem;
+      },
+      getLevelProgress: () => {
+        const xp = Math.max(0, Number(get().xp) || 0);
+        return Math.min(100, Math.max(0, Math.round(((xp % 500) / 500) * 100)));
+      },
 
       // ── Add XP ──────────────────────────────────────────────────────────────
       addXp: (amount, _reason) => {
-        set((state) => ({ xp: state.xp + amount }));
+        const validAmount = Math.max(0, Math.floor(Number(amount) || 0));
+        if (validAmount <= 0) return;
+        set((state) => ({ xp: (state.xp || 0) + validAmount }));
       },
 
-      // ── Badge unlock ────────────────────────────────────────────────────────
+      dismissRecentUnlockedBadge: () => {
+        const queue = get().badgeQueue || [];
+        if (queue.length > 0) {
+          const [nextBadge, ...rest] = queue;
+          set({ recentUnlockedBadge: nextBadge, badgeQueue: rest });
+        } else {
+          set({ recentUnlockedBadge: null, badgeQueue: [] });
+        }
+      },
+
+      // ── Cat Petting (Balanced with 10-minute cooldown) ───────────────────────
+      petCat: () => {
+        const state = get();
+        const now = Date.now();
+        const cooldownMs = 10 * 60 * 1000; // 10 minutes
+        const timeSince = now - (state.lastCatPetTime || 0);
+        const newPetCount = (state.catPetCount || 0) + 1;
+
+        if (newPetCount >= 25) {
+          get().checkAndUnlockBadge('cat_whisperer');
+        }
+
+        if (timeSince >= cooldownMs) {
+          set({
+            lastCatPetTime: now,
+            catPetCount: newPetCount,
+          });
+          get().addXp(15, 'Cat petting');
+          return { rewarded: true, xpAwarded: 15, cooldownRemainingMs: 0, totalPets: newPetCount };
+        } else {
+          set({ catPetCount: newPetCount });
+          return {
+            rewarded: false,
+            xpAwarded: 0,
+            cooldownRemainingMs: cooldownMs - timeSince,
+            totalPets: newPetCount,
+          };
+        }
+      },
+
+      // ── Badge unlock with queueing ──────────────────────────────────────────
       checkAndUnlockBadge: (badgeId) => {
         const state = get();
         const badge = state.badges.find((b) => b.id === badgeId);
         if (!badge || badge.unlocked) return false;
 
-        set((s) => ({
-          badges: s.badges.map((b) =>
-            b.id === badgeId ? { ...b, unlocked: true, unlockedAt: Date.now() } : b
-          ),
-        }));
+        const updatedBadge: Badge = { ...badge, unlocked: true, unlockedAt: Date.now() };
+
+        set((s) => {
+          const nextQueue = s.recentUnlockedBadge 
+            ? [...(s.badgeQueue || []), updatedBadge] 
+            : (s.badgeQueue || []);
+          return {
+            badges: s.badges.map((b) => b.id === badgeId ? updatedBadge : b),
+            recentUnlockedBadge: s.recentUnlockedBadge ? s.recentUnlockedBadge : updatedBadge,
+            badgeQueue: nextQueue,
+          };
+        });
+
+        try {
+          webAudioEngine.playVictory();
+        } catch {}
 
         get().addXp(25, `Badge unlocked: ${badgeId}`);
         return true;
@@ -571,7 +645,10 @@ export const useGamificationStore = create<GamificationState>()(
         const newVisited = [...state.visitedRooms, roomId];
         set({ visitedRooms: newVisited });
 
-        const ALL_ROOMS = ['bedroom', 'apartment', 'cabin', 'library', 'cafe'];
+        // Award XP for discovering a new room (+20 XP)
+        get().addXp(20, `Discovered room: ${roomId}`);
+
+        const ALL_ROOMS = ['bedroom', 'apartment', 'cabin', 'library', 'coffee_shop', 'greenhouse', 'cyberpunk_loft'];
         if (ALL_ROOMS.every((r) => newVisited.includes(r))) {
           get().checkAndUnlockBadge('explorer');
         }

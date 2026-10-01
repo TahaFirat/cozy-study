@@ -237,7 +237,6 @@ export const ROOMS: RoomDefinition[] = [
     themeColor: '#84cc16',
     defaultTimeOfDay: 'afternoon',
     defaultWeather: 'rain',
-    isProOnly: true,
     defaultAmbient: {
       rain: 0.5,
       roomTone: 0.2,
@@ -253,7 +252,6 @@ export const ROOMS: RoomDefinition[] = [
     themeColor: '#a855f7',
     defaultTimeOfDay: 'midnight',
     defaultWeather: 'heavy_rain',
-    isProOnly: true,
     defaultAmbient: {
       rain: 0.65,
       thunder: 0.25,

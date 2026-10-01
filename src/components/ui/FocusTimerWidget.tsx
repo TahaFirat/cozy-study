@@ -80,7 +80,7 @@ export const FocusTimerWidget: React.FC = () => {
       )}
 
       <div
-        className={`flex items-center gap-3.5 px-5 py-2.5 glass-island text-stone-100 rounded-2xl shadow-2xl transition-all duration-300 ${
+        className={`flex items-center gap-2.5 sm:gap-3.5 px-3.5 sm:px-5 py-2 sm:py-2.5 glass-island text-stone-100 rounded-2xl shadow-2xl transition-all duration-300 ${
           isRunning
             ? breakMode !== 'none'
               ? 'border-emerald-500/70 shadow-[0_0_24px_rgba(16,185,129,0.25)] ring-1 ring-emerald-500/30'
@@ -91,7 +91,7 @@ export const FocusTimerWidget: React.FC = () => {
         {/* Status Indicator / Focus Icon */}
         <button
           onClick={() => setShowPresets(!showPresets)}
-          className={`p-2 rounded-lg transition-colors cursor-pointer ${
+          className={`p-1.5 sm:p-2 rounded-lg transition-colors cursor-pointer ${
             isRunning
               ? breakMode !== 'none'
                 ? 'text-emerald-400 animate-pulse bg-emerald-500/10'
@@ -101,28 +101,28 @@ export const FocusTimerWidget: React.FC = () => {
           title={t.timer.customDuration}
         >
           {breakMode !== 'none' ? (
-            <Coffee className="w-5 h-5 text-emerald-400" />
+            <Coffee className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-400" />
           ) : isRunning ? (
-            <Sparkles className="w-5 h-5 text-amber-400" />
+            <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 text-amber-400" />
           ) : (
-            <Clock className="w-5 h-5" />
+            <Clock className="w-4 h-4 sm:w-5 sm:h-5" />
           )}
         </button>
 
         {/* Large, Clear Digital Countdown */}
         <div 
           onClick={() => setShowPresets(!showPresets)}
-          className="font-mono text-3xl font-bold tracking-widest text-amber-100 min-w-[95px] text-center cursor-pointer select-none"
+          className="font-mono text-2xl sm:text-3xl font-bold tracking-widest text-amber-100 min-w-[76px] sm:min-w-[95px] text-center cursor-pointer select-none"
           title={t.timer.customDuration}
         >
           {formatTime(secondsRemaining)}
         </div>
 
         {/* Action Buttons: Play/Pause & Reset */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 sm:gap-2">
           <button
             onClick={handleToggleTimer}
-            className={`w-9 h-9 flex items-center justify-center rounded-full transition-colors cursor-pointer shadow-md ${
+            className={`w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center rounded-full transition-colors cursor-pointer shadow-md ${
               isRunning
                 ? breakMode !== 'none'
                   ? 'bg-emerald-500 hover:bg-emerald-400 text-stone-950'
@@ -132,9 +132,9 @@ export const FocusTimerWidget: React.FC = () => {
             title={isRunning ? t.timer.pause : t.timer.start}
           >
             {isRunning ? (
-              <Pause className="w-4 h-4 fill-current" />
+              <Pause className="w-3.5 h-3.5 sm:w-4 sm:h-4 fill-current" />
             ) : (
-              <Play className="w-4 h-4 fill-current ml-0.5" />
+              <Play className="w-3.5 h-3.5 sm:w-4 sm:h-4 fill-current ml-0.5" />
             )}
           </button>
 
@@ -143,16 +143,16 @@ export const FocusTimerWidget: React.FC = () => {
               resetTimer();
               setBreakMode('none');
             }}
-            className="p-2 text-stone-400 hover:text-stone-200 transition-colors cursor-pointer rounded-lg hover:bg-stone-800/80"
+            className="p-1.5 sm:p-2 text-stone-400 hover:text-stone-200 transition-colors cursor-pointer rounded-lg hover:bg-stone-800/80"
             title={t.timer.reset}
           >
-            <RotateCcw className="w-4 h-4" />
+            <RotateCcw className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
           </button>
         </div>
 
         {/* Duration & Break selector dropdown popup */}
         {showPresets && (
-          <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-stone-900/95 border border-stone-700/80 rounded-xl shadow-2xl p-2.5 flex flex-col gap-2 backdrop-blur-md min-w-[260px]">
+          <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-stone-900/95 border border-stone-700/80 rounded-xl shadow-2xl p-2.5 flex flex-col gap-2 backdrop-blur-md w-[88vw] sm:w-auto sm:min-w-[270px] max-w-[320px]">
             {/* Focus presets row */}
             <div className="flex items-center justify-between gap-1">
               <span className="text-[11px] font-semibold text-amber-400/80 uppercase tracking-wider px-1">

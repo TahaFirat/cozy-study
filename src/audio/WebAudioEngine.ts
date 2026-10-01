@@ -10,7 +10,11 @@ class WebAudioEngine {
   private activeGenerators: Partial<Record<AmbientSoundChannel, () => void>> = {};
   private clockInterval: number | null = null;
   private keyboardInterval: number | null = null;
+  private keyboardTimeout: number | null = null;
   private thunderInterval: number | null = null;
+  private thunderTimeout: number | null = null;
+  private cafeClinkTimeout: number | null = null;
+  private forestBirdTimeout: number | null = null;
   private generativeLofiInterval: number | null = null;
   private windGustTimeout: number | null = null;
   private binauralOscL: OscillatorNode | null = null;
@@ -153,10 +157,81 @@ class WebAudioEngine {
     return buffer;
   }
 
+  // Helper: Create seamless organic feline purr buffer
+  // Models real feline bio-acoustics: 23.8Hz laryngeal glottal pulses + Hann windowing + chest tone + throat air
+  private createCatPurrBuffer(seconds = 4.0): AudioBuffer {
+    if (!this.ctx) throw new Error('No audio context');
+    const sampleRate = this.ctx.sampleRate;
+    const numSamples = Math.floor(sampleRate * seconds);
+    const buffer = this.ctx.createBuffer(1, numSamples, sampleRate);
+    const data = buffer.getChannelData(0);
+
+    const pulseRate = 23.8; // Feline laryngeal twitch rate in Hz
+    const pulsePeriod = sampleRate / pulseRate;
+    const pulseWidth = Math.floor(sampleRate * 0.025); // 25ms Hann pulse window
+
+    // Pre-generate brown noise for soft throat air turbulence
+    const throatNoise = new Float32Array(numSamples);
+    let lastNoise = 0.0;
+    for (let i = 0; i < numSamples; i++) {
+      const white = Math.random() * 2 - 1;
+      lastNoise = (lastNoise + 0.03 * white) / 1.03;
+      throatNoise[i] = lastNoise;
+    }
+
+    for (let i = 0; i < numSamples; i++) {
+      const t = i / sampleRate;
+
+      // 4.0s Feline Respiratory Cycle (Inhale 1.7s, pause 0.2s, Exhale 1.9s, pause 0.2s)
+      const cycleT = t % 4.0;
+      let breathGain = 0.0;
+      let chestFreq = 72.0;
+
+      if (cycleT < 1.7) {
+        // Inhalation: soft, rising breath swell
+        const p = cycleT / 1.7;
+        breathGain = 0.35 + 0.65 * Math.sin(p * Math.PI);
+        chestFreq = 74.0 + 4.0 * Math.sin(p * Math.PI);
+      } else if (cycleT < 1.9) {
+        // Turnaround pause
+        breathGain = 0.22;
+        chestFreq = 70.0;
+      } else if (cycleT < 3.8) {
+        // Exhalation: warmer, deeper chest resonance
+        const p = (cycleT - 1.9) / 1.9;
+        breathGain = 0.45 + 0.55 * Math.sin(p * Math.PI);
+        chestFreq = 68.0 + 3.0 * Math.sin(p * Math.PI);
+      } else {
+        // Turnaround pause
+        breathGain = 0.20;
+        chestFreq = 70.0;
+      }
+
+      // Glottal pulse calculation (periodic pulse with Hann window smoothing)
+      const pulsePhase = i % pulsePeriod;
+      let pulseEnv = 0.0;
+      if (pulsePhase < pulseWidth) {
+        pulseEnv = 0.5 * (1.0 - Math.cos((2.0 * Math.PI * pulsePhase) / pulseWidth));
+      }
+
+      // Warm acoustic chest tone (fundamental sine + soft 2nd harmonic)
+      const chestTone = Math.sin(2.0 * Math.PI * chestFreq * t) + 0.35 * Math.sin(2.0 * Math.PI * (chestFreq * 2.0) * t);
+
+      // Soft throat friction air
+      const frictionAir = throatNoise[i] * 1.8;
+
+      // Composite organic acoustic feline purr sample
+      const sample = (chestTone * 0.70 + frictionAir * 0.30) * pulseEnv * breathGain;
+      data[i] = sample * 0.75;
+    }
+
+    return buffer;
+  }
+
   private startContinuousGenerators() {
     if (!this.ctx) return;
 
-    // 1. RAIN GENERATOR: Filtered noise + raindrop patters
+    // 1. RAIN GENERATOR: Filtered noise + dynamic wind-gust modulation & organic droplet patter
     try {
       const rainBuf = this.createNoiseBuffer('pink');
       const rainSource = this.ctx.createBufferSource();
@@ -165,16 +240,33 @@ class WebAudioEngine {
 
       const rainFilter = this.ctx.createBiquadFilter();
       rainFilter.type = 'lowpass';
-      rainFilter.frequency.setValueAtTime(1100, this.ctx.currentTime);
+      rainFilter.frequency.setValueAtTime(1150, this.ctx.currentTime);
 
       const rainHighpass = this.ctx.createBiquadFilter();
       rainHighpass.type = 'highpass';
-      rainHighpass.frequency.setValueAtTime(300, this.ctx.currentTime);
+      rainHighpass.frequency.setValueAtTime(280, this.ctx.currentTime);
+
+      const rainSwellGain = this.ctx.createGain();
+      rainSwellGain.gain.setValueAtTime(1.30, this.ctx.currentTime);
 
       rainSource.connect(rainFilter);
       rainFilter.connect(rainHighpass);
-      if (this.ambientGains.rain) rainHighpass.connect(this.ambientGains.rain);
+      rainHighpass.connect(rainSwellGain);
+      if (this.ambientGains.rain) rainSwellGain.connect(this.ambientGains.rain);
       rainSource.start();
+
+      // Dynamic organic wind gust swell & rain frequency breathing (wind blows rain sheets against glass)
+      const modulateRainWind = () => {
+        if (!this.ctx || !this.ambientGains.rain) return;
+        const now = this.ctx.currentTime;
+        const rampTime = 3.5 + Math.random() * 4.0; // 3.5-7.5s swell transition
+        const targetCutoff = 950 + Math.random() * 650;
+        const targetGain = 1.05 + Math.random() * 0.45;
+        rainFilter.frequency.exponentialRampToValueAtTime(Math.max(200, targetCutoff), now + rampTime);
+        rainSwellGain.gain.linearRampToValueAtTime(targetGain, now + rampTime);
+        setTimeout(modulateRainWind, rampTime * 1000);
+      };
+      modulateRainWind();
     } catch (e) {
       console.warn('Rain audio error', e);
     }
@@ -192,7 +284,7 @@ class WebAudioEngine {
       fireFilter.frequency.setValueAtTime(360, this.ctx.currentTime);
 
       const fireGain = this.ctx.createGain();
-      fireGain.gain.setValueAtTime(0.65, this.ctx.currentTime);
+      fireGain.gain.setValueAtTime(0.80, this.ctx.currentTime);
 
       fireSource.connect(fireFilter);
       fireFilter.connect(fireGain);
@@ -211,7 +303,7 @@ class WebAudioEngine {
       sizzleFilter.Q.setValueAtTime(1.8, this.ctx.currentTime);
 
       const sizzleGain = this.ctx.createGain();
-      sizzleGain.gain.setValueAtTime(0.20, this.ctx.currentTime);
+      sizzleGain.gain.setValueAtTime(0.32, this.ctx.currentTime);
 
       sizzleSource.connect(sizzleFilter);
       sizzleFilter.connect(sizzleGain);
@@ -235,7 +327,7 @@ class WebAudioEngine {
         snapFilter.Q.setValueAtTime(isSharpSnap ? 4.5 : 2.8, now);
 
         const snapGain = this.ctx.createGain();
-        const peakVol = (isSharpSnap ? 0.30 + Math.random() * 0.35 : 0.15 + Math.random() * 0.22) * volumeScale;
+        const peakVol = (isSharpSnap ? 0.42 + Math.random() * 0.35 : 0.25 + Math.random() * 0.25) * volumeScale;
         snapGain.gain.setValueAtTime(peakVol, now);
         // Instant micro-decay for that crisp, real wood "çıt" transient
         const decayDuration = isSharpSnap ? (0.008 + Math.random() * 0.016) : (0.018 + Math.random() * 0.030);
@@ -257,7 +349,7 @@ class WebAudioEngine {
           osc.frequency.setValueAtTime(startPitch, now);
           osc.frequency.exponentialRampToValueAtTime(60, now + 0.04);
 
-          const oscVol = (0.10 + Math.random() * 0.16) * volumeScale;
+          const oscVol = (0.18 + Math.random() * 0.20) * volumeScale;
           oscGain.gain.setValueAtTime(oscVol, now);
           oscGain.gain.exponentialRampToValueAtTime(0.001, now + 0.038);
 
@@ -275,7 +367,7 @@ class WebAudioEngine {
           thumpOsc.frequency.setValueAtTime(105 + Math.random() * 35, now);
           thumpOsc.frequency.exponentialRampToValueAtTime(45, now + 0.08);
 
-          thumpGain.gain.setValueAtTime(0.18 * volumeScale, now);
+          thumpGain.gain.setValueAtTime(0.28 * volumeScale, now);
           thumpGain.gain.exponentialRampToValueAtTime(0.001, now + 0.075);
 
           thumpOsc.connect(thumpGain);
@@ -285,29 +377,41 @@ class WebAudioEngine {
         }
       };
 
-      // Crackle loop with natural clustering (wood pops in bursts!)
+      // Authentic Poisson Cluster Distribution for Fireplace Wood Pops ("çıt-çıt, pıt, çatırtı"):
       const triggerFireCrackle = () => {
         if (!this.ctx || !this.ambientGains.fireplace) return;
 
-        // Play a primary pop
+        // Primary wood pop
         playWoodPop(1.0, Math.random() > 0.25);
 
-        // 50% chance to trigger an immediate micro-crackle companion 30-90ms later ("çıt-çıt!")
-        if (Math.random() < 0.50) {
+        // 60% chance of an immediate twin crackle 25-70ms later ("çıt-çıt!")
+        if (Math.random() < 0.60) {
           setTimeout(() => {
-            playWoodPop(0.75, true);
-          }, 30 + Math.random() * 65);
+            playWoodPop(0.70 + Math.random() * 0.30, true);
+          }, 25 + Math.random() * 50);
         }
 
-        // 25% chance of a 3rd trailing ember pop ("çıt-çıt-pıt")
-        if (Math.random() < 0.25) {
+        // 35% chance of a 3rd trailing ember sizzle 90-180ms later ("çıt-çıt-pıt")
+        if (Math.random() < 0.35) {
           setTimeout(() => {
-            playWoodPop(0.55, true);
-          }, 100 + Math.random() * 95);
+            playWoodPop(0.50 + Math.random() * 0.30, true);
+          }, 90 + Math.random() * 90);
         }
 
-        // Natural pause before next crackle event (between 100ms and 500ms)
-        const nextDelay = 100 + Math.random() * 400;
+        // 18% chance of a 4th micro-spark pop 220-350ms later
+        if (Math.random() < 0.18) {
+          setTimeout(() => {
+            playWoodPop(0.35 + Math.random() * 0.25, true);
+          }, 220 + Math.random() * 130);
+        }
+
+        // Natural Poisson pause:
+        // 28% of the time, take a relaxing 1.5s - 3.8s quiet lull where only soft embers simmer;
+        // otherwise a natural 250ms - 850ms interval between crackle clusters.
+        const isQuietLull = Math.random() < 0.28;
+        const nextDelay = isQuietLull 
+          ? 1500 + Math.random() * 2300 
+          : 250 + Math.random() * 600;
         setTimeout(triggerFireCrackle, nextDelay);
       };
       triggerFireCrackle();
@@ -327,7 +431,7 @@ class WebAudioEngine {
       vinylFilter.frequency.setValueAtTime(2500, this.ctx.currentTime);
 
       const vinylGain = this.ctx.createGain();
-      vinylGain.gain.setValueAtTime(0.12, this.ctx.currentTime);
+      vinylGain.gain.setValueAtTime(0.24, this.ctx.currentTime);
 
       vinylSource.connect(vinylFilter);
       vinylFilter.connect(vinylGain);
@@ -338,11 +442,6 @@ class WebAudioEngine {
     }
 
     // 4. PROCEDURAL STOCHASTIC WIND GENERATOR
-    // Authentic organic dual-layer acoustic wind simulation:
-    // - Layer 1 (Breeze Floor): Constant gentle pink noise filtered through gentle lowpass (220Hz)
-    // - Layer 2 (Stochastic Gusts): Bandpass noise triggered with Poisson/Brownian random intervals (3.5s - 12s),
-    //   variable intensity (whisper -> mountain gale), organic attack/sustain/decay curves, and swept resonant whistle frequencies.
-    // ZERO periodic LFO loops! Completely non-repeating and naturalistic.
     try {
       const windBuf = this.createNoiseBuffer('pink');
 
@@ -355,7 +454,7 @@ class WebAudioEngine {
       baseFilter.frequency.setValueAtTime(220, this.ctx.currentTime);
       baseFilter.Q.setValueAtTime(0.7, this.ctx.currentTime);
       const baseGain = this.ctx.createGain();
-      baseGain.gain.setValueAtTime(0.28, this.ctx.currentTime);
+      baseGain.gain.setValueAtTime(0.40, this.ctx.currentTime);
       baseSource.connect(baseFilter);
       baseFilter.connect(baseGain);
 
@@ -364,6 +463,7 @@ class WebAudioEngine {
       gustSource.buffer = windBuf;
       gustSource.loop = true;
       const gustFilter = this.ctx.createBiquadFilter();
+      gustFilter.type = 'lowpass';
       gustFilter.type = 'lowpass';
       gustFilter.frequency.setValueAtTime(280, this.ctx.currentTime);
       gustFilter.Q.setValueAtTime(0.85, this.ctx.currentTime);
@@ -465,61 +565,134 @@ class WebAudioEngine {
       console.warn('Room tone error', e);
     }
 
-    // 6. CAFE GENERATOR: Filtered murmur + ambient wash
+    // 6. CAFE GENERATOR: Multi-formant vocal murmur + ceramic cup clinks + espresso hiss
     try {
       const cafeBuf = this.createNoiseBuffer('pink');
       const cafeSource = this.ctx.createBufferSource();
       cafeSource.buffer = cafeBuf;
       cafeSource.loop = true;
 
-      const cafeFilter = this.ctx.createBiquadFilter();
-      cafeFilter.type = 'bandpass';
-      cafeFilter.frequency.setValueAtTime(650, this.ctx.currentTime);
-      cafeFilter.Q.setValueAtTime(1.2, this.ctx.currentTime);
+      // Multi-band formant filter: speech frequencies (360Hz chest, 880Hz throat)
+      const formant1 = this.ctx.createBiquadFilter();
+      formant1.type = 'bandpass';
+      formant1.frequency.setValueAtTime(360, this.ctx.currentTime);
+      formant1.Q.setValueAtTime(1.8, this.ctx.currentTime);
 
-      cafeSource.connect(cafeFilter);
-      if (this.ambientGains.cafe) cafeFilter.connect(this.ambientGains.cafe);
+      const formant2 = this.ctx.createBiquadFilter();
+      formant2.type = 'bandpass';
+      formant2.frequency.setValueAtTime(880, this.ctx.currentTime);
+      formant2.Q.setValueAtTime(2.2, this.ctx.currentTime);
+
+      const cafeGain1 = this.ctx.createGain();
+      cafeGain1.gain.setValueAtTime(0.40, this.ctx.currentTime);
+      const cafeGain2 = this.ctx.createGain();
+      cafeGain2.gain.setValueAtTime(0.30, this.ctx.currentTime);
+
+      cafeSource.connect(formant1);
+      cafeSource.connect(formant2);
+      formant1.connect(cafeGain1);
+      formant2.connect(cafeGain2);
+
+      if (this.ambientGains.cafe) {
+        cafeGain1.connect(this.ambientGains.cafe);
+        cafeGain2.connect(this.ambientGains.cafe);
+      }
       cafeSource.start();
+
+      // Intermittent subtle coffee shop ceramic cup/saucer clinks
+      const scheduleCupClink = () => {
+        if (!this.ctx || !this.ambientGains.cafe) return;
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sine';
+        const clinkFreq = 2100 + Math.random() * 600;
+        osc.frequency.setValueAtTime(clinkFreq, now);
+        gain.gain.setValueAtTime(0.12 + Math.random() * 0.05, now);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.38);
+
+        osc.connect(gain);
+        gain.connect(this.ambientGains.cafe);
+        osc.start(now);
+        osc.stop(now + 0.40);
+
+        const next = 4500 + Math.random() * 8000;
+        this.cafeClinkTimeout = window.setTimeout(scheduleCupClink, next);
+      };
+      scheduleCupClink();
     } catch (e) {
       console.warn('Cafe audio error', e);
     }
 
-    // 7. FOREST GENERATOR: Rustling foliage
+    // 7. FOREST GENERATOR: Rustling foliage + occasional gentle distant songbirds
     try {
       const forestBuf = this.createNoiseBuffer('pink');
       const forestSource = this.ctx.createBufferSource();
       forestSource.buffer = forestBuf;
       forestSource.loop = true;
 
+      // Canopy wind through leaves (warm bandpass, not harsh hiss)
       const forestFilter = this.ctx.createBiquadFilter();
-      forestFilter.type = 'highpass';
-      forestFilter.frequency.setValueAtTime(1800, this.ctx.currentTime);
+      forestFilter.type = 'bandpass';
+      forestFilter.frequency.setValueAtTime(850, this.ctx.currentTime);
+      forestFilter.Q.setValueAtTime(1.2, this.ctx.currentTime);
+
+      const forestGain = this.ctx.createGain();
+      forestGain.gain.setValueAtTime(0.50, this.ctx.currentTime);
 
       forestSource.connect(forestFilter);
-      if (this.ambientGains.forest) forestFilter.connect(this.ambientGains.forest);
+      forestFilter.connect(forestGain);
+      if (this.ambientGains.forest) forestGain.connect(this.ambientGains.forest);
       forestSource.start();
+
+      // Intermittent gentle distant songbird trills
+      const scheduleBirdSong = () => {
+        if (!this.ctx || !this.ambientGains.forest) return;
+        const now = this.ctx.currentTime;
+        const notes = 2 + Math.floor(Math.random() * 3);
+        for (let i = 0; i < notes; i++) {
+          const t = now + i * 0.12;
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'sine';
+          const baseF = 2800 + Math.random() * 700;
+          osc.frequency.setValueAtTime(baseF, t);
+          osc.frequency.linearRampToValueAtTime(baseF + 380, t + 0.05);
+          osc.frequency.linearRampToValueAtTime(baseF - 120, t + 0.10);
+          gain.gain.setValueAtTime(0.001, t);
+          gain.gain.linearRampToValueAtTime(0.15, t + 0.025);
+          gain.gain.exponentialRampToValueAtTime(0.0005, t + 0.11);
+          osc.connect(gain);
+          gain.connect(this.ambientGains.forest);
+          osc.start(t);
+          osc.stop(t + 0.12);
+        }
+        const next = 6000 + Math.random() * 11000;
+        this.forestBirdTimeout = window.setTimeout(scheduleBirdSong, next);
+      };
+      scheduleBirdSong();
     } catch (e) {
       console.warn('Forest audio error', e);
     }
 
-    // 8. NIGHT INSECTS / CRICKETS: High frequency chirping rhythm
+    // 8. NIGHT INSECTS / CRICKETS: High frequency harmonic chirping rhythm
     try {
       const cricketTrigger = () => {
         if (!this.ctx || !this.ambientGains.insects) return;
         const now = this.ctx.currentTime;
         
-        // 3 mini chirps in rapid succession
-        for (let i = 0; i < 3; i++) {
-          const chirpTime = now + i * 0.06;
+        // 4 mini chirps in rapid succession
+        for (let i = 0; i < 4; i++) {
+          const chirpTime = now + i * 0.055;
           const osc1 = this.ctx.createOscillator();
           const oscGain = this.ctx.createGain();
 
           osc1.type = 'sine';
-          osc1.frequency.setValueAtTime(4600 + Math.random() * 200, chirpTime);
+          osc1.frequency.setValueAtTime(4400 + Math.random() * 150, chirpTime);
 
           oscGain.gain.setValueAtTime(0, chirpTime);
-          oscGain.gain.linearRampToValueAtTime(0.04, chirpTime + 0.015);
-          oscGain.gain.linearRampToValueAtTime(0, chirpTime + 0.04);
+          oscGain.gain.linearRampToValueAtTime(0.14, chirpTime + 0.015);
+          oscGain.gain.linearRampToValueAtTime(0, chirpTime + 0.045);
 
           osc1.connect(oscGain);
           oscGain.connect(this.ambientGains.insects);
@@ -528,7 +701,7 @@ class WebAudioEngine {
           osc1.stop(chirpTime + 0.05);
         }
 
-        const next = 700 + Math.random() * 1200;
+        const next = 650 + Math.random() * 950;
         setTimeout(cricketTrigger, next);
       };
       cricketTrigger();
@@ -536,7 +709,7 @@ class WebAudioEngine {
       console.warn('Insects audio error', e);
     }
 
-    // 9. CLOCK: Steady 1000ms tick-tock
+    // 9. CLOCK: Warm wooden pendulum tick-tock (Alternating tick/tock resonance)
     try {
       let isTick = true;
       this.clockInterval = window.setInterval(() => {
@@ -544,88 +717,184 @@ class WebAudioEngine {
         const now = this.ctx.currentTime;
         const osc = this.ctx.createOscillator();
         const gain = this.ctx.createGain();
+        const filter = this.ctx.createBiquadFilter();
 
         osc.type = 'triangle';
-        const freq = isTick ? 1200 : 850;
+        const startFreq = isTick ? 760 : 520;
         isTick = !isTick;
 
-        osc.frequency.setValueAtTime(freq, now);
-        osc.frequency.exponentialRampToValueAtTime(100, now + 0.025);
+        osc.frequency.setValueAtTime(startFreq, now);
+        osc.frequency.exponentialRampToValueAtTime(90, now + 0.032);
 
-        gain.gain.setValueAtTime(0.09, now);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.025);
+        filter.type = 'lowpass';
+        filter.frequency.setValueAtTime(1200, now);
 
-        osc.connect(gain);
+        gain.gain.setValueAtTime(isTick ? 0.22 : 0.26, now);
+        gain.gain.exponentialRampToValueAtTime(0.0008, now + 0.030);
+
+        osc.connect(filter);
+        filter.connect(gain);
         gain.connect(this.ambientGains.clock);
 
         osc.start(now);
-        osc.stop(now + 0.03);
+        osc.stop(now + 0.035);
       }, 1000);
     } catch (e) {
       console.warn('Clock audio error', e);
     }
 
-    // 10. KEYBOARD CLICKS: Intermittent realistic typing bursts
+    // 10. AUTHENTIC MECHANICAL KEYBOARD: "Thocky" switches with contact clicks and human typing cadence
     try {
+      const whiteNoiseBuf = this.createNoiseBuffer('white', 0.5);
+
+      const playKeystroke = (t: number, isSpace = false) => {
+        if (!this.ctx || !this.ambientGains.keyboard) return;
+
+        // A. Tactile Leaf Snap / Crisp Contact Transient
+        const clickSource = this.ctx.createBufferSource();
+        clickSource.buffer = whiteNoiseBuf;
+        const clickFilter = this.ctx.createBiquadFilter();
+        clickFilter.type = 'bandpass';
+        clickFilter.frequency.setValueAtTime(isSpace ? 2800 : (3400 + Math.random() * 900), t);
+        clickFilter.Q.setValueAtTime(4.2, t);
+
+        const clickGain = this.ctx.createGain();
+        clickGain.gain.setValueAtTime(0.18 + Math.random() * 0.06, t);
+        clickGain.gain.exponentialRampToValueAtTime(0.0005, t + 0.008);
+
+        clickSource.connect(clickFilter);
+        clickFilter.connect(clickGain);
+        clickGain.connect(this.ambientGains.keyboard);
+        clickSource.start(t);
+        clickSource.stop(t + 0.012);
+
+        // B. Switch Housing & Stem Bottom-Out ("Thock" - Resonant Low-Mid Acoustic Body)
+        const thockOsc = this.ctx.createOscillator();
+        const thockFilter = this.ctx.createBiquadFilter();
+        const thockGain = this.ctx.createGain();
+
+        thockOsc.type = 'triangle';
+        const startPitch = isSpace 
+          ? (165 + Math.random() * 30) 
+          : (280 + Math.random() * 80);
+        thockOsc.frequency.setValueAtTime(startPitch, t);
+        thockOsc.frequency.exponentialRampToValueAtTime(Math.max(40, startPitch * 0.38), t + 0.030);
+
+        thockFilter.type = 'lowpass';
+        thockFilter.frequency.setValueAtTime(isSpace ? 480 : 720, t);
+
+        thockGain.gain.setValueAtTime((isSpace ? 0.48 : 0.38) + Math.random() * 0.10, t);
+        thockGain.gain.exponentialRampToValueAtTime(0.001, t + (isSpace ? 0.040 : 0.028));
+
+        thockOsc.connect(thockFilter);
+        thockFilter.connect(thockGain);
+        thockGain.connect(this.ambientGains.keyboard);
+        thockOsc.start(t);
+        thockOsc.stop(t + 0.045);
+      };
+
       const scheduleTypingBurst = () => {
         if (!this.ctx || !this.ambientGains.keyboard) return;
-        const numKeys = 2 + Math.floor(Math.random() * 6);
-        let t = this.ctx.currentTime;
+        const numKeys = 3 + Math.floor(Math.random() * 7);
+        let t = this.ctx.currentTime + 0.05;
 
         for (let i = 0; i < numKeys; i++) {
-          const osc = this.ctx.createOscillator();
-          const gain = this.ctx.createGain();
-
-          osc.type = 'square';
-          osc.frequency.setValueAtTime(1800 + Math.random() * 1200, t);
-          osc.frequency.exponentialRampToValueAtTime(200, t + 0.02);
-
-          gain.gain.setValueAtTime(0.045, t);
-          gain.gain.exponentialRampToValueAtTime(0.001, t + 0.018);
-
-          osc.connect(gain);
-          gain.connect(this.ambientGains.keyboard);
-
-          osc.start(t);
-          osc.stop(t + 0.022);
-
-          t += 0.09 + Math.random() * 0.12;
+          const isSpace = i === numKeys - 1 || Math.random() < 0.16;
+          playKeystroke(t, isSpace);
+          t += isSpace ? (0.16 + Math.random() * 0.12) : (0.085 + Math.random() * 0.065);
         }
 
-        const nextBurst = 1500 + Math.random() * 4000;
-        setTimeout(scheduleTypingBurst, nextBurst);
+        // Natural pause between words / sentences (1.0s to 3.2s)
+        const nextBurst = 1000 + Math.random() * 2200;
+        this.keyboardTimeout = window.setTimeout(scheduleTypingBurst, nextBurst);
       };
       scheduleTypingBurst();
     } catch (e) {
       console.warn('Keyboard audio error', e);
     }
 
-    // 11. THUNDER: Occasional deep low rumble
+    // 11. CINEMATIC ROLLING THUNDER: Multi-stage acoustic shockwave & deep resonant rumble
     try {
-      const scheduleThunder = () => {
+      const brownNoiseBuf = this.createNoiseBuffer('brown', 4.0);
+      const pinkNoiseBuf = this.createNoiseBuffer('pink', 2.0);
+
+      const triggerThunderRoll = () => {
         if (!this.ctx || !this.ambientGains.thunder) return;
-        const now = this.ctx.currentTime;
-        const osc = this.ctx.createOscillator();
-        const gain = this.ctx.createGain();
+        const now = this.ctx.currentTime + 0.05;
 
-        osc.type = 'triangle';
-        osc.frequency.setValueAtTime(55, now);
-        osc.frequency.exponentialRampToValueAtTime(25, now + 2.5);
+        const isDistant = Math.random() < 0.45;
+        const rollDuration = isDistant ? (4.5 + Math.random() * 1.5) : (6.0 + Math.random() * 2.0);
 
-        gain.gain.setValueAtTime(0.001, now);
-        gain.gain.linearRampToValueAtTime(0.35, now + 0.4);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + 3.0);
+        // 1. Initial Shockwave / Rolling Crack
+        const crackSource = this.ctx.createBufferSource();
+        crackSource.buffer = pinkNoiseBuf;
+        const crackFilter = this.ctx.createBiquadFilter();
+        crackFilter.type = 'bandpass';
+        crackFilter.frequency.setValueAtTime(isDistant ? 320 : 520, now);
+        crackFilter.Q.setValueAtTime(1.8, now);
+        const crackGain = this.ctx.createGain();
+        const crackVol = isDistant ? 0.25 : 0.45;
+        crackGain.gain.setValueAtTime(0.001, now);
+        crackGain.gain.linearRampToValueAtTime(crackVol, now + 0.12);
+        crackGain.gain.exponentialRampToValueAtTime(0.001, now + (isDistant ? 1.2 : 2.0));
 
-        osc.connect(gain);
-        gain.connect(this.ambientGains.thunder);
+        crackSource.connect(crackFilter);
+        crackFilter.connect(crackGain);
+        crackGain.connect(this.ambientGains.thunder);
+        crackSource.start(now);
+        crackSource.stop(now + 2.2);
 
-        osc.start(now);
-        osc.stop(now + 3.1);
+        // 2. Sub-bass physical vibration body
+        const subOsc = this.ctx.createOscillator();
+        subOsc.type = 'sine';
+        subOsc.frequency.setValueAtTime(52, now);
+        subOsc.frequency.exponentialRampToValueAtTime(26, now + rollDuration * 0.7);
 
-        const next = 12000 + Math.random() * 25000;
-        setTimeout(scheduleThunder, next);
+        const subGain = this.ctx.createGain();
+        subGain.gain.setValueAtTime(0.001, now);
+        subGain.gain.linearRampToValueAtTime(isDistant ? 0.35 : 0.65, now + 0.45);
+        subGain.gain.exponentialRampToValueAtTime(0.0001, now + rollDuration * 0.85);
+
+        subOsc.connect(subGain);
+        subGain.connect(this.ambientGains.thunder);
+        subOsc.start(now);
+        subOsc.stop(now + rollDuration);
+
+        // 3. Sweeping Resonant Lowpass Brown Noise Rumble with Echo Swells
+        const rumbleSource = this.ctx.createBufferSource();
+        rumbleSource.buffer = brownNoiseBuf;
+        rumbleSource.loop = true;
+
+        const rumbleFilter = this.ctx.createBiquadFilter();
+        rumbleFilter.type = 'lowpass';
+        rumbleFilter.frequency.setValueAtTime(isDistant ? 95 : 140, now);
+        rumbleFilter.Q.setValueAtTime(2.2, now);
+        rumbleFilter.frequency.exponentialRampToValueAtTime(isDistant ? 145 : 200, now + 0.6);
+        rumbleFilter.frequency.exponentialRampToValueAtTime(55, now + rollDuration);
+
+        const rumbleGain = this.ctx.createGain();
+        rumbleGain.gain.setValueAtTime(0.001, now);
+        rumbleGain.gain.linearRampToValueAtTime(isDistant ? 0.38 : 0.62, now + 0.4);
+        // Echo 1
+        rumbleGain.gain.linearRampToValueAtTime(isDistant ? 0.25 : 0.42, now + 1.2);
+        rumbleGain.gain.linearRampToValueAtTime(isDistant ? 0.30 : 0.48, now + 1.8);
+        // Echo 2
+        rumbleGain.gain.linearRampToValueAtTime(isDistant ? 0.16 : 0.30, now + 3.0);
+        rumbleGain.gain.exponentialRampToValueAtTime(0.001, now + rollDuration);
+
+        rumbleSource.connect(rumbleFilter);
+        rumbleFilter.connect(rumbleGain);
+        rumbleGain.connect(this.ambientGains.thunder);
+        rumbleSource.start(now);
+        rumbleSource.stop(now + rollDuration + 0.2);
+
+        // Natural thunder intervals (every 14 to 26 seconds)
+        const next = 14000 + Math.random() * 12000;
+        this.thunderTimeout = window.setTimeout(triggerThunderRoll, next);
       };
-      scheduleThunder();
+
+      // Initial thunder roll triggers early (1.2s) so user immediately hears it
+      this.thunderTimeout = window.setTimeout(triggerThunderRoll, 1200);
     } catch (e) {
       console.warn('Thunder audio error', e);
     }
@@ -639,7 +908,7 @@ class WebAudioEngine {
         const oscL = this.ctx.createOscillator();
         oscL.type = 'sine';
         const gainL = this.ctx.createGain();
-        gainL.gain.setValueAtTime(0.12, this.ctx.currentTime);
+        gainL.gain.setValueAtTime(0.22, this.ctx.currentTime);
         oscL.connect(gainL);
         gainL.connect(merger, 0, 0);
 
@@ -647,7 +916,7 @@ class WebAudioEngine {
         const oscR = this.ctx.createOscillator();
         oscR.type = 'sine';
         const gainR = this.ctx.createGain();
-        gainR.gain.setValueAtTime(0.12, this.ctx.currentTime);
+        gainR.gain.setValueAtTime(0.22, this.ctx.currentTime);
         oscR.connect(gainR);
         gainR.connect(merger, 0, 1);
 
@@ -664,35 +933,27 @@ class WebAudioEngine {
       console.warn('Binaural beats error', e);
     }
 
-    // 13. ACOUSTIC CAT PURR: 28Hz modulated rumble with respiratory envelope
+    // 13. AUDIBLE ORGANIC ACOUSTIC CAT PURR (Procedural Bio-Acoustic Buffer Loop)
     try {
       if (this.ctx && this.ambientGains.catPurr) {
-        const purrOsc = this.ctx.createOscillator();
-        purrOsc.type = 'triangle';
-        purrOsc.frequency.setValueAtTime(32, this.ctx.currentTime);
+        const purrBuf = this.createCatPurrBuffer(4.0);
+        const purrSource = this.ctx.createBufferSource();
+        purrSource.buffer = purrBuf;
+        purrSource.loop = true;
 
         const purrFilter = this.ctx.createBiquadFilter();
         purrFilter.type = 'lowpass';
-        purrFilter.frequency.setValueAtTime(95, this.ctx.currentTime);
+        purrFilter.frequency.setValueAtTime(420, this.ctx.currentTime);
+        purrFilter.Q.setValueAtTime(1.0, this.ctx.currentTime);
 
-        // Tremolo LFO for vibration
-        const tremolo = this.ctx.createOscillator();
-        tremolo.type = 'sine';
-        tremolo.frequency.setValueAtTime(24, this.ctx.currentTime);
-        const tremoloGain = this.ctx.createGain();
-        tremoloGain.gain.setValueAtTime(0.08, this.ctx.currentTime);
-        tremolo.connect(tremoloGain);
+        const purrGain = this.ctx.createGain();
+        purrGain.gain.setValueAtTime(0.85, this.ctx.currentTime);
 
-        const purrMasterGain = this.ctx.createGain();
-        purrMasterGain.gain.setValueAtTime(0.2, this.ctx.currentTime);
+        purrSource.connect(purrFilter);
+        purrFilter.connect(purrGain);
+        purrGain.connect(this.ambientGains.catPurr);
 
-        tremoloGain.connect(purrMasterGain.gain);
-        purrOsc.connect(purrFilter);
-        purrFilter.connect(purrMasterGain);
-        purrMasterGain.connect(this.ambientGains.catPurr);
-
-        purrOsc.start();
-        tremolo.start();
+        purrSource.start();
       }
     } catch (e) {
       console.warn('Cat purr audio error', e);
@@ -708,27 +969,39 @@ class WebAudioEngine {
 
         const trainFilter = this.ctx.createBiquadFilter();
         trainFilter.type = 'lowpass';
-        trainFilter.frequency.setValueAtTime(140, this.ctx.currentTime);
+        trainFilter.frequency.setValueAtTime(120, this.ctx.currentTime);
+
+        const trainGain = this.ctx.createGain();
+        trainGain.gain.setValueAtTime(0.55, this.ctx.currentTime);
 
         trainSource.connect(trainFilter);
-        trainFilter.connect(this.ambientGains.train);
+        trainFilter.connect(trainGain);
+        trainGain.connect(this.ambientGains.train);
         trainSource.start();
 
-        // Clack-clack intervals
+        // Clack-clack intervals (Warm acoustic joint impulses, NO square buzzers)
         const scheduleTrainClick = () => {
           if (!this.ctx || !this.ambientGains.train) return;
           const now = this.ctx.currentTime;
-          
+
           for (let i = 0; i < 2; i++) {
             const clickTime = now + i * 0.09;
             const clickOsc = this.ctx.createOscillator();
+            const clickFilter = this.ctx.createBiquadFilter();
             const clickGain = this.ctx.createGain();
-            clickOsc.type = 'square';
-            clickOsc.frequency.setValueAtTime(420 + Math.random() * 80, clickTime);
-            clickOsc.frequency.exponentialRampToValueAtTime(80, clickTime + 0.04);
-            clickGain.gain.setValueAtTime(0.07, clickTime);
+
+            clickOsc.type = 'triangle';
+            clickOsc.frequency.setValueAtTime(320 + Math.random() * 60, clickTime);
+            clickOsc.frequency.exponentialRampToValueAtTime(70, clickTime + 0.04);
+
+            clickFilter.type = 'lowpass';
+            clickFilter.frequency.setValueAtTime(600, clickTime);
+
+            clickGain.gain.setValueAtTime(0.24, clickTime);
             clickGain.gain.exponentialRampToValueAtTime(0.001, clickTime + 0.038);
-            clickOsc.connect(clickGain);
+
+            clickOsc.connect(clickFilter);
+            clickFilter.connect(clickGain);
             clickGain.connect(this.ambientGains.train);
             clickOsc.start(clickTime);
             clickOsc.stop(clickTime + 0.045);
@@ -753,14 +1026,14 @@ class WebAudioEngine {
 
         const filter = this.ctx.createBiquadFilter();
         filter.type = 'bandpass';
-        filter.frequency.setValueAtTime(1200, now);
+        filter.frequency.setValueAtTime(1300, now);
         filter.frequency.linearRampToValueAtTime(2400, now + 0.25);
         filter.frequency.linearRampToValueAtTime(900, now + 0.5);
         filter.Q.setValueAtTime(2.5, now);
 
         const gain = this.ctx.createGain();
         gain.gain.setValueAtTime(0.001, now);
-        gain.gain.linearRampToValueAtTime(0.18, now + 0.15);
+        gain.gain.linearRampToValueAtTime(0.35, now + 0.15);
         gain.gain.exponentialRampToValueAtTime(0.001, now + 0.55);
 
         noiseSource.connect(filter);
@@ -770,7 +1043,7 @@ class WebAudioEngine {
         noiseSource.start(now);
         noiseSource.stop(now + 0.6);
 
-        const next = 8000 + Math.random() * 10000;
+        const next = 7000 + Math.random() * 9000;
         setTimeout(schedulePageTurn, next);
       };
       schedulePageTurn();
@@ -787,8 +1060,11 @@ class WebAudioEngine {
         const filter = this.ctx.createBiquadFilter();
         filter.type = 'lowpass';
         filter.frequency.setValueAtTime(6500, this.ctx.currentTime);
+        const gain = this.ctx.createGain();
+        gain.gain.setValueAtTime(0.55, this.ctx.currentTime);
         whiteSource.connect(filter);
-        filter.connect(this.ambientGains.whiteNoise);
+        filter.connect(gain);
+        gain.connect(this.ambientGains.whiteNoise);
         whiteSource.start();
       }
     } catch (e) {
@@ -804,8 +1080,11 @@ class WebAudioEngine {
         const filter = this.ctx.createBiquadFilter();
         filter.type = 'lowpass';
         filter.frequency.setValueAtTime(4200, this.ctx.currentTime);
+        const gain = this.ctx.createGain();
+        gain.gain.setValueAtTime(0.60, this.ctx.currentTime);
         pinkSource.connect(filter);
-        filter.connect(this.ambientGains.pinkNoise);
+        filter.connect(gain);
+        gain.connect(this.ambientGains.pinkNoise);
         pinkSource.start();
       }
     } catch (e) {
@@ -821,8 +1100,11 @@ class WebAudioEngine {
         const filter = this.ctx.createBiquadFilter();
         filter.type = 'lowpass';
         filter.frequency.setValueAtTime(1000, this.ctx.currentTime);
+        const gain = this.ctx.createGain();
+        gain.gain.setValueAtTime(0.70, this.ctx.currentTime);
         brownSource.connect(filter);
-        filter.connect(this.ambientGains.brownNoise);
+        filter.connect(gain);
+        gain.connect(this.ambientGains.brownNoise);
         brownSource.start();
       }
     } catch (e) {
@@ -842,14 +1124,14 @@ class WebAudioEngine {
           const gain = this.ctx.createGain();
           osc.type = 'sine';
           osc.frequency.setValueAtTime(freqs[Math.floor(Math.random() * freqs.length)], t);
-          gain.gain.setValueAtTime(0.06, t);
-          gain.gain.exponentialRampToValueAtTime(0.0001, t + 1.8);
+          gain.gain.setValueAtTime(0.16, t);
+          gain.gain.exponentialRampToValueAtTime(0.0001, t + 2.0);
           osc.connect(gain);
           gain.connect(this.ambientGains.windChimes);
           osc.start(t);
-          osc.stop(t + 1.9);
+          osc.stop(t + 2.1);
         }
-        setTimeout(scheduleChimes, 6000 + Math.random() * 10000);
+        setTimeout(scheduleChimes, 5500 + Math.random() * 8500);
       };
       scheduleChimes();
     } catch (e) {
@@ -866,9 +1148,9 @@ class WebAudioEngine {
           const osc = this.ctx.createOscillator();
           const gain = this.ctx.createGain();
           osc.type = 'triangle';
-          osc.frequency.setValueAtTime(700 + Math.random() * 500, t);
+          osc.frequency.setValueAtTime(650 + Math.random() * 450, t);
           osc.frequency.exponentialRampToValueAtTime(100, t + 0.035);
-          gain.gain.setValueAtTime(0.08, t);
+          gain.gain.setValueAtTime(0.28, t);
           gain.gain.exponentialRampToValueAtTime(0.001, t + 0.03);
           osc.connect(gain);
           gain.connect(this.ambientGains.typewriter);
@@ -876,7 +1158,7 @@ class WebAudioEngine {
           osc.stop(t + 0.04);
           t += 0.11 + Math.random() * 0.16;
         }
-        setTimeout(scheduleTypewriter, 3500 + Math.random() * 6000);
+        setTimeout(scheduleTypewriter, 3000 + Math.random() * 5000);
       };
       scheduleTypewriter();
     } catch (e) {
@@ -1064,35 +1346,83 @@ class WebAudioEngine {
     });
   }
 
+  public playThunderClap() {
+    this.init();
+    if (!this.ctx) return;
+    const now = this.ctx.currentTime;
+
+    const brownNoiseBuf = this.createNoiseBuffer('brown', 3.0);
+    const pinkNoiseBuf = this.createNoiseBuffer('pink', 1.5);
+
+    // Initial Crack
+    const crackSource = this.ctx.createBufferSource();
+    crackSource.buffer = pinkNoiseBuf;
+    const crackFilter = this.ctx.createBiquadFilter();
+    crackFilter.type = 'bandpass';
+    crackFilter.frequency.setValueAtTime(450, now);
+    crackFilter.Q.setValueAtTime(1.8, now);
+
+    const crackGain = this.ctx.createGain();
+    crackGain.gain.setValueAtTime(0.001, now);
+    crackGain.gain.linearRampToValueAtTime(0.22, now + 0.1);
+    crackGain.gain.exponentialRampToValueAtTime(0.001, now + 1.4);
+
+    crackSource.connect(crackFilter);
+    crackFilter.connect(crackGain);
+    crackGain.connect(this.masterGain || this.ctx.destination);
+    crackSource.start(now);
+    crackSource.stop(now + 1.5);
+
+    // Deep lowpass rumble
+    const rumbleSource = this.ctx.createBufferSource();
+    rumbleSource.buffer = brownNoiseBuf;
+    const rumbleFilter = this.ctx.createBiquadFilter();
+    rumbleFilter.type = 'lowpass';
+    rumbleFilter.frequency.setValueAtTime(120, now);
+    rumbleFilter.Q.setValueAtTime(2.0, now);
+    rumbleFilter.frequency.exponentialRampToValueAtTime(50, now + 4.0);
+
+    const rumbleGain = this.ctx.createGain();
+    rumbleGain.gain.setValueAtTime(0.001, now);
+    rumbleGain.gain.linearRampToValueAtTime(0.45, now + 0.35);
+    rumbleGain.gain.linearRampToValueAtTime(0.30, now + 1.4);
+    rumbleGain.gain.linearRampToValueAtTime(0.35, now + 2.0);
+    rumbleGain.gain.exponentialRampToValueAtTime(0.001, now + 4.2);
+
+    rumbleSource.connect(rumbleFilter);
+    rumbleFilter.connect(rumbleGain);
+    rumbleGain.connect(this.masterGain || this.ctx.destination);
+    rumbleSource.start(now);
+    rumbleSource.stop(now + 4.4);
+  }
+
   public playCatPurr() {
     this.init();
     if (!this.ctx) return;
     const now = this.ctx.currentTime;
-    // Harmonic purring vibration
-    const osc = this.ctx.createOscillator();
-    const lfo = this.ctx.createOscillator();
-    const lfoGain = this.ctx.createGain();
-    const gain = this.ctx.createGain();
+    try {
+      const purrBuf = this.createCatPurrBuffer(2.4);
+      const source = this.ctx.createBufferSource();
+      source.buffer = purrBuf;
 
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(42, now);
+      const filter = this.ctx.createBiquadFilter();
+      filter.type = 'lowpass';
+      filter.frequency.setValueAtTime(420, now);
 
-    lfo.type = 'sine';
-    lfo.frequency.setValueAtTime(25, now); // 25Hz purr vibration
-    lfoGain.gain.setValueAtTime(14, now);
-    lfo.connect(lfoGain);
-    lfoGain.connect(osc.frequency);
-    lfo.start(now);
-    lfo.stop(now + 1.2);
+      const gain = this.ctx.createGain();
+      gain.gain.setValueAtTime(0.001, now);
+      gain.gain.linearRampToValueAtTime(0.70, now + 0.2);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 2.3);
 
-    gain.gain.setValueAtTime(0.001, now);
-    gain.gain.linearRampToValueAtTime(0.2, now + 0.3);
-    gain.gain.linearRampToValueAtTime(0.001, now + 1.2);
+      source.connect(filter);
+      filter.connect(gain);
+      gain.connect(this.masterGain || this.ctx.destination);
 
-    osc.connect(gain);
-    gain.connect(this.ctx.destination);
-    osc.start(now);
-    osc.stop(now + 1.25);
+      source.start(now);
+      source.stop(now + 2.35);
+    } catch (e) {
+      console.warn('playCatPurr error', e);
+    }
   }
 
   public playCatMeow() {
@@ -1118,7 +1448,7 @@ class WebAudioEngine {
     filter.frequency.linearRampToValueAtTime(620, now + 0.52);
 
     gain.gain.setValueAtTime(0.001, now);
-    gain.gain.linearRampToValueAtTime(0.08, now + 0.1);
+    gain.gain.linearRampToValueAtTime(0.18, now + 0.1);
     gain.gain.exponentialRampToValueAtTime(0.001, now + 0.55);
 
     osc.connect(filter);
@@ -1152,7 +1482,7 @@ class WebAudioEngine {
     filter.frequency.linearRampToValueAtTime(1100, now + 0.18);
 
     gain.gain.setValueAtTime(0.001, now);
-    gain.gain.linearRampToValueAtTime(0.09, now + 0.03);
+    gain.gain.linearRampToValueAtTime(0.20, now + 0.03);
     gain.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
 
     osc.connect(filter);
@@ -1286,6 +1616,10 @@ class WebAudioEngine {
     });
   }
 
+  public playVictory() {
+    this.playBossVictory();
+  }
+
   public playZenChime(type: 'start' | 'finish' = 'start') {
     this.init();
     if (!this.ctx) return;
@@ -1357,82 +1691,162 @@ class WebAudioEngine {
     });
   }
 
-  // Realistic Procedural Thunder Strike (Whip-Crack, Sub-Bass Boom & Rolling Rumble)
-  public playThunderStrike(intensity = 0.8) {
+  // Realistic Atmospheric Procedural Thunder Synthesis (Speed-of-Sound Delay, Cascaded 24dB/oct Low-Pass Filters & Multi-Peak Horizon Swells)
+  public playThunderStrike(intensity = 0.8, distance: 'near' | 'medium' | 'distant' = 'medium') {
     this.init();
     if (!this.ctx) return;
-    const now = this.ctx.currentTime;
-    const clamped = Math.max(0.2, Math.min(1.0, intensity));
-
-    // 1. Initial whip / electric crack (sharp filtered noise)
-    try {
-      const crackBuf = this.createNoiseBuffer('white');
-      const crackSource = this.ctx.createBufferSource();
-      crackSource.buffer = crackBuf;
-
-      const crackFilter = this.ctx.createBiquadFilter();
-      crackFilter.type = 'bandpass';
-      crackFilter.frequency.setValueAtTime(1400, now);
-      crackFilter.Q.setValueAtTime(1.5, now);
-
-      const crackGain = this.ctx.createGain();
-      crackGain.gain.setValueAtTime(0.001, now);
-      crackGain.gain.linearRampToValueAtTime(0.28 * clamped, now + 0.02);
-      crackGain.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
-
-      crackSource.connect(crackFilter);
-      crackFilter.connect(crackGain);
-      crackGain.connect(this.masterGain || this.ctx.destination);
-      crackSource.start(now);
-      crackSource.stop(now + 0.25);
-    } catch (e) {
-      console.warn('Thunder crack error', e);
+    if (this.ctx.state === 'suspended') {
+      this.ctx.resume().catch(() => {});
     }
 
-    // 2. Heavy sub-bass impact boom (triangle wave diving 75Hz -> 28Hz)
+    const clamped = Math.max(0.2, Math.min(1.0, intensity));
+    const now = this.ctx.currentTime;
+
+    // Physical speed-of-sound distance profiling:
+    // Near: crisp electrostatic presence, immediate sub punch (~200ms)
+    // Medium: cozy muffled low rumble with 450-800ms natural distance delay
+    // Distant: pure velvety deep sub-rumble rolling across distant hills (1.2-2.0s delay)
+    let delaySec = 0.40;
+    let initialFilterCutoff = 210;
+    let rumbleDuration = 4.8;
+    let hasCrack = false;
+
+    if (distance === 'near') {
+      delaySec = 0.15 + Math.random() * 0.15;
+      initialFilterCutoff = 310;
+      hasCrack = true;
+      rumbleDuration = 3.8;
+    } else if (distance === 'medium') {
+      delaySec = 0.40 + Math.random() * 0.35;
+      initialFilterCutoff = 210;
+      hasCrack = false;
+      rumbleDuration = 5.0;
+    } else {
+      delaySec = 1.10 + Math.random() * 0.70;
+      initialFilterCutoff = 130;
+      hasCrack = false;
+      rumbleDuration = 6.0;
+    }
+
+    const startTime = now + delaySec;
+
+    // 1. Spatial Stereo Panning (Drifting gently across the sky as the sound rolls)
+    let pannerNode: StereoPannerNode | GainNode;
+    try {
+      if (typeof this.ctx.createStereoPanner === 'function') {
+        const panner = this.ctx.createStereoPanner();
+        const startPan = (Math.random() - 0.5) * 0.75;
+        panner.pan.setValueAtTime(startPan, startTime);
+        panner.pan.linearRampToValueAtTime(
+          Math.max(-1, Math.min(1, startPan + (startPan > 0 ? -0.45 : 0.45))),
+          startTime + rumbleDuration
+        );
+        pannerNode = panner;
+      } else {
+        pannerNode = this.ctx.createGain();
+      }
+    } catch {
+      pannerNode = this.ctx.createGain();
+    }
+    pannerNode.connect(this.masterGain || this.ctx.destination);
+
+    // 2. Electrostatic Whip Crack (Muffled & softened for cozy ambience, only on near strikes)
+    if (hasCrack) {
+      try {
+        const crackBuf = this.createNoiseBuffer('white', 0.5);
+        const crackSource = this.ctx.createBufferSource();
+        crackSource.buffer = crackBuf;
+
+        const crackFilter = this.ctx.createBiquadFilter();
+        crackFilter.type = 'bandpass';
+        crackFilter.frequency.setValueAtTime(850, startTime);
+        crackFilter.Q.setValueAtTime(1.6, startTime);
+
+        const crackGain = this.ctx.createGain();
+        crackGain.gain.setValueAtTime(0.0001, startTime);
+        crackGain.gain.linearRampToValueAtTime(0.16 * clamped, startTime + 0.015);
+        crackGain.gain.exponentialRampToValueAtTime(0.0001, startTime + 0.16);
+
+        crackSource.connect(crackFilter);
+        crackFilter.connect(crackGain);
+        crackGain.connect(pannerNode);
+
+        crackSource.start(startTime);
+        crackSource.stop(startTime + 0.18);
+      } catch (e) {
+        console.warn('Thunder crack error', e);
+      }
+    }
+
+    // 3. Heavy Sub-Bass Acoustic Punch (Triangle pitch glide: 56Hz -> 24Hz)
     try {
       const subOsc = this.ctx.createOscillator();
       const subGain = this.ctx.createGain();
 
       subOsc.type = 'triangle';
-      subOsc.frequency.setValueAtTime(75, now);
-      subOsc.frequency.exponentialRampToValueAtTime(28, now + 1.2);
+      subOsc.frequency.setValueAtTime(distance === 'near' ? 66 : 54, startTime);
+      subOsc.frequency.exponentialRampToValueAtTime(24, startTime + 1.2);
 
-      subGain.gain.setValueAtTime(0.001, now);
-      subGain.gain.linearRampToValueAtTime(0.45 * clamped, now + 0.05);
-      subGain.gain.exponentialRampToValueAtTime(0.001, now + 1.8);
+      subGain.gain.setValueAtTime(0.0001, startTime);
+      subGain.gain.linearRampToValueAtTime(0.30 * clamped, startTime + 0.05);
+      subGain.gain.exponentialRampToValueAtTime(0.0001, startTime + 1.6);
 
       subOsc.connect(subGain);
-      subGain.connect(this.masterGain || this.ctx.destination);
-      subOsc.start(now);
-      subOsc.stop(now + 1.9);
+      subGain.connect(pannerNode);
+      subOsc.start(startTime);
+      subOsc.stop(startTime + 1.7);
     } catch (e) {
       console.warn('Thunder sub-bass error', e);
     }
 
-    // 3. Resonant rolling thunder rumble (brown noise through modulated lowpass filter)
+    // 4. Cascaded 24dB/oct Low-Pass Filtered Rolling Rumble
+    // Two cascaded Butterworth lowpass filters strip all harshness, leaving warm, velvety thunder
     try {
-      const rumbleBuf = this.createNoiseBuffer('brown');
+      const rumbleBuf = this.createNoiseBuffer('brown', 6);
       const rumbleSource = this.ctx.createBufferSource();
       rumbleSource.buffer = rumbleBuf;
       rumbleSource.loop = true;
 
-      const rumbleFilter = this.ctx.createBiquadFilter();
-      rumbleFilter.type = 'lowpass';
-      rumbleFilter.frequency.setValueAtTime(180, now);
-      rumbleFilter.frequency.exponentialRampToValueAtTime(45, now + 3.8);
+      const filter1 = this.ctx.createBiquadFilter();
+      filter1.type = 'lowpass';
+      filter1.frequency.setValueAtTime(initialFilterCutoff, startTime);
+      filter1.frequency.exponentialRampToValueAtTime(36, startTime + rumbleDuration);
 
+      const filter2 = this.ctx.createBiquadFilter();
+      filter2.type = 'lowpass';
+      filter2.frequency.setValueAtTime(initialFilterCutoff, startTime);
+      filter2.frequency.exponentialRampToValueAtTime(36, startTime + rumbleDuration);
+
+      // Multi-crest turbulent amplitude envelope (cloud-to-ground & terrain acoustic reflections)
       const rumbleGain = this.ctx.createGain();
-      rumbleGain.gain.setValueAtTime(0.001, now);
-      rumbleGain.gain.linearRampToValueAtTime(0.38 * clamped, now + 0.35);
-      rumbleGain.gain.exponentialRampToValueAtTime(0.18 * clamped, now + 1.8);
-      rumbleGain.gain.exponentialRampToValueAtTime(0.0001, now + 4.2);
+      const g = clamped * 0.38;
 
-      rumbleSource.connect(rumbleFilter);
-      rumbleFilter.connect(rumbleGain);
-      rumbleGain.connect(this.masterGain || this.ctx.destination);
-      rumbleSource.start(now);
-      rumbleSource.stop(now + 4.3);
+      rumbleGain.gain.setValueAtTime(0.0001, startTime);
+      // Crest 1: Initial shock front arrival
+      rumbleGain.gain.linearRampToValueAtTime(g * 1.0, startTime + 0.28);
+      rumbleGain.gain.exponentialRampToValueAtTime(g * 0.44, startTime + 0.72);
+      // Crest 2: Cloud layer reverberation swell
+      rumbleGain.gain.linearRampToValueAtTime(g * 0.70, startTime + 1.20);
+      rumbleGain.gain.exponentialRampToValueAtTime(g * 0.28, startTime + 2.05);
+      // Crest 3: Distant valley roll
+      rumbleGain.gain.linearRampToValueAtTime(g * 0.42, startTime + 2.75);
+      rumbleGain.gain.exponentialRampToValueAtTime(0.0001, startTime + rumbleDuration);
+
+      rumbleSource.connect(filter1);
+      filter1.connect(filter2);
+      filter2.connect(rumbleGain);
+      rumbleGain.connect(pannerNode);
+
+      rumbleSource.start(startTime);
+      rumbleSource.stop(startTime + rumbleDuration + 0.1);
+
+      // Secondary Rolling Thunder Echo (35% chance of realistic double thunderclap rolling across horizon)
+      if (Math.random() < 0.35 && distance !== 'distant') {
+        const echoDelay = 1200 + Math.random() * 1100;
+        setTimeout(() => {
+          this.playThunderStrike(clamped * 0.65, 'distant');
+        }, echoDelay);
+      }
     } catch (e) {
       console.warn('Thunder rumble error', e);
     }

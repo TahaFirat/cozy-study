@@ -48,12 +48,32 @@ export const UserMenu: React.FC = () => {
         {isOpen && (
           <div className="absolute right-0 top-full mt-2 w-56 bg-stone-900/98 border border-stone-700/80 rounded-xl shadow-2xl backdrop-blur-md overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-150">
             <div className="px-4 py-3 border-b border-stone-800 bg-stone-950/40">
-              <p className="text-sm font-semibold text-amber-200 truncate">
-                {tr ? 'Misafir Öğrenci' : 'Guest Studier'}
-              </p>
-              <p className="text-[11px] text-stone-400 truncate">
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-semibold text-amber-200 truncate">
+                  {tr ? 'Misafir Öğrenci' : 'Guest Studier'}
+                </p>
+                <span className="text-[9px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 font-bold border border-amber-500/40">
+                  {tr ? 'Yerel' : 'Local'}
+                </span>
+              </div>
+              <p className="text-[11px] text-stone-400 truncate mt-0.5">
                 {tr ? 'Verileriniz bu tarayıcıda saklanıyor' : 'Data stored in this browser'}
               </p>
+            </div>
+
+            {/* Guest Cloud CTA Banner */}
+            <div className="mx-2 my-2 p-2.5 bg-amber-950/40 border border-amber-500/30 rounded-xl text-center">
+              <p className="text-[11px] text-amber-200 leading-tight">
+                {tr 
+                  ? '🔒 Serinizi, odalarınızı ve istatistiklerinizi buluta kaydetmek için ücretsiz giriş yapın.' 
+                  : '🔒 Sign in for free to save your streak, rooms, and stats to cloud.'}
+              </p>
+              <button
+                onClick={() => { setActiveModal('auth'); setIsOpen(false); }}
+                className="mt-2 w-full py-1.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-stone-950 text-xs font-bold rounded-lg transition-all cursor-pointer shadow-md"
+              >
+                {tr ? 'Ücretsiz Giriş / Kayıt' : 'Sign In / Register Free'}
+              </button>
             </div>
 
             <div className="p-1.5 space-y-0.5">
@@ -74,14 +94,6 @@ export const UserMenu: React.FC = () => {
               </button>
 
               <div className="h-px bg-stone-800 my-1" />
-
-              <button
-                onClick={() => { setActiveModal('auth'); setIsOpen(false); }}
-                className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-amber-300 hover:bg-amber-950/40 rounded-lg cursor-pointer transition-colors font-bold"
-              >
-                <User className="w-3.5 h-3.5 text-amber-400" />
-                <span>{tr ? 'Giriş Yap / Buluta Bağlan' : 'Sign In / Connect Cloud'}</span>
-              </button>
 
               <button
                 onClick={() => { setActiveModal('settings'); setIsOpen(false); }}

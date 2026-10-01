@@ -33,3 +33,6 @@ scratch/
 ios/App/build/
 ios/App/Pods/
 snap_*.png
+CozyStudy.apk
+.firebase/
+

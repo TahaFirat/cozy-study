@@ -80,6 +80,7 @@ interface StatsState {
   getHeatmapDays: () => { date: string; minutes: number; intensity: number }[];
   getYearlyHeatmapDays: (locale?: string) => { date: string; minutes: number; intensity: number; month: string; dayOfWeek: number }[];
   deleteSession: (id: string) => void;
+  updateLatestSessionNote: (note: string) => void;
 }
 
 function getTodayString(): string {
@@ -90,27 +91,9 @@ function getTodayString(): string {
 export const useStatsStore = create<StatsState>()(
   persist(
     (set, get) => ({
-      sessions: [
-        // Başlangıç oturumları — kullanıcıya günlük ve ısı haritasının güzelliğini hemen gösterir
-        {
-          id: 'seed-1',
-          timestamp: Date.now() - 86400000 * 2,
-          durationMinutes: 50,
-          roomId: 'bedroom',
-          note: 'Mimari desenler üzerine okuma yaptım ve huzurlu oda düzenlerini taslak çıkardım.',
-          tag: 'Derin Odak',
-        },
-        {
-          id: 'seed-2',
-          timestamp: Date.now() - 86400000,
-          durationMinutes: 25,
-          roomId: 'bedroom',
-          note: 'Cama vuran yağmurla birlikte akşam odak seansı. Çok verimli geçti.',
-          tag: 'Okuma',
-        }
-      ],
-      streakDays: 2,
-      lastSessionDate: getTodayString(),
+      sessions: [],
+      streakDays: 0,
+      lastSessionDate: null,
 
       recordSession: (durationMinutes, roomId, note) => {
         const today = getTodayString();
@@ -197,7 +180,19 @@ export const useStatsStore = create<StatsState>()(
           .reduce((acc, s) => acc + s.durationMinutes, 0);
       },
 
-      getStreakDays: () => get().streakDays,
+      getStreakDays: () => {
+        const lastDate = get().lastSessionDate;
+        if (!lastDate) return 0;
+        const today = getTodayString();
+        if (lastDate === today) return get().streakDays;
+
+        const yDate = new Date();
+        yDate.setDate(yDate.getDate() - 1);
+        const yesterdayStr = `${yDate.getFullYear()}-${String(yDate.getMonth() + 1).padStart(2, '0')}-${String(yDate.getDate()).padStart(2, '0')}`;
+        if (lastDate === yesterdayStr) return get().streakDays;
+
+        return 0;
+      },
 
       getUnlockedProgression: () => {
         const totalHours = get().getTotalFocusHours();
@@ -261,9 +256,34 @@ export const useStatsStore = create<StatsState>()(
         }
         return days;
       },
+
+      updateLatestSessionNote: (note: string) => {
+        set((state) => {
+          if (state.sessions.length === 0) return state;
+          const [latest, ...rest] = state.sessions;
+          return {
+            sessions: [{ ...latest, note }, ...rest],
+          };
+        });
+        useAuthStore.getState().syncToCloud();
+      },
     }),
     {
       name: 'cozy_room_study_stats',
+      version: 2,
+      migrate: (persistedState: any) => {
+        if (!persistedState) return persistedState;
+        const filteredSessions = (persistedState.sessions || []).filter(
+          (s: FocusSession) => !s.id.startsWith('seed-')
+        );
+        const hasRealSessions = filteredSessions.length > 0;
+        return {
+          ...persistedState,
+          sessions: filteredSessions,
+          streakDays: hasRealSessions ? (persistedState.streakDays || 0) : 0,
+          lastSessionDate: hasRealSessions ? persistedState.lastSessionDate : null,
+        };
+      },
     }
   )
 );

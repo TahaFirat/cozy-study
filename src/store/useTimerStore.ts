@@ -5,7 +5,7 @@ import { useAppStore } from './useAppStore';
 import { useStatsStore } from './useStatsStore';
 import { TRANSLATIONS } from '../i18n/translations';
 import { useSubscriptionStore } from './useSubscriptionStore';
-import { useBossRaidStore } from './useBossRaidStore';
+import { useBossRaidStore, isFrenzyHour } from './useBossRaidStore';
 
 interface TimerStoreState {
   durationMinutes: number;
@@ -29,6 +29,7 @@ interface TimerStoreState {
 }
 
 let timerInterval: number | null = null;
+let targetEndTime: number | null = null;
 
 export const useTimerStore = create<TimerStoreState>((set, get) => ({
   durationMinutes: 25,
@@ -42,18 +43,23 @@ export const useTimerStore = create<TimerStoreState>((set, get) => ({
 
   setDuration: (minutes) => {
     if (get().timerState === 'running') return;
+    const clampedMins = Math.max(1, Math.min(180, Math.floor(minutes || 25)));
     set({
-      durationMinutes: minutes,
-      secondsRemaining: minutes * 60,
+      durationMinutes: clampedMins,
+      secondsRemaining: clampedMins * 60,
       timerState: 'idle',
     });
   },
 
   startTimer: (minutes) => {
-    const mins = minutes ?? get().durationMinutes;
+    const rawMins = minutes ?? get().durationMinutes;
+    const mins = Math.max(1, Math.min(180, Math.floor(rawMins || 25)));
+    const totalSecs = mins * 60;
+    targetEndTime = Date.now() + totalSecs * 1000;
+
     set({
       durationMinutes: mins,
-      secondsRemaining: mins * 60,
+      secondsRemaining: totalSecs,
       timerState: 'running',
     });
 
@@ -72,10 +78,13 @@ export const useTimerStore = create<TimerStoreState>((set, get) => ({
       clearInterval(timerInterval);
       timerInterval = null;
     }
+    targetEndTime = null;
     set({ timerState: 'paused' });
   },
 
   resumeTimer: () => {
+    const remaining = Math.max(0, get().secondsRemaining);
+    targetEndTime = Date.now() + remaining * 1000;
     set({ timerState: 'running' });
     if (timerInterval) clearInterval(timerInterval);
     timerInterval = window.setInterval(() => {
@@ -88,6 +97,7 @@ export const useTimerStore = create<TimerStoreState>((set, get) => ({
       clearInterval(timerInterval);
       timerInterval = null;
     }
+    targetEndTime = null;
     set({
       timerState: 'idle',
       secondsRemaining: get().durationMinutes * 60,
@@ -98,7 +108,12 @@ export const useTimerStore = create<TimerStoreState>((set, get) => ({
     const { secondsRemaining, timerState, durationMinutes } = get();
     if (timerState !== 'running') return;
 
-    const elapsedSeconds = (durationMinutes * 60) - secondsRemaining + 1;
+    let nextSeconds = secondsRemaining - 1;
+    if (targetEndTime) {
+      nextSeconds = Math.max(0, Math.round((targetEndTime - Date.now()) / 1000));
+    }
+
+    const elapsedSeconds = (durationMinutes * 60) - nextSeconds;
     const lang = useAppStore.getState().language;
     const isTr = lang === 'tr';
 
@@ -130,10 +145,10 @@ export const useTimerStore = create<TimerStoreState>((set, get) => ({
       );
     }
 
-    if (secondsRemaining <= 1) {
+    if (nextSeconds <= 0) {
       get().finishSession();
     } else {
-      set({ secondsRemaining: secondsRemaining - 1 });
+      set({ secondsRemaining: nextSeconds });
     }
   },
 
@@ -143,6 +158,8 @@ export const useTimerStore = create<TimerStoreState>((set, get) => ({
       timerInterval = null;
     }
     const completedMins = get().durationMinutes;
+    const currentRoom = useAppStore.getState().activeRoom;
+
     set({
       timerState: 'completed',
       secondsRemaining: 0,
@@ -150,27 +167,54 @@ export const useTimerStore = create<TimerStoreState>((set, get) => ({
       isNotePromptOpen: true,
     });
 
-    const selectedChime = useSubscriptionStore.getState().selectedChime;
-    webAudioEngine.playChime(selectedChime);
-    const lang = useAppStore.getState().language;
-    useAppStore.getState().showToast(`${TRANSLATIONS[lang].timer.sessionStayed(completedMins)} ${TRANSLATIONS[lang].timer.focusRecorded(completedMins)}`, 6000);
+    // 1. Immediately record session in stats so XP and badges are awarded without waiting for note prompt
+    useStatsStore.getState().recordSession(completedMins, currentRoom, '');
 
-    // Deal damage to active Chronos Boss Raid
-    useBossRaidStore.getState().attackCurrentBoss(completedMins, !!get().currentGoal.trim());
+    // 2. Award Focus Strike Charges (Odak Vuruş Yükü) for Boss Raid!
+    const isFrenzy = isFrenzyHour();
+    const baseCharges = Math.max(1, Math.floor(completedMins / 25));
+    const earnedCharges = isFrenzy ? baseCharges * 2 : baseCharges;
+    useBossRaidStore.getState().addStrikeCharges(earnedCharges);
+
+    // 3. Record session combo & daily dawn bonus in Boss Raid
+    const sessionProgress = useBossRaidStore.getState().recordSessionCompleted(completedMins);
+
+    // 4. Deal collective damage to active world boss with completed focus session
+    const hasGoal = Boolean(get().currentGoal && get().currentGoal.trim().length > 0);
+    useBossRaidStore.getState().attackCurrentBoss(completedMins, hasGoal);
+
+    try {
+      const selectedChime = useSubscriptionStore.getState().selectedChime;
+      webAudioEngine.playChime(selectedChime);
+    } catch {}
+    const lang = useAppStore.getState().language;
+
+    let chargeMsg = lang === 'tr'
+      ? `⚡ +${earnedCharges} Odak Vuruş Yükü kazandın!`
+      : `⚡ Earned +${earnedCharges} Focus Strike Charge!`;
+
+    if (isFrenzy) {
+      chargeMsg += lang === 'tr' ? ' (🔥 2x Altın Saat Bonusu)' : ' (🔥 2x Frenzy Bonus)';
+    }
+
+    if (sessionProgress.comboCount > 1) {
+      chargeMsg += lang === 'tr' ? ` • 🔥 ${sessionProgress.comboCount}'li Odak Kombosu!` : ` • 🔥 ${sessionProgress.comboCount}x Focus Combo!`;
+    }
+
+    useAppStore.getState().showToast(
+      `${TRANSLATIONS[lang].timer.sessionStayed(completedMins)} ${TRANSLATIONS[lang].timer.focusRecorded(completedMins)} • ${chargeMsg}`,
+      7000
+    );
   },
 
   closeNotePrompt: () => {
-    // Record session without note if closed
-    const completedMins = get().lastCompletedMinutes;
-    const currentRoom = useAppStore.getState().activeRoom;
-    useStatsStore.getState().recordSession(completedMins, currentRoom, '');
     set({ isNotePromptOpen: false, timerState: 'idle', secondsRemaining: get().durationMinutes * 60 });
   },
 
   saveSessionNote: (note: string) => {
-    const completedMins = get().lastCompletedMinutes;
-    const currentRoom = useAppStore.getState().activeRoom;
-    useStatsStore.getState().recordSession(completedMins, currentRoom, note);
+    if (note.trim()) {
+      useStatsStore.getState().updateLatestSessionNote(note.trim());
+    }
     set({ isNotePromptOpen: false, timerState: 'idle', secondsRemaining: get().durationMinutes * 60 });
     const lang = useAppStore.getState().language;
     useAppStore.getState().showToast(TRANSLATIONS[lang].toasts.journalSaved, 3000);

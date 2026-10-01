@@ -75,7 +75,7 @@ export const CommunityChatDrawer: React.FC = () => {
   if (!isChatOpen) return null;
 
   return (
-    <div className="fixed inset-y-4 right-4 z-40 w-84 sm:w-96 max-w-[calc(100vw-2rem)] flex flex-col bg-stone-900/95 text-stone-100 border border-stone-800/90 rounded-2xl shadow-2xl backdrop-blur-md overflow-hidden animate-in slide-in-from-right-10 duration-200 pointer-events-auto">
+    <div className="fixed inset-y-2 sm:inset-y-4 right-2 sm:right-4 left-2 sm:left-auto w-auto sm:w-96 max-w-[calc(100vw-1rem)] sm:max-w-[calc(100vw-2rem)] flex flex-col bg-stone-900/95 text-stone-100 border border-stone-800/90 rounded-2xl shadow-2xl backdrop-blur-md overflow-hidden animate-in slide-in-from-right-10 duration-200 pointer-events-auto">
       
       {/* Top Header */}
       <div className="p-3.5 border-b border-stone-800/90 bg-stone-950/40 flex items-center justify-between">
@@ -182,8 +182,8 @@ export const CommunityChatDrawer: React.FC = () => {
           </div>
 
           {/* Messages List */}
-          <div className="flex-1 overflow-y-auto p-3 space-y-3 pr-1.5">
-            <div className="text-center py-2">
+          <div className="flex-1 overflow-y-auto p-3 space-y-3 pr-1.5 flex flex-col">
+            <div className="text-center py-1 shrink-0">
               <span className="text-[11px] text-stone-500 bg-stone-950/60 px-2.5 py-1 rounded-full border border-stone-800">
                 {language === 'tr' 
                   ? '🌿 Birlikte sessiz ve derin odaklanma alanı' 
@@ -191,49 +191,65 @@ export const CommunityChatDrawer: React.FC = () => {
               </span>
             </div>
 
-            {messages.map((m) => {
-              const isMe = Boolean(user && m.userId && m.userId === user.uid);
-              const displayName = isMe ? (language === 'tr' ? 'Sen' : 'You') : m.senderName;
-              return (
-                <div
-                  key={m.id}
-                  className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}
-                >
-                  <div className="flex items-center gap-1.5 mb-1 px-1">
-                    {m.avatar?.startsWith('https://') ? (
-                      <img 
-                        src={m.avatar} 
-                        alt={m.senderName} 
-                        className="w-4 h-4 rounded-full object-cover inline-block" 
-                        onError={(e) => {
-                          (e.target as HTMLElement).style.display = 'none';
-                        }}
-                      />
-                    ) : (
-                      <span className="text-xs">{m.avatar || '🧑‍💻'}</span>
-                    )}
-                    <span className="text-[11px] font-semibold text-stone-300">
-                      {displayName} {m.flag}
-                    </span>
-                    <span className="text-[10px] text-stone-500 font-mono">
-                      {formatMsgTime(m.timestamp)}
-                    </span>
-                  </div>
-
-                  <div
-                    className={`max-w-[85%] px-3 py-2 rounded-2xl text-xs leading-relaxed ${
-                      m.isReaction
-                        ? 'bg-amber-500/15 text-amber-200 border border-amber-500/30 font-medium italic'
-                        : isMe
-                        ? 'bg-amber-500/25 text-amber-100 border border-amber-500/40 rounded-tr-xs'
-                        : 'bg-stone-800/80 text-stone-200 border border-stone-700/60 rounded-tl-xs'
-                    }`}
-                  >
-                    {m.text}
-                  </div>
+            {messages.length === 0 ? (
+              <div className="flex-1 flex flex-col items-center justify-center p-6 text-center text-stone-400 my-auto">
+                <div className="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/25 flex items-center justify-center text-2xl mb-3 shadow-inner">
+                  ☕
                 </div>
-              );
-            })}
+                <h4 className="text-sm font-semibold text-stone-200 mb-1">
+                  {language === 'tr' ? 'Birlikte Çalışma Sohbeti' : 'Co-Study Room Chat'}
+                </h4>
+                <p className="text-xs text-stone-400 max-w-[240px] leading-relaxed">
+                  {language === 'tr'
+                    ? 'Henüz mesaj yok. İlk mesajı yaz, hedefini paylaş veya odaya sıcak bir kahve ikram et!'
+                    : 'No messages yet. Send the first message, share your focus goal, or pour a coffee!'}
+                </p>
+              </div>
+            ) : (
+              messages.map((m) => {
+                const isMe = Boolean(user && m.userId && m.userId === user.uid);
+                const displayName = isMe ? (language === 'tr' ? 'Sen' : 'You') : m.senderName;
+                return (
+                  <div
+                    key={m.id}
+                    className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}
+                  >
+                    <div className="flex items-center gap-1.5 mb-1 px-1">
+                      {m.avatar?.startsWith('https://') ? (
+                        <img 
+                          src={m.avatar} 
+                          alt={m.senderName} 
+                          className="w-4 h-4 rounded-full object-cover inline-block" 
+                          onError={(e) => {
+                            (e.target as HTMLElement).style.display = 'none';
+                          }}
+                        />
+                      ) : (
+                        <span className="text-xs">{m.avatar || '🧑‍💻'}</span>
+                      )}
+                      <span className="text-[11px] font-semibold text-stone-300">
+                        {displayName} {m.flag}
+                      </span>
+                      <span className="text-[10px] text-stone-500 font-mono">
+                        {formatMsgTime(m.timestamp)}
+                      </span>
+                    </div>
+
+                    <div
+                      className={`max-w-[85%] px-3 py-2 rounded-2xl text-xs leading-relaxed ${
+                        m.isReaction
+                          ? 'bg-amber-500/15 text-amber-200 border border-amber-500/30 font-medium italic'
+                          : isMe
+                          ? 'bg-amber-500/25 text-amber-100 border border-amber-500/40 rounded-tr-xs'
+                          : 'bg-stone-800/80 text-stone-200 border border-stone-700/60 rounded-tl-xs'
+                      }`}
+                    >
+                      {m.text}
+                    </div>
+                  </div>
+                );
+              })
+            )}
             <div ref={messagesEndRef} />
           </div>
 
@@ -288,55 +304,95 @@ export const CommunityChatDrawer: React.FC = () => {
         <div className="flex-1 overflow-y-auto p-3 space-y-2.5 pr-1.5">
           <div className="text-xs text-stone-400 pb-1 flex items-center justify-between font-medium">
             <span>{language === 'tr' ? 'Şu Anda Odada Çalışanlar' : 'Studying Right Now'}</span>
-            <span className="text-amber-300 font-mono">{studyBuddies.length} {language === 'tr' ? 'kişi' : 'active'}</span>
+            <span className="text-amber-300 font-mono font-bold">{studyBuddies.length} {language === 'tr' ? 'kişi' : 'active'}</span>
           </div>
 
-          {studyBuddies.map((buddy) => (
-            <div
-              key={buddy.id}
-              className="p-3 rounded-xl bg-stone-950/40 border border-stone-800/80 hover:border-stone-700 transition-colors flex items-start gap-3"
-            >
-              <div className="w-9 h-9 rounded-xl bg-stone-800 border border-stone-700 flex items-center justify-center text-lg flex-shrink-0 shadow-inner">
-                {buddy.avatar}
-              </div>
+          {studyBuddies.map((buddy) => {
+            const isSelf = Boolean(buddy.isSelf);
 
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-xs font-bold text-amber-200 truncate">{buddy.name}</span>
-                    <span className="text-xs">{buddy.flag}</span>
+            return (
+              <div
+                key={buddy.id}
+                className={`p-3 rounded-xl transition-all flex items-start gap-3 ${
+                  isSelf
+                    ? 'bg-amber-950/25 border border-amber-500/40 shadow-sm ring-1 ring-amber-500/20'
+                    : 'bg-stone-950/40 border border-stone-800/80 hover:border-stone-700'
+                }`}
+              >
+                <div className="w-9 h-9 rounded-xl bg-stone-800 border border-stone-700 flex items-center justify-center text-lg flex-shrink-0 shadow-inner">
+                  {buddy.avatar?.startsWith('https://') ? (
+                    <img 
+                      src={buddy.avatar} 
+                      alt={buddy.name} 
+                      className="w-full h-full rounded-xl object-cover" 
+                      onError={(e) => {
+                        (e.target as HTMLElement).style.display = 'none';
+                      }}
+                    />
+                  ) : (
+                    <span>{buddy.avatar || '🧑‍💻'}</span>
+                  )}
+                </div>
+
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <span className={`text-xs font-bold truncate ${isSelf ? 'text-amber-300' : 'text-stone-200'}`}>
+                        {buddy.name}
+                      </span>
+                      {isSelf && (
+                        <span className="text-[9px] bg-amber-500/20 text-amber-300 px-1.5 py-0.2 rounded-full font-bold border border-amber-500/30 shrink-0">
+                          {language === 'tr' ? 'Sen' : 'You'}
+                        </span>
+                      )}
+                      <span className="text-xs shrink-0">{buddy.flag}</span>
+                    </div>
+
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border shrink-0 ${
+                      buddy.status === 'focusing'
+                        ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
+                        : buddy.status === 'break'
+                        ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
+                        : 'bg-sky-500/20 text-sky-300 border-sky-500/40'
+                    }`}>
+                      {buddy.status === 'focusing' 
+                        ? (language === 'tr' ? 'Odakta' : 'Focusing')
+                        : buddy.status === 'break'
+                        ? (language === 'tr' ? 'Molada' : 'On Break')
+                        : (language === 'tr' ? 'Yeni Başladı' : 'Started')}
+                    </span>
                   </div>
 
-                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
-                    buddy.status === 'focusing'
-                      ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
-                      : buddy.status === 'break'
-                      ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
-                      : 'bg-sky-500/20 text-sky-300 border-sky-500/40'
-                  }`}>
-                    {buddy.status === 'focusing' 
-                      ? (language === 'tr' ? 'Odakta' : 'Focusing')
-                      : buddy.status === 'break'
-                      ? (language === 'tr' ? 'Molada' : 'On Break')
-                      : (language === 'tr' ? 'Yeni Başladı' : 'Started')}
-                  </span>
-                </div>
+                  <p className="text-xs text-stone-300 mt-1 truncate">
+                    {buddy.task}
+                  </p>
 
-                <p className="text-xs text-stone-300 mt-1 truncate">
-                  {buddy.task}
-                </p>
-
-                <div className="flex items-center gap-2 mt-1.5 text-[10px] text-stone-400">
-                  <span className="flex items-center gap-1 text-amber-400/90 font-mono font-semibold">
-                    <Clock className="w-3 h-3" />
-                    {buddy.minutesFocused} {language === 'tr' ? 'dk' : 'm'}
-                  </span>
-                  <span>•</span>
-                  <span className="text-stone-400 truncate">{buddy.roomName}</span>
+                  <div className="flex items-center gap-2 mt-1.5 text-[10px] text-stone-400">
+                    <span className="flex items-center gap-1 text-amber-400/90 font-mono font-semibold">
+                      <Clock className="w-3 h-3" />
+                      {buddy.minutesFocused} {language === 'tr' ? 'dk' : 'm'}
+                    </span>
+                    <span>•</span>
+                    <span className="text-stone-400 truncate">{buddy.roomName}</span>
+                  </div>
                 </div>
               </div>
+            );
+          })}
+
+          {studyBuddies.length <= 1 && (
+            <div className="p-4 rounded-2xl bg-stone-950/30 border border-stone-800/60 text-center mt-3">
+              <div className="text-xl mb-1.5">🌿</div>
+              <div className="text-xs font-semibold text-stone-200">
+                {language === 'tr' ? 'Oda Sessiz & Huzurlu' : 'Quiet & Peaceful Study'}
+              </div>
+              <p className="text-[11px] text-stone-400 mt-1 leading-relaxed">
+                {language === 'tr'
+                  ? 'Şu anda odadasın. Tek başına derin odaklanmanın tadını çıkar veya arkadaşlarını davet et!'
+                  : 'You are studying solo right now. Enjoy deep focus or invite friends to join!'}
+              </p>
             </div>
-          ))}
+          )}
         </div>
       )}
     </div>

@@ -95,11 +95,11 @@ export const ROOM_CONFIGS: Record<RoomId, RoomConfig> = {
     ],
     lamp: { x: 590, y: 140, radius: 140, color: 'rgba(254, 240, 138, 0.25)' },
     mug: { x: 775, y: 275 },
-    cat: { x: 210, y: 445, w: 100, h: 60 },
+    cat: { x: 285, y: 470, w: 115, h: 70 },
     catBreed: 'calico',
-    inpaintingPatch: { x: 160, y: 408, w: 181, h: 127, imageSrc: '/rooms/patches/apartment_cushion.png' },
+    inpaintingPatch: { x: 215, y: 420, w: 155, h: 105, imageSrc: '/rooms/patches/apartment_cushion.png' },
     cozySpots: [
-      { id: 'tatami_cushion', name: 'Floor Cushion', x: 210, y: 445, w: 95, h: 55, facing: 1 },
+      { id: 'tatami_cushion', name: 'Floor Cushion', x: 285, y: 470, w: 110, h: 65, facing: 1 },
       { id: 'desk_side', name: 'Desk Mat', x: 530, y: 445, w: 95, h: 55, facing: -1 },
       { id: 'window_edge', name: 'Tokyo Skyline Window', x: 270, y: 355, w: 90, h: 55, facing: 1 },
     ],
@@ -110,29 +110,33 @@ export const ROOM_CONFIGS: Record<RoomId, RoomConfig> = {
       { id: 'notebook', name: 'Lofi Code Journal', nameTr: 'Kodlama Günlüğü & Notlar', hint: 'Open study journal', hintTr: 'Çalışma günlüğünü aç', x: 520, y: 235, w: 75, h: 35 },
       { id: 'clock', name: 'Workstation Code Screen', nameTr: 'Kodlama Monitörü (Odak Sayacı)', hint: 'Open focus timer', hintTr: 'Odak sayacını / Pomodoro\'yu aç', x: 650, y: 125, w: 110, h: 80 },
       { id: 'bookshelf', name: 'Manga Bookshelf', nameTr: 'Manga ve Figür Kitaplığı', hint: 'View study statistics', hintTr: 'Çalışma istatistiklerini gör', x: 0, y: 230, w: 155, h: 310 },
-      { id: 'cat', name: 'Sleeping Calico Cat', nameTr: 'Minderdeki Kaliko Kedi', hint: 'Pet your companion', hintTr: 'Dostunu sev 🐾', x: 160, y: 415, w: 100, h: 65 },
+      { id: 'cat', name: 'Sleeping Calico Cat', nameTr: 'Minderdeki Kaliko Kedi', hint: 'Pet your companion', hintTr: 'Dostunu sev 🐾', x: 230, y: 435, w: 115, h: 70 },
       { id: 'plant', name: 'Potted Monstera Plant', nameTr: 'Saksıda Monstera Bitkisi', hint: 'Room growth & unlocks', hintTr: 'Oda gelişimini ve kilitleri gör', x: 805, y: 240, w: 155, h: 290 },
     ]
   },
   cabin: {
     id: 'cabin',
     imageSrc: '/rooms/cabin.jpg',
-    // Natural window boundaries wrapping the glass panes cleanly above desk/laptop (x: 68..388, y: 96..345)
-    windowBounds: { x: 68, y: 96, w: 320, h: 249 },
-    // Strictly calibrated glass panes ending precisely before the timber frame at x = 388
-    // Note: The right pane starts at y: 185 because above y: 185 is the solid wooden log header!
+    // Natural window boundaries wrapping the glass panes cleanly above desk/laptop (x: 68..388, y: 96..344)
+    windowBounds: { x: 68, y: 96, w: 320, h: 248 },
+    // Strictly calibrated glass panes ending precisely before the timber frame and stopping cleanly above the candle & laptop
+    // Left pane (x: 68..136, y: 96..344)
+    // Center mountain pane strictly above candle & laptop (x: 146..338, y: 96..324)
+    // Right pane strictly above log header & desk (x: 352..388, y: 185..324)
     windowPanes: [
-      { x: 68, y: 96, w: 68, h: 249 },    // Left pane (x: 68..136, y: 96..345)
-      { x: 146, y: 96, w: 190, h: 249 },  // Center mountain pane (x: 146..336, y: 96..345)
-      { x: 352, y: 185, w: 36, h: 160 },  // Right pane (x: 352..388, y: 185..345)
+      { x: 68, y: 96, w: 68, h: 248 },    // Left pane (x: 68..136, y: 96..344)
+      { x: 146, y: 96, w: 192, h: 228 },  // Center mountain pane (x: 146..338, y: 96..324)
+      { x: 352, y: 185, w: 36, h: 139 },  // Right pane strictly above desk (x: 352..388, y: 185..324)
     ],
     windowPolygon: [
       { x: 68, y: 96 },
       { x: 338, y: 96 },
       { x: 338, y: 185 },
       { x: 388, y: 185 },
-      { x: 388, y: 345 },
-      { x: 68, y: 345 },
+      { x: 388, y: 324 },
+      { x: 146, y: 324 },
+      { x: 146, y: 344 },
+      { x: 68, y: 344 },
     ],
     // Calibrated glowing hearth flame bounds based on pixel luminosity scan
     hearth: { x: 695, y: 265, w: 140, h: 145 },

@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { X, Mail, Lock, User, Eye, EyeOff, Globe, Loader2, AlertCircle, KeyRound } from 'lucide-react';
 import { useAppStore } from '../../store/useAppStore';
 import { useAuthStore } from '../../store/useAuthStore';
+import { useTaskStore } from '../../store/useTaskStore';
+import { useStatsStore } from '../../store/useStatsStore';
 import { signInWithGoogle, signInWithEmail, registerWithEmail, resetPassword, isFirebaseConfigured } from '../../firebase/auth';
 
 type AuthView = 'login' | 'register' | 'reset';
@@ -94,6 +96,8 @@ export const AuthModal: React.FC = () => {
     try {
       const user = await registerWithEmail(email, password, displayName);
       setUser(user);
+      useTaskStore.setState({ tasks: [], activeTaskId: null, sessionIntent: '' });
+      useStatsStore.setState({ sessions: [], streakDays: 0, lastSessionDate: null });
       setActiveModal('none');
     } catch (err: unknown) {
       console.error('[Firebase Auth Register Error]', err);

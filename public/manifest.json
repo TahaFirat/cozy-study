@@ -1,0 +1,28 @@
+{
+  "name": "Cozy Study - Lofi & Focus Sanctuary",
+  "short_name": "Cozy Study",
+  "description": "Atmospheric pixel-art lo-fi sanctuary, Pomodoro focus timer, ambient mixer and global co-study haven.",
+  "start_url": "/",
+  "id": "/",
+  "display": "standalone",
+  "display_override": ["standalone", "minimal-ui", "window-controls-overlay"],
+  "background_color": "#0c0a09",
+  "theme_color": "#0c0a09",
+  "orientation": "any",
+  "lang": "tr",
+  "categories": ["productivity", "lifestyle", "education"],
+  "icons": [
+    {
+      "src": "/app-icon.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/app-icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

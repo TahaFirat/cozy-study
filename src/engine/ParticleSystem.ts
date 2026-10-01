@@ -173,8 +173,8 @@ export class ParticleSystem {
   private windGustTimer = 0;
 
   public lightningAlpha = 0;
-  private lightningSequence: number[] = [];
-  private lightningSequenceIndex = 999;
+  private lightningStartTime = 0;
+  private lightningDuration = 0.52;
   private nextLightningTime = 0;
   private currentBolt: LightningBolt | null = null;
   private lastWindowKey = '';
@@ -290,25 +290,31 @@ export class ParticleSystem {
   private ensureGlassDroplets(
     wb: { x: number; y: number; w: number; h: number },
     windowPanes?: { x: number; y: number; w: number; h: number }[],
-    hasGlass = true
+    hasGlass = true,
+    roomId = 'bedroom'
   ) {
     if (!hasGlass) {
       this.glassDroplets = [];
       return;
     }
     const panes = windowPanes && windowPanes.length > 0 ? windowPanes : [wb];
-    const key = panes.map(p => `${p.x},${p.y},${p.w},${p.h}`).join('|');
+    const key = `${roomId}|` + panes.map(p => `${p.x},${p.y},${p.w},${p.h}`).join('|');
     if (this.lastWindowKey === key && this.glassDroplets.length > 0) return;
     this.lastWindowKey = key;
 
     this.glassDroplets = [];
     panes.forEach((pane, pIdx) => {
       // Natural droplet density scaled by pane width
-      const count = Math.max(12, Math.round(28 * (pane.w / 200)));
+      const count = Math.max(10, Math.round(24 * (pane.w / 200)));
       for (let i = 0; i < count; i++) {
         const isBig = Math.random() < 0.18;
-        const radius = isBig ? (3.0 + Math.random() * 2.4) : (1.4 + Math.random() * 1.5);
-        const yPos = pane.y + 4 + Math.random() * (pane.h - 10);
+        const radius = isBig ? (2.8 + Math.random() * 2.2) : (1.4 + Math.random() * 1.4);
+        const maxH = Math.max(16, pane.h - 10);
+        let yPos = pane.y + 4 + Math.random() * maxH;
+        // Strict boundary: In cabin room, never spawn droplets down into candle flame or laptop
+        if (roomId === 'cabin' && (pane.x + pane.w > 255)) {
+          yPos = Math.min(yPos, 320);
+        }
         this.glassDroplets.push({
           x: pane.x + 3 + Math.random() * (pane.w - 6),
           y: yPos,
@@ -336,6 +342,13 @@ export class ParticleSystem {
         maxLife: 70 + Math.random() * 25,
       });
     }
+  }
+
+  public triggerLightningNow(windowBounds = { x: 68, y: 96, w: 320, h: 248 }) {
+    this.lightningStartTime = performance.now();
+    this.lightningDuration = 0.52;
+    this.generateLightningBolt(windowBounds);
+    webAudioEngine.playThunderStrike(0.8, 'medium');
   }
 
   private generateLightningBolt(windowBounds: { x: number; y: number; w: number; h: number }) {
@@ -391,7 +404,7 @@ export class ParticleSystem {
     const hasGlass = roomId !== 'kyoto_zen';
 
     // Ensure glass droplets stay strictly inside each glass pane (only while raining)
-    this.ensureGlassDroplets(windowBounds, windowPanes, hasGlass && isRaining);
+    this.ensureGlassDroplets(windowBounds, windowPanes, hasGlass && isRaining, roomId);
 
     // 0. DYNAMIC WIND GUST SIMULATION (Couples snow, rain slant, and outdoor trees)
     this.windGustTimer--;
@@ -652,29 +665,34 @@ export class ParticleSystem {
             // Carve path through condensation mist
             this.clearMistAt(d.x, d.y, d.radius);
 
-            // Add wet trail point
-            d.trail.push({
-              x: d.x,
-              y: d.y,
-              alpha: 0.35,
-              width: Math.max(1, d.radius * 0.65)
-            });
-            if (d.trail.length > 14) d.trail.shift();
+            // Add wet trail point (strictly clipped above laptop in cabin)
+            const isNearLaptop = roomId === 'cabin' && d.x >= 258;
+            if (!isNearLaptop || d.y <= 322) {
+              d.trail.push({
+                x: d.x,
+                y: d.y,
+                alpha: 0.35,
+                width: Math.max(1, d.radius * 0.65)
+              });
+              if (d.trail.length > 14) d.trail.shift();
+            }
 
             // Shed daughter micro-bead in wake
             if (d.y - d.lastTrailY > 26 + Math.random() * 20) {
               d.lastTrailY = d.y;
-              if (this.glassDroplets.length < 85 && Math.random() < 0.6) {
+              const daughterY = d.y - d.radius - 2;
+              const maxDaughterY = isNearLaptop ? 320 : (pane.y + pane.h - 6);
+              if (this.glassDroplets.length < 85 && Math.random() < 0.6 && daughterY < maxDaughterY) {
                 const daughterR = 1.2 + Math.random() * 0.8;
                 this.glassDroplets.push({
                   x: d.x + (Math.random() - 0.5) * 2,
-                  y: d.y - d.radius - 2,
+                  y: daughterY,
                   radius: daughterR,
                   mass: daughterR * daughterR,
                   stuck: true,
                   vy: 0,
                   slideTimer: 180 + Math.random() * 300,
-                  lastTrailY: d.y,
+                  lastTrailY: daughterY,
                   trail: [],
                   alpha: 0.45 + Math.random() * 0.25,
                   paneIndex: d.paneIndex,
@@ -691,9 +709,13 @@ export class ParticleSystem {
               d.slideTimer = 100 + Math.random() * 220;
             }
 
-            // Reset droplet if it falls past bottom sill
-            if (d.y > pane.y + pane.h - 4) {
+            // Reset droplet if it falls past bottom sill (or reaches laptop top in cabin)
+            const maxDropletY = isNearLaptop ? Math.min(pane.y + pane.h - 4, 322) : (pane.y + pane.h - 4);
+            if (d.y > maxDropletY) {
               d.y = pane.y + 4 + Math.random() * 14;
+              if (isNearLaptop) {
+                d.y = Math.min(d.y, 318);
+              }
               d.x = pane.x + 4 + Math.random() * (pane.w - 8);
               d.mass = Math.random() < 0.8 ? (1.5 + Math.random() * 2.0) : (3.5 + Math.random() * 3.0);
               d.radius = Math.sqrt(d.mass);
@@ -808,36 +830,55 @@ export class ParticleSystem {
       this.snow = [];
     }
 
-    // 3. THUNDERSTORM LIGHTNING — Realistic multi-strobe pulse & synchronized thunderclaps
+    // 3. THUNDERSTORM LIGHTNING — Realistic Atmospheric Multi-Stroke Cadence & Delayed Thunder
     if (weather === 'storm') {
       const now = performance.now();
       if (this.nextLightningTime === 0) {
-        this.nextLightningTime = now + 1200;
+        this.nextLightningTime = now + 1500 + Math.random() * 2000;
       }
 
-      if (now > this.nextLightningTime && this.lightningSequenceIndex >= this.lightningSequence.length) {
-        this.lightningSequence = [0.75, 0.25, 1.0, 0.92, 0.70, 0.48, 0.32, 0.18, 0.08, 0];
-        this.lightningSequenceIndex = 0;
+      if (now > this.nextLightningTime && this.lightningStartTime === 0) {
+        this.lightningStartTime = now;
+        this.lightningDuration = 0.50 + Math.random() * 0.10; // 500-600ms total event
         this.generateLightningBolt(windowBounds);
-        this.nextLightningTime = now + 4500 + Math.random() * 6500;
+        this.nextLightningTime = now + 5500 + Math.random() * 6500;
+
+        // Realistic distance delay for thunder audio: 350ms - 800ms (speed of sound)
+        const thunderDelay = 350 + Math.random() * 450;
+        setTimeout(() => {
+          webAudioEngine.playThunderStrike(0.70 + Math.random() * 0.25, 'medium');
+        }, thunderDelay);
       }
 
-      if (this.lightningSequenceIndex < this.lightningSequence.length) {
-        this.lightningAlpha = this.lightningSequence[this.lightningSequenceIndex];
-        if (this.lightningSequenceIndex === 2) {
-          setTimeout(() => {
-            webAudioEngine.playThunderStrike(0.85 + Math.random() * 0.15);
-          }, 120);
+      if (this.lightningStartTime > 0) {
+        const elapsed = (now - this.lightningStartTime) / 1000; // in seconds
+        if (elapsed < this.lightningDuration) {
+          const t = elapsed;
+          // 1. Leader ionization micro-flicker (24ms)
+          const leader = 0.28 * Math.exp(-Math.pow((t - 0.024) / 0.014, 2));
+          // 2. Primary return stroke (peaking smoothly at 68ms, capped to cozy ~0.72)
+          const main = 0.72 * Math.exp(-Math.pow((t - 0.068) / 0.034, 2));
+          // 3. Secondary dart stroke (160ms)
+          const secondary = 0.42 * Math.exp(-Math.pow((t - 0.160) / 0.040, 2));
+          // 4. Smooth afterglow tail with subtle 18Hz atmospheric flutter
+          let afterglow = 0;
+          if (t >= 0.16) {
+            const flutter = 1.0 + 0.14 * Math.sin(2 * Math.PI * 18 * t) + 0.08 * Math.sin(2 * Math.PI * 28 * t + 1.2);
+            afterglow = 0.24 * Math.exp(-(t - 0.16) / 0.120) * flutter;
+          }
+          this.lightningAlpha = Math.max(0, Math.min(1.0, leader + main + secondary + afterglow));
+        } else {
+          this.lightningStartTime = 0;
+          this.lightningAlpha = 0;
+          this.currentBolt = null;
         }
-        this.lightningSequenceIndex++;
       } else {
         this.lightningAlpha = 0;
-        this.currentBolt = null;
       }
     } else {
       this.lightningAlpha = 0;
+      this.lightningStartTime = 0;
       this.nextLightningTime = 0;
-      this.lightningSequenceIndex = 999;
       this.currentBolt = null;
     }
 
@@ -1096,14 +1137,29 @@ export class ParticleSystem {
     const isRaining = weather === 'rain' || weather === 'heavy_rain' || weather === 'storm';
 
     // 0. THUNDERSTORM: SKY FLASH & JAGGED BOLT (Inside window glass)
-    if (this.lightningAlpha > 0.04) {
-      ctx.fillStyle = `rgba(219, 234, 254, ${this.lightningAlpha * 0.55})`;
-      ctx.fillRect(windowBounds.x, windowBounds.y, windowBounds.w, windowBounds.h);
+    if (this.lightningAlpha > 0.02) {
+      // Atmospheric sky illumination inside window glass (feathered radial glow from strike origin, ZERO hard rectangle seams)
+      const boltOriginX = this.currentBolt && this.currentBolt.points.length > 0 
+        ? this.currentBolt.points[0].x 
+        : (windowBounds.x + windowBounds.w * 0.5);
+      
+      const skyGrad = ctx.createRadialGradient(
+        boltOriginX, windowBounds.y + 10, 10,
+        boltOriginX, windowBounds.y + windowBounds.h * 0.55, Math.max(windowBounds.w, windowBounds.h) * 1.1
+      );
+      skyGrad.addColorStop(0, `rgba(235, 245, 255, ${(this.lightningAlpha * 0.36).toFixed(3)})`);
+      skyGrad.addColorStop(0.35, `rgba(195, 220, 255, ${(this.lightningAlpha * 0.18).toFixed(3)})`);
+      skyGrad.addColorStop(0.75, `rgba(160, 195, 245, ${(this.lightningAlpha * 0.05).toFixed(3)})`);
+      skyGrad.addColorStop(1, 'rgba(147, 197, 253, 0)');
 
-      if (this.currentBolt && this.lightningAlpha > 0.20) {
+      ctx.fillStyle = skyGrad;
+      ctx.fillRect(windowBounds.x - 30, windowBounds.y - 30, windowBounds.w + 60, windowBounds.h + 60);
+
+      if (this.currentBolt && this.lightningAlpha > 0.12) {
         ctx.save();
-        ctx.strokeStyle = `rgba(147, 197, 253, ${Math.min(1.0, this.lightningAlpha * 1.2)})`;
-        ctx.lineWidth = 3.5;
+        // Electric blue-cyan outer aura
+        ctx.strokeStyle = `rgba(147, 197, 253, ${(this.lightningAlpha * 0.85).toFixed(2)})`;
+        ctx.lineWidth = 2.8;
         ctx.beginPath();
         const pts = this.currentBolt.points;
         if (pts.length > 0) {
@@ -1122,8 +1178,9 @@ export class ParticleSystem {
         }
         ctx.stroke();
 
-        ctx.strokeStyle = `rgba(255, 255, 255, ${Math.min(1.0, this.lightningAlpha * 1.5)})`;
-        ctx.lineWidth = 1.6;
+        // Inner crisp white core
+        ctx.strokeStyle = `rgba(245, 250, 255, ${(this.lightningAlpha * 0.95).toFixed(2)})`;
+        ctx.lineWidth = 1.3;
         ctx.stroke();
         ctx.restore();
       }

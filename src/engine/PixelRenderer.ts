@@ -25,6 +25,7 @@ export class PixelRenderer {
 
   // Cached hovered hotspot — avoid find() every animation frame
   private cachedHoveredId: InteractiveObjectId | null = null;
+  private cachedRoomId: RoomId | null = null;
   private cachedHotspot: { x: number; y: number; w: number; h: number } | null = null;
 
   constructor(canvas: HTMLCanvasElement) {
@@ -92,6 +93,13 @@ export class PixelRenderer {
     let lastTime = performance.now();
     const loop = (time: number) => {
       if (!this.isRunning) return;
+
+      // Skip rendering entirely when tab is hidden/minimized to save battery & mobile GPU
+      if (typeof document !== 'undefined' && document.hidden) {
+        this.animationFrameId = requestAnimationFrame(loop);
+        return;
+      }
+
       const delta = Math.min(100, Math.max(1, time - lastTime));
       lastTime = time;
       const sceneCtx = getContext();
@@ -733,9 +741,10 @@ export class PixelRenderer {
     // Windows are scenic backdrops; avoid drawing obtrusive full-wall reticle boxes over nature
     if (objectId === 'window') return;
 
-    // Cache the find result — only redo when objectId changes
-    if (this.cachedHoveredId !== objectId) {
+    // Cache the find result — redo when objectId or room changes
+    if (this.cachedHoveredId !== objectId || this.cachedRoomId !== cfg.id) {
       this.cachedHoveredId = objectId;
+      this.cachedRoomId = cfg.id;
       this.cachedHotspot = cfg.hotspots.find((h) => h.id === objectId) ?? null;
     }
     const targetBox = this.cachedHotspot;

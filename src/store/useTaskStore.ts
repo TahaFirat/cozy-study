@@ -39,41 +39,9 @@ interface TaskState {
 export const useTaskStore = create<TaskState>()(
   persist(
     (set, get) => ({
-      tasks: [
-        {
-          id: 'task-1',
-          title: 'React state yönetimi mimarisini incele',
-          status: 'in_progress',
-          priority: 'high',
-          category: 'Yazılım',
-          pomodoroEstimate: 2,
-          pomodorosCompleted: 1,
-          createdAt: new Date().toISOString(),
-        },
-        {
-          id: 'task-2',
-          title: 'İngilizce makale okuması (30 sayfa)',
-          status: 'todo',
-          priority: 'medium',
-          category: 'Çalışma',
-          pomodoroEstimate: 3,
-          pomodorosCompleted: 0,
-          createdAt: new Date().toISOString(),
-        },
-        {
-          id: 'task-3',
-          title: 'Günün ders notlarını düzenle',
-          status: 'done',
-          priority: 'low',
-          category: 'Notlar',
-          pomodoroEstimate: 1,
-          pomodorosCompleted: 1,
-          createdAt: new Date().toISOString(),
-          completedAt: new Date().toISOString(),
-        }
-      ],
-      activeTaskId: 'task-1',
-      sessionIntent: 'Derin odaklanmayla bugünkü kodlama modülünü tamamla ✨',
+      tasks: [],
+      activeTaskId: null,
+      sessionIntent: '',
       isTaskDrawerOpen: false,
 
       addTask: (title, priority = 'medium', category = 'Genel', pomodoroEstimate = 1, status = 'todo') => {
@@ -180,6 +148,20 @@ export const useTaskStore = create<TaskState>()(
     }),
     {
       name: 'cozy_room_tasks',
+      version: 2,
+      migrate: (persistedState: any) => {
+        if (!persistedState) return persistedState;
+        const filteredTasks = (persistedState.tasks || []).filter(
+          (t: StudyTask) => !['task-1', 'task-2', 'task-3'].includes(t.id)
+        );
+        const hasCustomIntent = persistedState.sessionIntent && persistedState.sessionIntent !== 'Derin odaklanmayla bugünkü kodlama modülünü tamamla ✨';
+        return {
+          ...persistedState,
+          tasks: filteredTasks,
+          activeTaskId: filteredTasks.some((t: StudyTask) => t.id === persistedState.activeTaskId) ? persistedState.activeTaskId : null,
+          sessionIntent: hasCustomIntent ? persistedState.sessionIntent : '',
+        };
+      },
     }
   )
 );

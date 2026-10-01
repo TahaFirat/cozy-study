@@ -24,7 +24,7 @@ export const UserProfileModal: React.FC = () => {
   const { user } = useAuthStore();
   const { streakDays, getTotalFocusHours, sessions, getHeatmapDays } = useStatsStore();
   const { xp, getLevel } = useGamificationStore();
-  const { bosses, unlockedTrophies } = useBossRaidStore();
+  const { bosses, unlockedTrophies, personalDamagePerBoss } = useBossRaidStore();
 
   const [copied, setCopied] = useState(false);
 
@@ -37,15 +37,15 @@ export const UserProfileModal: React.FC = () => {
   const level = getLevel();
   const completedCount = sessions.length;
 
-  // Determine honorific title based on defeated bosses
+  // Determine honorific title based on defeated bosses AND player's personal participation
   let playerTitle = isTr ? 'Çırak Odakçı' : 'Apprentice Studier';
-  if (bosses.oblivion?.isDefeated) {
+  if (bosses.oblivion?.isDefeated && (personalDamagePerBoss?.oblivion || 0) > 0) {
     playerTitle = isTr ? '👑 Ebedi Kronos Fatihi' : '👑 Eternal Chronos Conqueror';
-  } else if (bosses.cacophony?.isDefeated) {
+  } else if (bosses.cacophony?.isDefeated && (personalDamagePerBoss?.cacophony || 0) > 0) {
     playerTitle = isTr ? '💎 Sessizliğin Efendisi' : '💎 Master of Silence';
-  } else if (bosses.acedia?.isDefeated) {
+  } else if (bosses.acedia?.isDefeated && (personalDamagePerBoss?.acedia || 0) > 0) {
     playerTitle = isTr ? '🪔 Atalet Kıran' : '🪔 Sloth Slayer';
-  } else if (bosses.horologium?.isDefeated) {
+  } else if (bosses.horologium?.isDefeated && (personalDamagePerBoss?.horologium || 0) > 0) {
     playerTitle = isTr ? '🕰️ Zaman Muhafızı' : '🕰️ Time Guardian';
   }
 
@@ -119,34 +119,44 @@ export const UserProfileModal: React.FC = () => {
 
   const heatmapDays = getHeatmapDays().slice(-14);
 
+  const earnedTrophiesCount = trophyList.filter((trItem) => {
+    const boss = bosses[trItem.bossId as keyof typeof bosses];
+    const myDmg = personalDamagePerBoss?.[trItem.bossId] || 0;
+    return unlockedTrophies.includes(trItem.id) || (Boolean(boss?.isDefeated) && myDmg > 0);
+  }).length;
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm pointer-events-auto">
-      <div className="bg-stone-900/98 text-stone-100 border border-amber-600/50 rounded-2xl shadow-2xl p-6 w-full max-w-2xl max-h-[90vh] flex flex-col animate-in fade-in zoom-in-95 duration-150">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/70 backdrop-blur-md pointer-events-auto">
+      <div className="bg-stone-900/95 text-stone-100 border border-stone-800 rounded-2xl sm:rounded-3xl shadow-2xl p-4 sm:p-6 w-full max-w-2xl max-h-[90dvh] sm:max-h-[90vh] flex flex-col animate-in fade-in zoom-in-95 duration-150 relative overflow-hidden">
         
-        {/* Header */}
-        <div className="flex items-center justify-between pb-4 border-b border-stone-800">
-          <div className="flex items-center gap-3">
-            {user?.photoURL ? (
-              <img
-                src={user.photoURL}
-                alt={displayName}
-                className="w-12 h-12 rounded-2xl object-cover border-2 border-amber-500/60 shadow-lg"
-              />
-            ) : (
-              <div className="w-12 h-12 rounded-2xl bg-amber-500/20 border-2 border-amber-500/60 flex items-center justify-center text-lg font-black text-amber-200 shadow-inner">
-                {userInitials}
-              </div>
-            )}
+        {/* Profile Card Header */}
+        <div className="flex items-center justify-between pb-4 border-b border-stone-800/80">
+          <div className="flex items-center gap-3.5">
+            <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-amber-600 to-amber-400 p-0.5 shadow-lg shadow-amber-500/20">
+              {user?.photoURL ? (
+                <img 
+                  src={user.photoURL} 
+                  alt={displayName} 
+                  className="w-full h-full rounded-[14px] object-cover" 
+                  onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
+                />
+              ) : (
+                <div className="w-full h-full rounded-[14px] bg-stone-900 flex items-center justify-center text-amber-300 font-bold text-lg font-mono">
+                  {userInitials}
+                </div>
+              )}
+            </div>
+
             <div>
               <div className="flex items-center gap-2">
-                <h3 className="text-lg font-bold text-amber-100">{displayName}</h3>
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40">
-                  {isTr ? 'Sv.' : 'Lv.'}{level}
+                <h3 className="text-base font-bold text-stone-100">{displayName}</h3>
+                <span className="text-[10px] bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded-full font-bold border border-amber-500/30">
+                  {playerTitle}
                 </span>
               </div>
-              <p className="text-xs font-semibold text-amber-400/90 mt-0.5 flex items-center gap-1.5">
-                <span>{playerTitle}</span>
-                <span className="text-stone-500">•</span>
+              <p className="text-xs text-stone-400 flex items-center gap-2 mt-0.5">
+                <span>{isTr ? 'Sv.' : 'Lv.'}{level}</span>
+                <span>•</span>
                 <span className="text-stone-400 font-mono">{xp} XP</span>
               </p>
             </div>
@@ -226,7 +236,7 @@ export const UserProfileModal: React.FC = () => {
                   {isTr ? 'Zafer Kupaları' : 'Trophies'}
                 </span>
                 <span className="text-base font-bold text-amber-200 font-mono">
-                  {unlockedTrophies.length} / {trophyList.length}
+                  {earnedTrophiesCount} / {trophyList.length}
                 </span>
               </div>
             </div>
@@ -260,7 +270,8 @@ export const UserProfileModal: React.FC = () => {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
               {trophyList.map((trItem) => {
                 const boss = bosses[trItem.bossId as keyof typeof bosses];
-                const isEarned = unlockedTrophies.includes(trItem.id) || boss?.isDefeated;
+                const myDmg = personalDamagePerBoss?.[trItem.bossId] || 0;
+                const isEarned = unlockedTrophies.includes(trItem.id) || (Boolean(boss?.isDefeated) && myDmg > 0);
 
                 return (
                   <div

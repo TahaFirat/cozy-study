@@ -66,6 +66,9 @@ export class BossPixelRenderer {
   // Defeat explosion particles
   private defeatParticles: { x: number; y: number; vx: number; vy: number; color: string; size: number; alpha: number }[] = [];
 
+  private lastWidth = 480;
+  private lastHeight = 600;
+
   constructor() {
     const bossIds = ['horologium', 'acedia', 'cacophony', 'oblivion'];
     bossIds.forEach((id) => {
@@ -100,61 +103,64 @@ export class BossPixelRenderer {
   }
 
   // Trigger hit reaction from store or click
-  public triggerHit(damage: number, isCritical: boolean, bossThemeColor: string) {
+  public triggerHit(damage: number, isCritical: boolean, bossThemeColor: string, customX?: number, customY?: number) {
     // Snappy, crisp micro-shake (3-5px)
-    this.shakeDuration = isCritical ? 0.2 : 0.14;
+    this.shakeDuration = isCritical ? 0.22 : 0.15;
     this.shakeTime = this.shakeDuration;
-    this.shakeMagnitude = isCritical ? 5 : 3;
+    this.shakeMagnitude = isCritical ? 6 : 3.5;
 
     // Crisp 0.08s hit flinch
-    this.hitFlashTimer = 0.08;
+    this.hitFlashTimer = 0.09;
     this.hitFlashType = 'white';
 
     // Downward punch recoil
     this.recoilX = 0;
-    this.recoilY = isCritical ? -4 : -2.5;
+    this.recoilY = isCritical ? -5 : -3;
+
+    const targetX = customX ?? (this.lastWidth / 2);
+    const targetY = customY ?? (this.lastHeight * 0.46);
 
     // Fast, sleek slash arc
     const angle = -Math.PI / 4;
     this.currentSlash = {
-      x: 240,
-      y: 125,
+      x: targetX,
+      y: targetY,
       angle,
       progress: 0,
-      length: isCritical ? 120 : 90,
+      length: isCritical ? 140 : 100,
       color: isCritical ? '#fbbf24' : '#f87171',
     };
 
     // Clean floating combat text
     this.floatingTexts.push({
       id: `dmg-${Date.now()}-${Math.random()}`,
-      x: 240 + (Math.random() - 0.5) * 30,
-      y: 75,
-      text: isCritical ? `⚡ CRIT -${damage}` : `-${damage}`,
+      x: targetX + (Math.random() - 0.5) * 40,
+      y: targetY - 35,
+      text: isCritical ? `⚡ CRIT -${damage}` : (damage === 0 ? '🎯 TEST' : `-${damage}`),
       isCritical,
-      color: isCritical ? '#fbbf24' : '#ef4444',
+      color: isCritical ? '#fbbf24' : (damage === 0 ? '#38bdf8' : '#ef4444'),
       alpha: 1.0,
-      scale: 1.0,
+      scale: isCritical ? 1.25 : 1.05,
       vx: 0,
-      vy: -1.8,
+      vy: -2.0,
       life: 0,
-      maxLife: 0.9,
+      maxLife: 1.0,
     });
 
     // Clean, tight impact spark burst (4-8 particles)
-    const count = isCritical ? 8 : 4;
+    const count = isCritical ? 10 : 5;
     for (let i = 0; i < count; i++) {
-      const spd = 1.8 + Math.random() * 2.5;
+      const spd = 2.0 + Math.random() * 3.0;
       const ang = Math.random() * Math.PI * 2;
       this.particles.push({
-        x: 240,
-        y: 125,
+        x: targetX,
+        y: targetY,
         vx: Math.cos(ang) * spd,
         vy: Math.sin(ang) * spd - 0.8,
         color: isCritical ? '#fbbf24' : '#f87171',
-        size: 2,
+        size: 2.5,
         alpha: 1.0,
-        life: 0.3 + Math.random() * 0.2,
+        life: 0.35 + Math.random() * 0.25,
       });
     }
   }
@@ -168,12 +174,15 @@ export class BossPixelRenderer {
     this.hitFlashTimer = 0.35;
     this.hitFlashType = 'white';
 
+    const targetX = this.lastWidth / 2;
+    const targetY = this.lastHeight * 0.46;
+
     for (let i = 0; i < 90; i++) {
       const ang = Math.random() * Math.PI * 2;
       const spd = 1 + Math.random() * 5.5;
       this.defeatParticles.push({
-        x: 240 + (Math.random() - 0.5) * 60,
-        y: 130 + (Math.random() - 0.5) * 60,
+        x: targetX + (Math.random() - 0.5) * 80,
+        y: targetY + (Math.random() - 0.5) * 80,
         vx: Math.cos(ang) * spd,
         vy: Math.sin(ang) * spd - 2.0,
         color: Math.random() > 0.4 ? '#fbbf24' : (Math.random() > 0.5 ? '#ffffff' : bossThemeColor),
@@ -196,6 +205,8 @@ export class BossPixelRenderer {
     dt: number,
     time: number
   ) {
+    this.lastWidth = width;
+    this.lastHeight = height;
     ctx.imageSmoothingEnabled = false;
 
     // Update Shake
@@ -245,16 +256,16 @@ export class BossPixelRenderer {
     if (!isDefeated) {
       // Fluid idle hover & organic breathing
       const isFloating = bossId === 'acedia';
-      const idleHover = isFloating ? Math.sin(time * 0.003) * 6 : 0;
-      const idleBreath = Math.sin(time * 0.004) * 0.012;
+      const idleHover = isFloating ? Math.sin(time * 0.003) * 8 : 0;
+      const idleBreath = Math.sin(time * 0.004) * 0.015;
 
-      let spriteSize = Math.round(height * 0.74);
-      if (bossId === 'oblivion') spriteSize = Math.round(height * 0.78);
-      if (bossId === 'cacophony') spriteSize = Math.round(height * 0.73);
-      if (bossId === 'acedia') spriteSize = Math.round(height * 0.71);
+      let spriteSize = Math.round(Math.min(width * 0.85, height * 0.68));
+      if (bossId === 'oblivion') spriteSize = Math.round(Math.min(width * 0.88, height * 0.72));
+      if (bossId === 'cacophony') spriteSize = Math.round(Math.min(width * 0.84, height * 0.67));
+      if (bossId === 'acedia') spriteSize = Math.round(Math.min(width * 0.82, height * 0.66));
 
       let baseCenterY = groundY - (spriteSize / 2);
-      if (bossId === 'acedia') baseCenterY -= 12; // Floating ghost slightly elevated
+      if (bossId === 'acedia') baseCenterY -= 14; // Floating ghost slightly elevated
 
       ctx.translate(cx + this.recoilX, baseCenterY + idleHover + this.recoilY);
       ctx.scale(1 + idleBreath, 1 - idleBreath);
@@ -272,7 +283,7 @@ export class BossPixelRenderer {
       this.renderBossSprite(ctx, bossId, spriteSize, themeColor, time, hpRatio);
     } else {
       // Defeated State: Royal Victory Crown & Dissolution
-      this.renderDefeatedBoss(ctx, cx, 130, time, themeColor);
+      this.renderDefeatedBoss(ctx, cx, groundY - 80, time, themeColor);
     }
     ctx.restore();
 
@@ -311,15 +322,22 @@ export class BossPixelRenderer {
     const isLoaded = this.arenaImagesLoaded[bossId];
 
     if (arenaImg && isLoaded) {
-      // Draw scenic pixel art arena image covering the canvas cleanly
-      ctx.drawImage(arenaImg, 0, 0, width, height);
+      // Cover-scale arena background image cleanly without stretching
+      const imgW = arenaImg.naturalWidth || 960;
+      const imgH = arenaImg.naturalHeight || 540;
+      const scale = Math.max(width / imgW, height / imgH);
+      const drawW = imgW * scale;
+      const drawH = imgH * scale;
+      const drawX = (width - drawW) / 2;
+      const drawY = (height - drawH) / 2;
+      ctx.drawImage(arenaImg, drawX, drawY, drawW, drawH);
 
       // Delicate floor depth shading at the bottom
-      const floorGrad = ctx.createLinearGradient(0, height * 0.72, 0, height);
+      const floorGrad = ctx.createLinearGradient(0, height * 0.70, 0, height);
       floorGrad.addColorStop(0, 'rgba(0, 0, 0, 0)');
-      floorGrad.addColorStop(1, 'rgba(10, 8, 14, 0.42)');
+      floorGrad.addColorStop(1, 'rgba(10, 8, 14, 0.48)');
       ctx.fillStyle = floorGrad;
-      ctx.fillRect(0, height * 0.72, width, height * 0.28);
+      ctx.fillRect(0, height * 0.70, width, height * 0.30);
     } else {
       // Warm stone/wood gradient fallback while loading
       const bgGrad = ctx.createLinearGradient(0, 0, 0, height);

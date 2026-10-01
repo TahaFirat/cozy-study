@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { useTaskStore, TaskPriority, TaskStatus, StudyTask } from '../../store/useTaskStore';
 import { useAppStore } from '../../store/useAppStore';
+import { useAuthStore } from '../../store/useAuthStore';
 import { useSubscriptionStore } from '../../store/useSubscriptionStore';
 import { webAudioEngine } from '../../audio/WebAudioEngine';
 
@@ -36,7 +37,8 @@ export const TaskDrawer: React.FC = () => {
     setTaskDrawerOpen,
     clearCompletedTasks
   } = useTaskStore();
-  const { language, setActiveModal } = useAppStore();
+  const { language, setActiveModal, showToast } = useAppStore();
+  const { user } = useAuthStore();
   const { isPro } = useSubscriptionStore();
 
   const [viewMode, setViewMode] = useState<'list' | 'kanban'>('list');
@@ -57,6 +59,16 @@ export const TaskDrawer: React.FC = () => {
   const [modalPomodoros, setModalPomodoros] = useState(2);
 
   const openAddModal = (status: TaskStatus = 'todo') => {
+    if (!user && tasks.length >= 3) {
+      showToast(
+        language === 'tr'
+          ? 'Misafir Öğrenci sınırı (3 Görev). Sınırsız görev ve bulut yedekleme için ücretsiz giriş yapın! 📋'
+          : 'Guest limit reached (3 Tasks). Sign in for free for unlimited tasks and cloud sync! 📋',
+        4000
+      );
+      setActiveModal('auth');
+      return;
+    }
     setModalStatus(status);
     setModalTitle('');
     setIsAddModalOpen(true);
@@ -65,6 +77,17 @@ export const TaskDrawer: React.FC = () => {
   const handleModalSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!modalTitle.trim()) return;
+    if (!user && tasks.length >= 3) {
+      showToast(
+        language === 'tr'
+          ? 'Misafir Öğrenci sınırı (3 Görev). Sınırsız görev ve bulut yedekleme için ücretsiz giriş yapın! 📋'
+          : 'Guest limit reached (3 Tasks). Sign in for free for unlimited tasks and cloud sync! 📋',
+        4000
+      );
+      setActiveModal('auth');
+      setIsAddModalOpen(false);
+      return;
+    }
     addTask(modalTitle.trim(), modalPriority, modalCategory, modalPomodoros, modalStatus);
     webAudioEngine.init();
     if (modalStatus === 'done') {
@@ -90,6 +113,16 @@ export const TaskDrawer: React.FC = () => {
     e.preventDefault();
     if (!newTitle.trim()) {
       openAddModal(newStatus);
+      return;
+    }
+    if (!user && tasks.length >= 3) {
+      showToast(
+        isTr
+          ? 'Misafir Öğrenci sınırı (3 Görev). Sınırsız görev ve bulut yedekleme için ücretsiz giriş yapın! 📋'
+          : 'Guest limit reached (3 Tasks). Sign in for free for unlimited tasks and cloud sync! 📋',
+        4000
+      );
+      setActiveModal('auth');
       return;
     }
     addTask(newTitle.trim(), newPriority, newCategory, newPomoEstimate, newStatus);
@@ -276,7 +309,7 @@ export const TaskDrawer: React.FC = () => {
     <div className="fixed inset-0 z-50 flex justify-end bg-black/60 backdrop-blur-sm animate-fade-in">
       <div className="relative w-full max-w-xl h-full bg-stone-900/98 border-l border-stone-800 shadow-2xl flex flex-col text-stone-100">
         {/* Drawer Header */}
-        <div className="p-5 border-b border-stone-800 flex items-center justify-between bg-stone-950/50">
+        <div className="p-3.5 sm:p-5 border-b border-stone-800 flex items-center justify-between bg-stone-950/50">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-amber-500/15 border border-amber-500/30 rounded-lg text-amber-400">
               <CheckSquare className="w-5 h-5" />
@@ -344,6 +377,27 @@ export const TaskDrawer: React.FC = () => {
           </div>
         </div>
 
+        {/* Guest Session Limitation Notice */}
+        {!user && (
+          <div className="mx-4 mt-3 p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/25 flex items-center justify-between gap-2 text-xs">
+            <div className="flex items-center gap-2 text-amber-200">
+              <span className="text-sm">📋</span>
+              <span>
+                {isTr 
+                  ? `Misafir Öğrenci: En fazla 3 görev ekleyebilirsiniz (${tasks.length}/3)` 
+                  : `Guest Session: You can add up to 3 tasks (${tasks.length}/3)`}
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setActiveModal('auth')}
+              className="px-2.5 py-1 rounded-lg bg-amber-500 hover:bg-amber-400 text-stone-950 font-bold text-[11px] whitespace-nowrap transition-colors cursor-pointer"
+            >
+              {isTr ? 'Giriş Yap' : 'Sign In'}
+            </button>
+          </div>
+        )}
+
         {/* Session Intent Banner */}
         <div className="p-4 bg-gradient-to-r from-amber-950/30 to-stone-900 border-b border-stone-800">
           <div className="flex items-center justify-between mb-1">
@@ -366,6 +420,7 @@ export const TaskDrawer: React.FC = () => {
                 onChange={(e) => setIntentInput(e.target.value)}
                 placeholder={isTr ? 'Bu seansta sadece neye odaklanacaksın?' : 'What single goal will you accomplish?'}
                 className="flex-1 px-3 py-1.5 text-xs bg-stone-950 border border-amber-500/50 rounded-lg text-white focus:outline-none"
+                autoFocus
               />
               <button
                 onClick={handleSaveIntent}
@@ -374,10 +429,18 @@ export const TaskDrawer: React.FC = () => {
                 {isTr ? 'Kaydet' : 'Save'}
               </button>
             </div>
-          ) : (
+          ) : sessionIntent ? (
             <p className="text-xs text-stone-200 font-medium italic">
               "{sessionIntent}"
             </p>
+          ) : (
+            <button
+              onClick={() => setIsEditingIntent(true)}
+              className="text-xs text-stone-400 italic hover:text-amber-300 transition-colors text-left w-full cursor-pointer flex items-center gap-1.5 py-0.5"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-amber-400/80" />
+              <span>{isTr ? 'Bu seans için net bir odak hedefi belirle (örn: 25 sayfa oku)...' : 'Set a clear focus goal for this session...'}</span>
+            </button>
           )}
         </div>
 
@@ -453,8 +516,39 @@ export const TaskDrawer: React.FC = () => {
           {viewMode === 'list' ? (
             <div className="space-y-2">
               {tasks.length === 0 ? (
-                <div className="text-center py-12 text-stone-500 text-xs">
-                  {isTr ? 'Henüz görev eklenmedi. Yukarıdan bir tane ekleyerek başla!' : 'No tasks added yet. Add one above to get started!'}
+                <div className="text-center py-10 px-4 rounded-2xl border border-dashed border-stone-800/80 bg-stone-950/30 flex flex-col items-center justify-center space-y-3">
+                  <div className="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-xl text-amber-400 shadow-inner">
+                    📋
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-bold text-stone-200">
+                      {isTr ? 'Henüz Bir Görev Eklenmedi' : 'No Tasks Added Yet'}
+                    </h4>
+                    <p className="text-[11px] text-stone-400 mt-1 max-w-xs mx-auto leading-relaxed">
+                      {isTr 
+                        ? 'Bugün başarmak istediğin ilk adımı yukarıdan ekle veya aşağıdaki hazır kategorilerden birini seç!' 
+                        : 'Add the first goal you want to achieve above or select a quick starter category below!'}
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap items-center justify-center gap-1.5 pt-1">
+                    {[
+                      { label: isTr ? '📚 Ders / Sınav' : '📚 Study Session', cat: 'Çalışma' },
+                      { label: isTr ? '💻 Kodlama / Proje' : '💻 Coding Module', cat: 'Yazılım' },
+                      { label: isTr ? '📖 Kitap Okuma' : '📖 Reading Chapters', cat: 'Okuma' },
+                    ].map((starter, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => {
+                          setNewTitle(starter.label);
+                          setNewCategory(starter.cat);
+                        }}
+                        className="px-2.5 py-1 rounded-lg bg-stone-800/80 hover:bg-stone-700 border border-white/5 hover:border-amber-500/30 text-[10px] text-stone-300 hover:text-amber-200 transition-all cursor-pointer"
+                      >
+                        + {starter.label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               ) : (
                 tasks.map((task) => {
@@ -551,7 +645,7 @@ export const TaskDrawer: React.FC = () => {
             </div>
           ) : (
             /* Kanban Grid with Animated Drag & Drop */
-            <div className="grid grid-cols-3 gap-3 h-full min-h-[420px]">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 h-full min-h-[420px]">
               {kanbanColumns.map((col) => {
                 const colTasks = tasks.filter((t) => t.status === col.id);
                 const isOverCol = dragOverColumn === col.id;

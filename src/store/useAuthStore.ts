@@ -4,6 +4,8 @@ import { loadUserStats, saveUserStats, loadUserSettings, saveUserSettings } from
 import { useStatsStore } from './useStatsStore';
 import { useAppStore } from './useAppStore';
 
+import { switchUserProfile, saveProfileSnapshot, getActiveProfileId } from './userProfileManager';
+
 interface AuthState {
   user: AuthUser | null;
   isLoading: boolean;
@@ -25,12 +27,16 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   isSyncing: false,
   isAuthReady: false,
 
-  setUser: (user) => set({ user }),
+  setUser: (user) => {
+    switchUserProfile(user ? user.uid : null);
+    set({ user });
+  },
   setLoading: (isLoading) => set({ isLoading }),
   setSyncing: (isSyncing) => set({ isSyncing }),
 
   signOut: async () => {
     await signOutUser();
+    switchUserProfile(null);
     set({ user: null });
   },
 
@@ -117,7 +123,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 let unsubscribe: (() => void) | null = null;
 
 if (typeof window !== 'undefined') {
+  window.addEventListener('beforeunload', () => {
+    saveProfileSnapshot(getActiveProfileId());
+  });
+
   unsubscribe = subscribeToAuthState(async (user) => {
+    switchUserProfile(user ? user.uid : null);
     useAuthStore.setState({ user, isLoading: false, isAuthReady: true });
     if (user) {
       // Load user's cloud data on sign-in

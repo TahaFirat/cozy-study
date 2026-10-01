@@ -3,6 +3,7 @@ import { X, Check, Compass, Crown } from 'lucide-react';
 import { useAppStore } from '../../store/useAppStore';
 import { useAudioStore } from '../../store/useAudioStore';
 import { useSubscriptionStore } from '../../store/useSubscriptionStore';
+import { useAuthStore } from '../../store/useAuthStore';
 import { ROOMS } from '../../audio/soundPresets';
 import { RoomId } from '../../types';
 import { TRANSLATIONS, getRoomTranslation } from '../../i18n/translations';
@@ -11,6 +12,7 @@ export const RoomSwitcherModal: React.FC = () => {
   const { activeModal, setActiveModal, activeRoom, setActiveRoom, setTimeOfDay, setWeather, showToast, language } = useAppStore();
   const { applyRoomVolumes } = useAudioStore();
   const { isPro } = useSubscriptionStore();
+  const { user } = useAuthStore();
 
   if (activeModal !== 'rooms') return null;
 
@@ -20,9 +22,16 @@ export const RoomSwitcherModal: React.FC = () => {
     const room = ROOMS.find((r) => r.id === roomId);
     if (!room) return;
 
-    if (room.isProOnly && !isPro) {
-      setActiveModal('subscription');
-      showToast(language === 'tr' ? 'Bu oda Cozy Room PRO abonelerine özeldir! 👑' : 'This room is exclusive to Cozy Room PRO! 👑', 3000);
+    // Guest restrictions: Guest only gets 'bedroom' and 'cafe'
+    const isGuestFreeRoom = roomId === 'bedroom' || roomId === 'cafe';
+    if (!user && !isGuestFreeRoom) {
+      setActiveModal('auth');
+      showToast(
+        language === 'tr' 
+          ? 'Bu odayı keşfetmek için ücretsiz giriş yapın veya hesap oluşturun! 🗝️' 
+          : 'Sign in or create a free account to unlock this room! 🗝️', 
+        3500
+      );
       return;
     }
 
@@ -101,11 +110,6 @@ export const RoomSwitcherModal: React.FC = () => {
                       <h4 className="text-sm font-bold text-amber-200 group-hover:text-amber-300 transition-colors">
                         {roomName}
                       </h4>
-                      {room.isProOnly && (
-                        <span className="flex items-center gap-1 text-[10px] font-bold text-amber-400 bg-amber-950/80 px-1.5 py-0.5 rounded border border-amber-500/40">
-                          <Crown className="w-3 h-3" /> PRO
-                        </span>
-                      )}
                     </div>
                     {isSelected && (
                       <span className="flex items-center gap-1 text-xs font-semibold text-amber-400 bg-amber-500/20 px-2.5 py-0.5 rounded-full border border-amber-500/40">

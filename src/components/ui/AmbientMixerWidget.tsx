@@ -70,15 +70,14 @@ export const AmbientMixerWidget: React.FC = () => {
     { id: 'clock', icon: <Clock className="w-4 h-4 text-amber-300" /> },
     { id: 'roomTone', icon: <Waves className="w-4 h-4 text-purple-400" /> },
     { id: 'whiteNoise', icon: <Radio className="w-4 h-4 text-cyan-300" /> },
-    // PRO Channels
-    { id: 'binaural', icon: <Zap className="w-4 h-4 text-amber-400" />, isProOnly: true },
-    { id: 'catPurr', icon: <Heart className="w-4 h-4 text-rose-400" />, isProOnly: true },
-    { id: 'train', icon: <Compass className="w-4 h-4 text-blue-400" />, isProOnly: true },
-    { id: 'bookPages', icon: <BookOpen className="w-4 h-4 text-amber-300" />, isProOnly: true },
-    { id: 'pinkNoise', icon: <Headphones className="w-4 h-4 text-pink-400" />, isProOnly: true },
-    { id: 'brownNoise', icon: <Waves className="w-4 h-4 text-amber-600" />, isProOnly: true },
-    { id: 'windChimes', icon: <Bell className="w-4 h-4 text-yellow-300" />, isProOnly: true },
-    { id: 'typewriter', icon: <PenTool className="w-4 h-4 text-stone-300" />, isProOnly: true },
+    { id: 'binaural', icon: <Zap className="w-4 h-4 text-amber-400" /> },
+    { id: 'catPurr', icon: <Heart className="w-4 h-4 text-rose-400" /> },
+    { id: 'train', icon: <Compass className="w-4 h-4 text-blue-400" /> },
+    { id: 'bookPages', icon: <BookOpen className="w-4 h-4 text-amber-300" /> },
+    { id: 'pinkNoise', icon: <Headphones className="w-4 h-4 text-pink-400" /> },
+    { id: 'brownNoise', icon: <Waves className="w-4 h-4 text-amber-600" /> },
+    { id: 'windChimes', icon: <Bell className="w-4 h-4 text-yellow-300" /> },
+    { id: 'typewriter', icon: <PenTool className="w-4 h-4 text-stone-300" /> },
   ], []);
 
   const activeChannelsCount = Object.values(ambientVolumes).filter((v) => v > 0).length;
@@ -87,12 +86,12 @@ export const AmbientMixerWidget: React.FC = () => {
     <>
       {/* Bottom-right Floating Mixer Trigger Button */}
       <div 
-        className="absolute right-4 z-30 pointer-events-auto"
+        className="absolute right-3 sm:right-4 z-30 pointer-events-auto"
         style={{ bottom: 'max(1rem, env(safe-area-inset-bottom, 1rem))' }}
       >
         <button
           onClick={() => setActiveModal(isOpen ? 'none' : 'mixer')}
-          className={`flex items-center gap-2.5 px-4 py-2.5 glass-island text-stone-100 rounded-2xl shadow-2xl transition-all duration-300 cursor-pointer ${
+          className={`flex items-center gap-2 sm:gap-2.5 px-3 sm:px-4 py-2.5 glass-island text-stone-100 rounded-2xl shadow-2xl transition-all duration-300 cursor-pointer ${
             isOpen || activeChannelsCount > 0
               ? 'border-amber-500/70 text-amber-200 shadow-[0_0_20px_rgba(245,158,11,0.25)]'
               : 'border-white/10 hover:border-white/20'
@@ -111,8 +110,8 @@ export const AmbientMixerWidget: React.FC = () => {
 
       {/* Floating Ambient Mixer Modal */}
       {isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/65 backdrop-blur-sm pointer-events-auto">
-          <div className="bg-stone-900/95 text-stone-100 border border-stone-800 rounded-2xl shadow-2xl p-6 w-full max-w-lg max-h-[85vh] flex flex-col animate-in fade-in zoom-in-95 duration-150">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/65 backdrop-blur-sm pointer-events-auto">
+          <div className="bg-stone-900/95 text-stone-100 border border-stone-800 rounded-2xl shadow-2xl p-4 sm:p-6 w-full max-w-lg max-h-[88vh] flex flex-col animate-in fade-in zoom-in-95 duration-150">
             {/* Header */}
             <div className="flex items-center justify-between pb-3.5 border-b border-stone-800">
               <div className="flex items-center gap-2.5">
@@ -136,30 +135,15 @@ export const AmbientMixerWidget: React.FC = () => {
                 <span className="text-xs font-semibold text-stone-400 uppercase tracking-wider">
                   {t.mixer.presets}
                 </span>
-                {!isPro && (
-                  <button 
-                    onClick={() => setActiveModal('subscription')}
-                    className="flex items-center gap-1 text-[10px] text-amber-400 font-bold hover:underline cursor-pointer"
-                  >
-                    <Crown className="w-3 h-3" />
-                    <span>{isTr ? 'Tüm Pro Sesleri Aç' : 'Unlock All Pro Sounds'}</span>
-                  </button>
-                )}
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                 {AMBIENT_PRESETS.map((preset) => {
                   const localizedPresetName = t.mixer.presetNames[preset.id as keyof typeof t.mixer.presetNames] || preset.name;
-                  const isProPreset = preset.id.includes('binaural') || preset.id.includes('cat') || preset.id.includes('gothic') || preset.id.includes('train');
 
                   return (
                     <button
                       key={preset.id}
                       onClick={() => {
-                        if (isProPreset && !isPro) {
-                          showToast(isTr ? 'Bu ses manzarası Cozy Room PRO üyelerine özeldir 👑' : 'This soundscape is exclusive to Cozy Room PRO 👑', 2500);
-                          setActiveModal('subscription');
-                          return;
-                        }
                         webAudioEngine.init();
                         applyPreset(preset.id);
                         const curWeather = useAppStore.getState().weather;
@@ -175,7 +159,6 @@ export const AmbientMixerWidget: React.FC = () => {
                       title={preset.description}
                     >
                       <span className="truncate">{localizedPresetName}</span>
-                      {isProPreset && <Crown className="w-3 h-3 text-amber-400 shrink-0" />}
                     </button>
                   );
                 })}
@@ -229,7 +212,6 @@ export const AmbientMixerWidget: React.FC = () => {
                       <div className="flex items-center gap-2 w-40 flex-shrink-0">
                         {ch.icon}
                         <span className="text-xs font-medium text-stone-200 truncate">{localizedName}</span>
-                        {ch.isProOnly && <Crown className="w-3 h-3 text-amber-400 shrink-0" />}
                       </div>
 
                       <div className="flex-1 flex items-center gap-3">
@@ -240,11 +222,6 @@ export const AmbientMixerWidget: React.FC = () => {
                           step="0.05"
                           value={vol}
                           onChange={(e) => {
-                            if (ch.isProOnly && !isPro) {
-                              showToast(isTr ? 'Bu ses kanalı Cozy Room PRO üyelerine özeldir 👑' : 'This channel requires Cozy Room PRO 👑', 2500);
-                              setActiveModal('subscription');
-                              return;
-                            }
                             webAudioEngine.init();
                             setChannelVolume(ch.id, parseFloat(e.target.value));
                           }}

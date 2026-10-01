@@ -2,11 +2,13 @@ import React from 'react';
 import { X, Flame, Clock, Calendar, CheckCircle2, TrendingUp, Award, Target } from 'lucide-react';
 import { useStatsStore } from '../../store/useStatsStore';
 import { useAppStore } from '../../store/useAppStore';
+import { useAuthStore } from '../../store/useAuthStore';
 import { useSubscriptionStore } from '../../store/useSubscriptionStore';
 import { TRANSLATIONS } from '../../i18n/translations';
 
 export const StatsModal: React.FC = () => {
   const { activeModal, setActiveModal, language, dailyGoalMinutes, showToast } = useAppStore();
+  const { user } = useAuthStore();
   const { isPro } = useSubscriptionStore();
   const {
     sessions,
@@ -55,7 +57,15 @@ export const StatsModal: React.FC = () => {
   // Streak Plant Visual Evolution (Localized)
   const getStreakPlant = (streak: number) => {
     const s = t.stats.plantStages;
-    if (streak <= 1) {
+    if (streak === 0) {
+      return {
+        stage: language === 'tr' ? 'Toprak Hazırlığı' : 'Dormant Seed',
+        icon: '🌱',
+        desc: language === 'tr'
+          ? 'İlk odaklanma seansını tamamlayarak yeşil tohumunu filizlendir ve serini başlat!'
+          : 'Complete your first focus session to sprout your seed and start your streak!'
+      };
+    } else if (streak === 1) {
       return { stage: s.stage1, icon: '🌱', desc: s.desc1 };
     } else if (streak <= 4) {
       return { stage: s.stage2, icon: '🌿', desc: s.desc2 };
@@ -95,6 +105,34 @@ export const StatsModal: React.FC = () => {
         </div>
 
         <div className="flex-1 overflow-y-auto py-4 space-y-4 pr-1">
+          {/* Guest Cloud Backup Notice Banner */}
+          {!user && (
+            <div className="p-3 bg-gradient-to-r from-amber-500/15 via-amber-400/5 to-amber-500/15 border border-amber-500/30 rounded-xl flex items-center justify-between gap-3 text-xs shadow-inner">
+              <div className="flex items-center gap-2.5 text-amber-200 min-w-0">
+                <span className="text-base shrink-0">☁️</span>
+                <div className="leading-snug">
+                  <p className="font-bold text-amber-300">
+                    {language === 'tr' ? 'Misafir Oturumu: Verileriniz Geçicidir' : 'Guest Session: Local Only'}
+                  </p>
+                  <p className="text-[11px] text-stone-300">
+                    {language === 'tr' 
+                      ? 'Çalışma geçmişinizi, serinizi ve rozetlerinizi kalıcı olarak buluta yedeklemek için ücretsiz giriş yapın.' 
+                      : 'Sign in for free to permanently back up your study sessions, streak, and badges to the cloud.'}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveModal('auth');
+                }}
+                className="px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-stone-950 font-bold text-xs whitespace-nowrap shadow-md transition-all shrink-0 cursor-pointer"
+              >
+                {language === 'tr' ? 'Giriş Yap' : 'Sign In'}
+              </button>
+            </div>
+          )}
+
           {/* Daily Goal Target Bar (Optimization #8) */}
           <div className="p-3.5 bg-stone-950/60 border border-stone-800/90 rounded-xl space-y-2">
             <div className="flex items-center justify-between text-xs">
