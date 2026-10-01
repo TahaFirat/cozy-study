@@ -119,26 +119,14 @@ jobs:
           chmod 600 ~/.appstoreconnect/private_keys/AuthKey_${APP_STORE_CONNECT_KEY_ID}.p8
 
           cd ios/App
-          echo "Attempting direct native Xcode App Store upload..."
-          if [ -f "exportOptionsUpload.plist" ]; then
-            xcodebuild -exportArchive \
-                       -archivePath ./build/App.xcarchive \
-                       -exportOptionsPlist exportOptionsUpload.plist \
-                       -allowProvisioningUpdates \
-                       -authenticationKeyPath ~/.appstoreconnect/private_keys/AuthKey_${APP_STORE_CONNECT_KEY_ID}.p8 \
-                       -authenticationKeyID "${APP_STORE_CONNECT_KEY_ID}" \
-                       -authenticationKeyIssuerID "${APP_STORE_CONNECT_ISSUER_ID}" || {
-                         echo "Xcode direct upload returned a warning, trying altool fallback..."
-                         xcrun altool --upload-app \
-                           -f ./build/App.ipa \
-                           -t ios \
-                           --apiKey "$APP_STORE_CONNECT_KEY_ID" \
-                           --apiIssuer "$APP_STORE_CONNECT_ISSUER_ID"
-                       }
-          else
-            xcrun altool --upload-app \
-              -f ./build/App.ipa \
-              -t ios \
-              --apiKey "$APP_STORE_CONNECT_KEY_ID" \
-              --apiIssuer "$APP_STORE_CONNECT_ISSUER_ID"
-          fi
+          echo "Uploading to App Store Connect via native xcodebuild pipeline..."
+          mkdir -p ./build/upload
+          xcodebuild -exportArchive \
+                     -archivePath ./build/App.xcarchive \
+                     -exportPath ./build/upload \
+                     -exportOptionsPlist exportOptionsUpload.plist \
+                     -allowProvisioningUpdates \
+                     -authenticationKeyPath ~/.appstoreconnect/private_keys/AuthKey_${APP_STORE_CONNECT_KEY_ID}.p8 \
+                     -authenticationKeyID "${APP_STORE_CONNECT_KEY_ID}" \
+                     -authenticationKeyIssuerID "${APP_STORE_CONNECT_ISSUER_ID}"
+
