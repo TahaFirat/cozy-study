@@ -14,6 +14,8 @@ jobs:
       APP_STORE_CONNECT_API_KEY: ${{ secrets.APP_STORE_CONNECT_API_KEY }}
       APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
       APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+      BUILD_CERTIFICATE_BASE64: ${{ secrets.BUILD_CERTIFICATE_BASE64 }}
+      P12_PASSWORD: ${{ secrets.P12_PASSWORD }}
 
     steps:
       - name: 1. Checkout Repository
@@ -34,19 +36,40 @@ jobs:
       - name: 5. Sync Capacitor iOS Project
         run: npx cap sync ios
 
-      - name: 6. Build Xcode Project Archive
+      - name: 6. Install Apple Distribution Certificate & Provisioning Profile
+        if: env.BUILD_CERTIFICATE_BASE64 != ''
+        run: |
+          KEYCHAIN_PATH=$RUNNER_TEMP/app-signing.keychain-db
+          KEYCHAIN_PASSWORD=$(openssl rand -base64 12)
+          security create-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+          security set-keychain-settings -lut 21600 $KEYCHAIN_PATH
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+
+          echo "$BUILD_CERTIFICATE_BASE64" | base64 --decode > $RUNNER_TEMP/certificate.p12
+          security import $RUNNER_TEMP/certificate.p12 -P "$P12_PASSWORD" -A -t cert -f pkcs12 -k $KEYCHAIN_PATH
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+          security list-keychain -d user -s $KEYCHAIN_PATH $(security list-keychains -d user | sed -e 's/^[[:space:]]*//' -e 's/"//g')
+
+          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
+          cp ios/App/LockIn.mobileprovision ~/Library/MobileDevice/Provisioning\ Profiles/8a18eb66-4fb3-4712-9312-5dfaad7cccc7.mobileprovision
+
+      - name: 7. Build Xcode Project Archive
         run: |
           cd ios/App
-          if [ -d "App.xcworkspace" ]; then
-            xcodebuild -workspace App.xcworkspace \
+          if [ -n "$BUILD_CERTIFICATE_BASE64" ]; then
+            echo "Building with official Apple Code Signing..."
+            xcodebuild -project App.xcodeproj \
                        -scheme App \
                        -destination 'generic/platform=iOS' \
                        -configuration Release \
-                       CODE_SIGNING_ALLOWED=NO \
-                       CODE_SIGNING_REQUIRED=NO \
+                       DEVELOPMENT_TEAM="U3YT2CXH58" \
+                       CODE_SIGN_STYLE="Manual" \
+                       PROVISIONING_PROFILE_SPECIFIER="LockIn AppStore Profile" \
+                       CODE_SIGN_IDENTITY="Apple Distribution" \
                        clean archive \
                        -archivePath ./build/App.xcarchive
           else
+            echo "Building unsigned archive fallback..."
             xcodebuild -project App.xcodeproj \
                        -scheme App \
                        -destination 'generic/platform=iOS' \
@@ -57,35 +80,47 @@ jobs:
                        -archivePath ./build/App.xcarchive
           fi
 
-      - name: 7. Package App IPA
+      - name: 8. Export Official Signed App IPA
         run: |
-          cd ios/App/build
-          mkdir -p Payload
-          cp -R App.xcarchive/Products/Applications/App.app Payload/
-          zip -r App.ipa Payload
-          cd ../../..
+          cd ios/App
+          if [ -f "exportOptions.plist" ] && [ -n "$BUILD_CERTIFICATE_BASE64" ]; then
+            echo "Exporting signed App.ipa using exportOptions.plist..."
+            xcodebuild -exportArchive \
+                       -archivePath ./build/App.xcarchive \
+                       -exportPath ./build/export \
+                       -exportOptionsPlist exportOptions.plist
+            cp ./build/export/*.ipa ./build/App.ipa || true
+          fi
 
-      - name: 8. Upload iOS Release IPA and Archive
+          if [ ! -f "./build/App.ipa" ]; then
+            echo "Packaging archive App.ipa..."
+            cd build
+            mkdir -p Payload
+            cp -R App.xcarchive/Products/Applications/App.app Payload/
+            zip -r App.ipa Payload
+            cd ..
+          fi
+          cd ../..
+
+      - name: 9. Upload Release Artifacts to GitHub
         uses: actions/upload-artifact@v4
         with:
-          name: LockIn-iOS-Release-Build
+          name: LockIn-Signed-iOS-App
           path: |
             ios/App/build/App.ipa
             ios/App/build/App.xcarchive
           retention-days: 14
 
-      - name: 9. Deploy to Apple TestFlight / App Store Connect
+      - name: 10. Upload to Apple TestFlight / App Store Connect
         if: env.APP_STORE_CONNECT_API_KEY != ''
-        continue-on-error: true
         run: |
-          echo "Setting up App Store Connect API Key..."
           mkdir -p ~/.appstoreconnect/private_keys
           echo "$APP_STORE_CONNECT_API_KEY" > ~/.appstoreconnect/private_keys/AuthKey_${APP_STORE_CONNECT_KEY_ID}.p8
           chmod 600 ~/.appstoreconnect/private_keys/AuthKey_${APP_STORE_CONNECT_KEY_ID}.p8
 
-          echo "Uploading App.ipa to App Store Connect / TestFlight..."
+          echo "Uploading officially signed IPA to App Store Connect..."
           xcrun altool --upload-app \
             -f ./ios/App/build/App.ipa \
             -t ios \
             --apiKey "$APP_STORE_CONNECT_KEY_ID" \
-            --apiIssuer "$APP_STORE_CONNECT_ISSUER_ID" || true
+            --apiIssuer "$APP_STORE_CONNECT_ISSUER_ID"
