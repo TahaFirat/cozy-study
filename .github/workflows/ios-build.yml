@@ -57,11 +57,12 @@ jobs:
         run: |
           cd ios/App
           if [ -n "$BUILD_CERTIFICATE_BASE64" ]; then
-            echo "Building with official Apple Code Signing..."
+            echo "Building with official Apple Code Signing (Build #${{ github.run_number }})..."
             xcodebuild -project App.xcodeproj \
                        -scheme App \
                        -destination 'generic/platform=iOS' \
                        -configuration Release \
+                       CURRENT_PROJECT_VERSION="${{ github.run_number }}" \
                        DEVELOPMENT_TEAM="U3YT2CXH58" \
                        CODE_SIGN_STYLE="Manual" \
                        PROVISIONING_PROFILE_SPECIFIER="LockIn AppStore Profile" \
@@ -74,8 +75,9 @@ jobs:
                        -scheme App \
                        -destination 'generic/platform=iOS' \
                        -configuration Release \
-                       CODE_SIGNING_ALLOWED=NO \
-                       CODE_SIGNING_REQUIRED=NO \
+                       CURRENT_PROJECT_VERSION="${{ github.run_number }}" \
+                       CODE_SIGN_ALLOWED=NO \
+                       CODE_SIGN_REQUIRED=NO \
                        clean archive \
                        -archivePath ./build/App.xcarchive
           fi
@@ -114,30 +116,82 @@ jobs:
       - name: 10. Upload to Apple TestFlight / App Store Connect
         if: env.APP_STORE_CONNECT_API_KEY != ''
         run: |
-          set -eo pipefail
-
           KEY_ID=$(echo "$APP_STORE_CONNECT_KEY_ID" | tr -d '[:space:]')
           ISSUER_ID=$(echo "$APP_STORE_CONNECT_ISSUER_ID" | tr -d '[:space:]')
 
           echo "Target Key ID: ${KEY_ID}"
           echo "Target Issuer ID: ${ISSUER_ID}"
 
-          mkdir -p ~/.appstoreconnect/private_keys ~/.private_keys ./private_keys
-          printf "%s\n" "$APP_STORE_CONNECT_API_KEY" > ~/.appstoreconnect/private_keys/AuthKey_${KEY_ID}.p8
-          printf "%s\n" "$APP_STORE_CONNECT_API_KEY" > ~/.private_keys/AuthKey_${KEY_ID}.p8
-          printf "%s\n" "$APP_STORE_CONNECT_API_KEY" > ./private_keys/AuthKey_${KEY_ID}.p8
-          chmod 600 ~/.appstoreconnect/private_keys/AuthKey_${KEY_ID}.p8 ~/.private_keys/AuthKey_${KEY_ID}.p8 ./private_keys/AuthKey_${KEY_ID}.p8
+          # Reconstruct strict PEM format with Python
+          python3 -c "
+          import os, re
+          raw = os.environ.get('APP_STORE_CONNECT_API_KEY', '').strip()
+          b64 = re.sub(r'-----BEGIN [^-]+-----|-----END [^-]+-----|\s+', '', raw)
+          lines = [b64[i:i+64] for i in range(0, len(b64), 64)]
+          pem = '-----BEGIN PRIVATE KEY-----\n' + '\n'.join(lines) + '\n-----END PRIVATE KEY-----\n'
+          for d in [os.path.expanduser('~/.appstoreconnect/private_keys'), os.path.expanduser('~/.private_keys'), './private_keys']:
+              os.makedirs(d, exist_ok=True)
+              p = os.path.join(d, 'AuthKey_' + '${KEY_ID}' + '.p8')
+              with open(p, 'w') as f:
+                  f.write(pem)
+              os.chmod(p, 0o600)
+              print('Wrote key to', p)
+          "
 
-          echo "Verifying private key structure..."
+          echo "Verifying key structure:"
           head -n 2 ~/.appstoreconnect/private_keys/AuthKey_${KEY_ID}.p8
           tail -n 2 ~/.appstoreconnect/private_keys/AuthKey_${KEY_ID}.p8
 
-          echo "Uploading officially signed IPA to App Store Connect..."
-          xcrun altool --upload-app \
-            --type ios \
-            --file ./ios/App/build/App.ipa \
-            --apiKey "${KEY_ID}" \
-            --apiIssuer "${ISSUER_ID}" \
-            --verbose
+          UPLOAD_SUCCESS=false
 
+          # Method 1: xcrun altool
+          echo "=== Attempting Upload via xcrun altool ==="
+          if xcrun altool --upload-app --type ios --file ./ios/App/build/App.ipa --apiKey "${KEY_ID}" --apiIssuer "${ISSUER_ID}" --verbose 2>&1 | tee altool.log; then
+            UPLOAD_SUCCESS=true
+            echo "altool upload succeeded!"
+          else
+            echo "altool upload encountered an issue. Checking log..."
+            cat altool.log >> $GITHUB_STEP_SUMMARY
+          fi
 
+          # Method 2: iTMSTransporter fallback if needed
+          if [ "$UPLOAD_SUCCESS" = false ]; then
+            TRANSPORTER=$(find /Applications/Xcode* -name iTMSTransporter 2>/dev/null | head -n 1)
+            if [ -n "$TRANSPORTER" ] && [ -x "$TRANSPORTER" ]; then
+              echo "=== Attempting Upload via iTMSTransporter ==="
+              if "$TRANSPORTER" -m upload -assetFile ./ios/App/build/App.ipa -apiKey "${KEY_ID}" -apiIssuer "${ISSUER_ID}" 2>&1 | tee itms.log; then
+                UPLOAD_SUCCESS=true
+                echo "iTMSTransporter upload succeeded!"
+              else
+                cat itms.log >> $GITHUB_STEP_SUMMARY
+              fi
+            fi
+          fi
+
+          # Method 3: Fastlane pilot upload fallback
+          if [ "$UPLOAD_SUCCESS" = false ]; then
+            echo "=== Attempting Upload via Fastlane ==="
+            python3 -c "
+            import json, os
+            data = {
+              'key_id': '${KEY_ID}',
+              'issuer_id': '${ISSUER_ID}',
+              'key_filepath': os.path.expanduser('~/.appstoreconnect/private_keys/AuthKey_' + '${KEY_ID}' + '.p8'),
+              'duration': 1200,
+              'in_house': False
+            }
+            with open('api_key.json', 'w') as f:
+                json.dump(data, f)
+            "
+            if fastlane pilot upload --ipa ./ios/App/build/App.ipa --api_key_path api_key.json --skip_waiting_for_build_processing true 2>&1 | tee fastlane.log; then
+              UPLOAD_SUCCESS=true
+              echo "Fastlane pilot upload succeeded!"
+            else
+              cat fastlane.log >> $GITHUB_STEP_SUMMARY
+            fi
+          fi
+
+          if [ "$UPLOAD_SUCCESS" = false ]; then
+            echo "All automated upload methods failed. Check step summary for details."
+            exit 1
+          fi
