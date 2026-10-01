@@ -64,14 +64,9 @@ jobs:
           path: ios/App/build/App.xcarchive
           retention-days: 14
 
-      - name: 8. Deploy to Apple TestFlight (When Secrets Are Added)
+      - name: 8. Package App IPA
         if: env.APP_STORE_CONNECT_API_KEY != ''
         run: |
-          echo "Apple App Store Connect API Key detected! Preparing TestFlight upload..."
-          mkdir -p ~/.appstoreconnect/private_keys
-          printf "%s" "$APP_STORE_CONNECT_API_KEY" > ~/.appstoreconnect/private_keys/AuthKey_${APP_STORE_CONNECT_KEY_ID}.p8
-          chmod 600 ~/.appstoreconnect/private_keys/AuthKey_${APP_STORE_CONNECT_KEY_ID}.p8
-
           echo "Packaging App bundle into Payload/App.ipa..."
           cd ios/App/build
           mkdir -p Payload
@@ -79,10 +74,13 @@ jobs:
           zip -r App.ipa Payload
           cd ../../..
 
-          echo "Uploading App.ipa to App Store Connect / TestFlight..."
-          xcrun altool --upload-app \
-            -f ./ios/App/build/App.ipa \
-            -t ios \
-            --apiKey "$APP_STORE_CONNECT_KEY_ID" \
-            --apiIssuer "$APP_STORE_CONNECT_ISSUER_ID"
+      - name: 9. Deploy to Apple TestFlight
+        if: env.APP_STORE_CONNECT_API_KEY != ''
+        uses: apple-actions/upload-testflight-build@v1
+        with:
+          app-path: 'ios/App/build/App.ipa'
+          issuer-id: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          api-key-id: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          api-private-key: ${{ secrets.APP_STORE_CONNECT_API_KEY }}
+
 
