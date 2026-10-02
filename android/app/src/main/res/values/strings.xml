@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">Cozy Study</string>
-    <string name="title_activity_main">Cozy Study</string>
+    <string name="app_name">LockIn</string>
+    <string name="title_activity_main">LockIn</string>
     <string name="package_name">com.cozystudy.sanctuary</string>
     <string name="custom_url_scheme">com.cozystudy.sanctuary</string>
 </resources>

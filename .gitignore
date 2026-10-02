@@ -39,3 +39,7 @@ CozyStudy.apk
 apple_certs/
 app_store_assets/*_landscape/
 app_store_assets/*_portrait/
+
+*.jks
+*.keystore
+*.aab
