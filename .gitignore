@@ -36,3 +36,6 @@ snap_*.png
 CozyStudy.apk
 .firebase/
 
+apple_certs/
+app_store_assets/*_landscape/
+app_store_assets/*_portrait/

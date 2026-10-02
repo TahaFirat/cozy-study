@@ -85,30 +85,30 @@ export const TopBar: React.FC = () => {
 
   return (
     <header 
-      className="absolute left-3 right-3 sm:left-4 sm:right-4 z-30 flex items-center justify-between pointer-events-none transition-all duration-300"
+      className="absolute left-2 right-2 sm:left-4 sm:right-4 z-30 flex items-center justify-between pointer-events-none transition-all duration-300 gap-2"
       style={{ top: 'max(0.75rem, env(safe-area-inset-top, 0.75rem))' }}
     >
       {/* 1. LEFT LUXURY ISLAND: Atmosphere, Room & Live Co-Study */}
-      <div className="glass-island rounded-2xl p-1 sm:p-1.5 flex items-center gap-1 sm:gap-2 pointer-events-auto shadow-2xl">
+      <div className="glass-island rounded-2xl p-1 sm:p-1.5 flex items-center gap-1 sm:gap-2 pointer-events-auto shadow-2xl shrink-0">
         {/* Room Selector */}
         <button
           onClick={() => setActiveModal('rooms')}
-          className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1.5 rounded-xl hover:bg-white/5 text-stone-100 transition-all group cursor-pointer"
+          className="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1.5 rounded-xl hover:bg-white/5 text-stone-100 transition-all group cursor-pointer"
           title={t.changeRoom}
         >
           <span className="w-2 h-2 rounded-full bg-amber-400 group-hover:scale-125 shadow-[0_0_8px_rgba(251,191,36,0.6)] transition-all shrink-0" />
-          <span className="text-xs sm:text-sm font-bold tracking-wide text-amber-100 max-w-[100px] xs:max-w-[140px] sm:max-w-none truncate">
+          <span className="text-xs sm:text-sm font-bold tracking-wide text-amber-100 max-w-[85px] xs:max-w-[130px] sm:max-w-none truncate">
             {localizedRoomName}
           </span>
           <Compass className="w-3.5 h-3.5 text-stone-400 group-hover:text-amber-300 transition-colors shrink-0" />
         </button>
 
-        <div className="w-[1px] h-4 bg-white/10 hidden md:block" />
+        <div className="w-[1px] h-4 bg-white/10 hidden xl:block" />
 
-        {/* Weather & Circadian Time */}
+        {/* Weather & Circadian Time — Only on large screens (xl+) to preserve tablet space */}
         <button
           onClick={() => setActiveModal('settings')}
-          className="hidden md:flex items-center gap-2 px-2.5 py-1.5 rounded-xl hover:bg-white/5 text-stone-300 text-xs font-medium transition-colors cursor-pointer"
+          className="hidden xl:flex items-center gap-2 px-2.5 py-1.5 rounded-xl hover:bg-white/5 text-stone-300 text-xs font-medium transition-colors cursor-pointer"
           title={t.changeWeather}
         >
           {getWeatherIcon()}
@@ -120,7 +120,7 @@ export const TopBar: React.FC = () => {
         {/* Live Co-Study Buddies */}
         <button
           onClick={toggleChat}
-          className="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-2.5 py-1.5 rounded-xl bg-emerald-950/40 hover:bg-emerald-900/60 text-emerald-200 border border-emerald-500/30 text-xs font-semibold transition-all cursor-pointer group"
+          className="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-2.5 py-1.5 rounded-xl bg-emerald-950/40 hover:bg-emerald-900/60 text-emerald-200 border border-emerald-500/30 text-xs font-semibold transition-all cursor-pointer group shrink-0"
           title={language === 'tr' ? 'Birlikte Çalışanlar & Canlı Sohbet (C)' : 'Co-Study Community & Chat (C)'}
         >
           <span className="relative flex h-2 w-2 shrink-0">
@@ -140,8 +140,8 @@ export const TopBar: React.FC = () => {
         </button>
       </div>
 
-      {/* 2. CENTER LUXURY ISLAND: Streak, Mastery & Level (Desktop / Tablet Landscape) */}
-      <div className="hidden lg:flex items-center gap-2 glass-island glass-island-gold rounded-2xl px-3 py-1.5 pointer-events-auto shadow-2xl">
+      {/* 2. CENTER LUXURY ISLAND: Streak, Mastery & Level (Desktop 2xl+) */}
+      <div className="hidden 2xl:flex items-center gap-2 glass-island glass-island-gold rounded-2xl px-3 py-1.5 pointer-events-auto shadow-2xl shrink-0">
         <button
           onClick={() => setActiveModal('stats')}
           className="flex items-center gap-1.5 text-xs font-bold text-amber-200 hover:text-amber-100 transition-colors cursor-pointer"
@@ -200,32 +200,32 @@ export const TopBar: React.FC = () => {
       </div>
 
       {/* 3. RIGHT LUXURY ISLAND: Studio Command Toolbar & Profile */}
-      <div className="glass-island rounded-2xl p-1 sm:p-1.5 flex items-center gap-1 pointer-events-auto shadow-2xl">
+      <div className="glass-island rounded-2xl p-1 sm:p-1.5 flex items-center gap-1 pointer-events-auto shadow-2xl shrink-0">
         {/* Study Statistics & Heatmap */}
         <button
           onClick={() => setActiveModal('stats')}
-          className="flex items-center gap-1.5 px-2 sm:px-2.5 py-1.5 rounded-xl hover:bg-amber-500/15 text-amber-200/90 hover:text-amber-100 text-xs font-bold transition-all cursor-pointer bg-amber-500/10 border border-amber-500/30"
+          className="flex items-center gap-1.5 px-2 sm:px-2.5 py-1.5 rounded-xl hover:bg-amber-500/15 text-amber-200/90 hover:text-amber-100 text-xs font-bold transition-all cursor-pointer bg-amber-500/10 border border-amber-500/30 shrink-0"
           title={language === 'tr' ? 'Çalışma İstatistikleri & Isı Haritası' : 'Study Statistics & Heatmap'}
         >
           <BarChart2 className="w-3.5 h-3.5 text-amber-400" />
-          <span className="hidden md:inline">{language === 'tr' ? 'İstatistikler' : 'Stats'}</span>
+          <span className="hidden sm:inline">{language === 'tr' ? 'İstatistikler' : 'Stats'}</span>
         </button>
 
         {/* Study Tasks & Mini Kanban */}
         <button
           onClick={toggleTaskDrawer}
-          className="flex items-center gap-1.5 px-2 py-1.5 rounded-xl hover:bg-white/5 text-stone-300 hover:text-amber-200 text-xs font-medium transition-colors cursor-pointer relative"
+          className="flex items-center gap-1.5 px-2 py-1.5 rounded-xl hover:bg-white/5 text-stone-300 hover:text-amber-200 text-xs font-medium transition-colors cursor-pointer relative shrink-0"
           title={language === 'tr' ? 'Çalışma Görevleri & Kanban Panosu (T)' : 'Tasks & Kanban (T)'}
         >
           <CheckSquare className="w-4 h-4 text-amber-400" />
-          <span className="hidden xl:inline">{language === 'tr' ? 'Görevler' : 'Tasks'}</span>
+          <span className="hidden 2xl:inline">{language === 'tr' ? 'Görevler' : 'Tasks'}</span>
           {tasks.filter(t => t.status !== 'done').length > 0 && (
             <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
           )}
         </button>
 
-        {/* DESKTOP-ONLY SHORTCUTS (hidden on screens < 768px, shown in Mobile Menu instead) */}
-        <div className="hidden md:flex items-center gap-1">
+        {/* DESKTOP-ONLY SHORTCUTS (hidden on screens < 1280px / tablet portrait/landscape, shown in Studio Menu instead) */}
+        <div className="hidden xl:flex items-center gap-1">
           {/* Social Share 9:16 Story Card */}
           <button
             onClick={() => setActiveModal('session_share')}
@@ -341,10 +341,10 @@ export const TopBar: React.FC = () => {
           </button>
         </div>
 
-        {/* MOBILE MENU TOGGLE BUTTON (Screens < 768px) */}
+        {/* STUDIO MENU TOGGLE BUTTON (Screens < 1280px, Mobile & Tablet) */}
         <button
           onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-          className={`md:hidden p-1.5 rounded-xl transition-all cursor-pointer ${
+          className={`xl:hidden p-1.5 rounded-xl transition-all cursor-pointer ${
             isMobileMenuOpen ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40' : 'hover:bg-white/5 text-stone-300'
           }`}
           title={language === 'tr' ? 'Stüdyo Menüsü' : 'Studio Menu'}
@@ -358,20 +358,20 @@ export const TopBar: React.FC = () => {
         <UserMenu />
       </div>
 
-      {/* 4. MOBILE STUDIO DRAWER / MENU POPUP (Screens < 768px) */}
+      {/* 4. MOBILE & TABLET STUDIO DRAWER / MENU POPUP (Screens < 1280px) */}
       {isMobileMenuOpen && (
         <div 
-          className="md:hidden fixed inset-0 z-50 bg-black/60 backdrop-blur-sm pointer-events-auto animate-fade-in flex flex-col justify-start p-4 pt-16"
+          className="xl:hidden fixed inset-0 z-50 bg-black/60 backdrop-blur-sm pointer-events-auto animate-fade-in flex flex-col justify-start p-4 pt-16"
           onClick={() => setIsMobileMenuOpen(false)}
         >
           <div 
-            className="bg-stone-900/98 text-stone-100 border border-stone-800 rounded-2xl shadow-2xl p-4 w-full max-w-sm ml-auto flex flex-col gap-3 animate-in fade-in zoom-in-95 duration-150"
+            className="bg-stone-900/98 text-stone-100 border border-stone-800 rounded-2xl shadow-2xl p-4 w-full max-w-sm sm:max-w-md ml-auto flex flex-col gap-3 animate-in fade-in zoom-in-95 duration-150 max-h-[85vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header */}
             <div className="flex items-center justify-between pb-2.5 border-b border-stone-800">
               <div className="flex items-center gap-2">
-                <span className="text-amber-400 font-bold text-sm">☕ Cozy Studio</span>
+                <span className="text-amber-400 font-bold text-sm">☕ LockIn Studio</span>
                 <span className="text-[10px] font-mono bg-amber-500/20 text-amber-300 px-1.5 py-0.5 rounded-full font-bold">
                   {language === 'tr' ? `Sv.${gamificationLevel}` : `Lv.${gamificationLevel}`}
                 </span>
@@ -504,6 +504,21 @@ export const TopBar: React.FC = () => {
                 <div className="min-w-0 font-medium">
                   <div>{language === 'tr' ? 'Zen Odak Modu' : 'Zen Focus Mode'}</div>
                   <div className="text-[10px] text-amber-400/80">{language === 'tr' ? 'Arayüzü Gizle' : 'Hide UI'}</div>
+                </div>
+              </button>
+
+              {/* Help & Shortcuts Guide */}
+              <button
+                onClick={() => {
+                  setIsMobileMenuOpen(false);
+                  setActiveModal('shortcuts');
+                }}
+                className="p-2.5 rounded-xl bg-stone-800/80 hover:bg-stone-700 text-left flex items-center gap-2 text-stone-200 transition-colors cursor-pointer"
+              >
+                <HelpCircle className="w-4 h-4 text-amber-400 shrink-0" />
+                <div className="min-w-0 font-medium">
+                  <div>{t.helpModal.title}</div>
+                  <div className="text-[10px] text-stone-400">{language === 'tr' ? 'Kullanım Rehberi' : 'Quick Guide'}</div>
                 </div>
               </button>
             </div>

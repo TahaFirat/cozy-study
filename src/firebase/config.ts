@@ -2,15 +2,14 @@ import { initializeApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 
-// Firebase config — these are loaded from environment variables for security
-// Create a .env file (copy .env.example) with your Firebase project credentials
+// Firebase config — client-side credentials with safe production fallbacks
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-  appId: import.meta.env.VITE_FIREBASE_APP_ID,
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || 'AIzaSyAIgvYJq1aq2hognaUcOE7PcipeURVHIeY',
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || 'cozypixel-125c7.firebaseapp.com',
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || 'cozypixel-125c7',
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || 'cozypixel-125c7.firebasestorage.app',
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || '291796810804',
+  appId: import.meta.env.VITE_FIREBASE_APP_ID || '1:291796810804:web:72544796c97ca818dede61',
 };
 
 // Initialize Firebase only if credentials are provided
@@ -20,8 +19,12 @@ const isFirebaseConfigured = Boolean(
 
 let app: ReturnType<typeof initializeApp> | null = null;
 
-if (isFirebaseConfigured) {
-  app = initializeApp(firebaseConfig);
+try {
+  if (isFirebaseConfigured) {
+    app = initializeApp(firebaseConfig);
+  }
+} catch (e) {
+  console.warn('[Firebase] App init note:', e);
 }
 
 export const auth = isFirebaseConfigured ? getAuth(app!) : null;

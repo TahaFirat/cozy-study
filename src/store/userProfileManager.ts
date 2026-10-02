@@ -231,6 +231,108 @@ export function resetStoresToCleanState(): void {
   });
 }
 
+export function seedReviewerDemoProfile(): void {
+  useStatsStore.setState({
+    sessions: [
+      {
+        id: 'review_s1',
+        timestamp: Date.now() - 3600000 * 5,
+        durationMinutes: 30,
+        roomId: 'bedroom',
+        note: 'Deep focus on iOS development & testing'
+      },
+      {
+        id: 'review_s2',
+        timestamp: Date.now() - 3600000 * 28,
+        durationMinutes: 50,
+        roomId: 'cafe',
+        note: 'Studying in cozy cafe ambiance'
+      },
+      {
+        id: 'review_s3',
+        timestamp: Date.now() - 3600000 * 52,
+        durationMinutes: 45,
+        roomId: 'cabin',
+        note: 'Snow cabin focus session with fireplace'
+      },
+      {
+        id: 'review_s4',
+        timestamp: Date.now() - 3600000 * 76,
+        durationMinutes: 60,
+        roomId: 'library',
+        note: 'Research & reading in the grand library'
+      }
+    ],
+    streakDays: 7,
+    lastSessionDate: new Date().toISOString(),
+  });
+
+  useTaskStore.setState({
+    tasks: [
+      {
+        id: 't_demo_1',
+        title: 'Review LockIn App Features & Ambient Audio',
+        status: 'in_progress',
+        createdAt: new Date(Date.now() - 86400000).toISOString(),
+        priority: 'high',
+        category: 'work',
+        pomodoroEstimate: 4,
+        pomodorosCompleted: 2,
+      },
+      {
+        id: 't_demo_2',
+        title: 'Test Rain On Glass & Cozy Rooms',
+        status: 'todo',
+        createdAt: new Date(Date.now() - 86400000).toISOString(),
+        priority: 'medium',
+        category: 'study',
+        pomodoroEstimate: 2,
+        pomodorosCompleted: 0,
+      },
+      {
+        id: 't_demo_3',
+        title: 'Defeat Horologium in Boss Raid',
+        status: 'done',
+        createdAt: new Date(Date.now() - 172800000).toISOString(),
+        completedAt: new Date(Date.now() - 86400000).toISOString(),
+        priority: 'low',
+        category: 'goals',
+        pomodoroEstimate: 1,
+        pomodorosCompleted: 1,
+      }
+    ],
+    activeTaskId: 't_demo_1',
+    sessionIntent: 'Review LockIn app completeness & focus experience',
+  });
+
+  useSubscriptionStore.setState({
+    isPro: true,
+    plan: 'lifetime',
+    subscribedAt: new Date().toISOString(),
+    expiresAt: null,
+    selectedCrtTheme: 'classic',
+  });
+
+  useGamificationStore.setState({
+    xp: 1850,
+    visitedRooms: ['bedroom', 'cafe', 'cabin', 'library', 'apartment', 'kyoto', 'cyberpunk'],
+    mugClickCount: 14,
+    totalSessionCount: 18,
+    rainySessionCount: 12,
+    todaySessionCount: 2,
+    catPetCount: 9,
+    badges: INITIAL_BADGES.map((b, i) => i < 5 ? { ...b, unlocked: true, unlockedAt: Date.now() - i * 86400000 } : b),
+  });
+
+  useBossRaidStore.setState({
+    currentBossId: 'horologium',
+    strikeCharges: 2,
+    personalDamagePerBoss: { horologium: 640 },
+    totalBossDamageDealt: 640,
+    unlockedTrophies: ['trophy_hourglass'],
+  });
+}
+
 // Global Profile Switcher
 let activeProfileId: string | null = null;
 let autoSaveInterval: number | null = null;
@@ -259,7 +361,13 @@ export function switchUserProfile(newProfileId: string | null): void {
   // 4. Try to load saved profile for new user
   const loaded = loadProfileSnapshot(targetId);
   if (!loaded) {
-    console.log(`[ProfileManager] Initialized fresh clean state for "${targetId}".`);
+    if (targetId.includes('apple-review') || targetId.includes('demo')) {
+      seedReviewerDemoProfile();
+      saveProfileSnapshot(targetId);
+      console.log(`[ProfileManager] Initialized rich demo state for "${targetId}".`);
+    } else {
+      console.log(`[ProfileManager] Initialized fresh clean state for "${targetId}".`);
+    }
   }
 
   // 5. Setup periodic autosave
