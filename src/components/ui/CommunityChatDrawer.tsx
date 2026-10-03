@@ -38,6 +38,19 @@ export const CommunityChatDrawer: React.FC = () => {
   const roomName = t?.rooms?.[activeRoom]?.name || (isTr ? 'Sıcak Yatak Odası' : 'Cozy Bedroom');
   const todayMinutes = typeof getTodayMinutes === 'function' ? getTodayMinutes() : 0;
 
+  const [lastReactionTime, setLastReactionTime] = React.useState<number>(0);
+
+  const handleSendReaction = (type: 'coffee' | 'cheer' | 'fire') => {
+    const now = Date.now();
+    if (now - lastReactionTime < 15000) {
+      const waitSec = Math.ceil((15000 - (now - lastReactionTime)) / 1000);
+      showToast(isTr ? `Lütfen ${waitSec} sn bekleyin... ⏳` : `Please wait ${waitSec}s... ⏳`, 1500);
+      return;
+    }
+    setLastReactionTime(now);
+    sendReaction(type);
+  };
+
   return (
     <>
       {/* Full Backdrop (Closes on outside click across mobile, tablet, and desktop) */}
@@ -88,7 +101,7 @@ export const CommunityChatDrawer: React.FC = () => {
           </span>
           <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
             <button
-              onClick={() => sendReaction('coffee')}
+              onClick={() => handleSendReaction('coffee')}
               className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-stone-800/90 hover:bg-amber-950/50 text-amber-200 text-xs font-semibold border border-stone-700/80 transition-all cursor-pointer whitespace-nowrap active:scale-95"
               title={isTr ? 'Odadakilere sıcak kahve ikram et' : 'Share coffee with the room'}
             >
@@ -97,7 +110,7 @@ export const CommunityChatDrawer: React.FC = () => {
             </button>
 
             <button
-              onClick={() => sendReaction('cheer')}
+              onClick={() => handleSendReaction('cheer')}
               className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-stone-800/90 hover:bg-amber-950/50 text-amber-200 text-xs font-semibold border border-stone-700/80 transition-all cursor-pointer whitespace-nowrap active:scale-95"
               title={isTr ? 'Herkesi alkışla ve tebrik et' : 'Cheer everyone on'}
             >
@@ -106,7 +119,7 @@ export const CommunityChatDrawer: React.FC = () => {
             </button>
 
             <button
-              onClick={() => sendReaction('fire')}
+              onClick={() => handleSendReaction('fire')}
               className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-stone-800/90 hover:bg-amber-950/50 text-amber-200 text-xs font-semibold border border-stone-700/80 transition-all cursor-pointer whitespace-nowrap active:scale-95"
               title={isTr ? 'Derin odak motivasyon ateşi gönder' : 'Send focus energy'}
             >

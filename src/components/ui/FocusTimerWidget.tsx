@@ -56,7 +56,7 @@ export const FocusTimerWidget: React.FC = () => {
   return (
     <div 
       className="absolute left-1/2 -translate-x-1/2 z-30 pointer-events-auto transition-all duration-300 flex flex-col items-center"
-      style={{ bottom: 'max(1rem, env(safe-area-inset-bottom, 1rem))' }}
+      style={{ bottom: 'max(1.75rem, calc(env(safe-area-inset-bottom, 0px) + 1.25rem))' }}
     >
       {/* Current Goal / Focus Pledge Pill */}
       {currentGoal && (

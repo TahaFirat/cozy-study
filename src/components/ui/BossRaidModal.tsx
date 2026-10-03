@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, ShieldAlert, Swords, Trophy, Sparkles, Flame, CheckCircle, RotateCcw, Zap, Globe, Users, Lock, Award, Gift, Timer } from 'lucide-react';
+import { X, ShieldAlert, Swords, Trophy, Sparkles, Flame, CheckCircle, RotateCcw, Zap, Globe, Users, Lock, Award, Gift, Timer, Clock } from 'lucide-react';
 import { useBossRaidStore, BossId, isFrenzyHour, getFrenzyRemainingMinutes, MILESTONE_REWARDS } from '../../store/useBossRaidStore';
 import { useAppStore } from '../../store/useAppStore';
 import { useAuthStore } from '../../store/useAuthStore';
@@ -8,6 +8,7 @@ import { useGamificationStore } from '../../store/useGamificationStore';
 import { useCommunityStore } from '../../store/useCommunityStore';
 import { webAudioEngine } from '../../audio/WebAudioEngine';
 import { BossPixelRenderer } from '../../engine/BossPixelRenderer';
+import { subscribeToBossHp, subscribeToBossLeaderboard } from '../../firebase/bossRaidSync';
 
 export const BossRaidModal: React.FC = () => {
   const { activeModal, setActiveModal, language, showToast } = useAppStore();
@@ -45,11 +46,50 @@ export const BossRaidModal: React.FC = () => {
   const liveRaidersCount = Math.max(1, onlineCount || globalRaidersCount || 1);
 
   const [activeTab, setActiveTab] = useState<'arena' | 'leaderboard' | 'trophies' | 'logs'>('arena');
+  const [leaderboardMode, setLeaderboardMode] = useState<'boss_damage' | 'study_hours'>('boss_damage');
   const [nowTime, setNowTime] = useState(Date.now());
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const rendererRef = useRef<BossPixelRenderer>(new BossPixelRenderer());
   const lastTimeRef = useRef<number>(performance.now());
   const lastProcessedAttackRef = useRef<number>(0);
+
+  // Real-time Firestore sync for boss health & leaderboard across devices
+  useEffect(() => {
+    if (activeModal !== 'boss_raid') return;
+
+    const unsubHp = subscribeToBossHp(currentBossId, (data) => {
+      useBossRaidStore.setState((state) => {
+        const cur = state.bosses[currentBossId];
+        if (!cur) return state;
+        return {
+          bosses: {
+            ...state.bosses,
+            [currentBossId]: {
+              ...cur,
+              currentHp: data.currentHp,
+              isDefeated: data.isDefeated,
+            },
+          },
+        };
+      });
+    });
+
+    const unsubLb = subscribeToBossLeaderboard(currentBossId, (liveEntries) => {
+      if (liveEntries && liveEntries.length > 0) {
+        useBossRaidStore.setState((state) => ({
+          leaderboards: {
+            ...state.leaderboards,
+            [currentBossId]: liveEntries,
+          },
+        }));
+      }
+    });
+
+    return () => {
+      if (unsubHp) unsubHp();
+      if (unsubLb) unsubLb();
+    };
+  }, [activeModal, currentBossId]);
 
   useEffect(() => {
     checkSeasonReset();
@@ -284,7 +324,7 @@ export const BossRaidModal: React.FC = () => {
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
               <Users className="w-3.5 h-3.5 text-emerald-400" />
               <span className="font-mono font-bold text-emerald-300">{liveRaidersCount.toLocaleString()}</span>
-              <span className="text-stone-400">{isTr ? 'Akıncı' : 'Raiders'}</span>
+              <span className="text-stone-400">{isTr ? 'Çevrimiçi' : 'Online'}</span>
             </div>
 
             <button
@@ -387,7 +427,7 @@ export const BossRaidModal: React.FC = () => {
                         👑
                       </div>
                       <h3 className="text-base sm:text-lg font-black text-amber-300 mt-2 font-mono tracking-wide text-center">
-                        {isTr ? 'KADİM DEV MAĞLUP EDİLDİ!' : 'TITAN VANQUISHED!'}
+                        {isTr ? 'KADİM BOSS ALT EDİLDİ!' : 'TITAN DEFEATED!'}
                       </h3>
                       <p className="text-xs text-stone-300 text-center mt-1 max-w-xs">
                         {isTr 
@@ -398,6 +438,7 @@ export const BossRaidModal: React.FC = () => {
                         onClick={(e) => {
                           e.stopPropagation();
                           resetBoss(boss.id);
+                          setGhostHp(boss.maxHp);
                           showToast(isTr ? `🔄 ${boss.name} yeniden canlandı!` : `🔄 ${boss.name} revived!`, 3000);
                         }}
                         className="mt-3 px-4 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-stone-950 font-bold text-xs flex items-center gap-1.5 shadow-lg active:scale-95 transition-all cursor-pointer"
@@ -480,7 +521,7 @@ export const BossRaidModal: React.FC = () => {
                           )}
                         </div>
                         <div className="text-[11px] font-bold text-stone-200 mt-0.5 truncate flex items-center gap-1">
-                          <span>{isLocked ? (isTr ? '🔒 ??? (Gizemli Dev)' : '🔒 ??? (Mysterious Titan)') : b.name}</span>
+                          <span>{isLocked ? (isTr ? '🔒 ??? (Mühürlü Boss)' : '🔒 ??? (Sealed Boss)') : b.name}</span>
                         </div>
                         <div className="text-[9px] text-stone-400 truncate">
                           {isLocked ? (isTr ? `Seviye ${b.unlockLevel} Gerekli` : `Requires Lv.${b.unlockLevel}`) : `${b.maxHp.toLocaleString()} HP`}
@@ -799,90 +840,149 @@ export const BossRaidModal: React.FC = () => {
 
           {activeTab === 'leaderboard' && (
             <div className="space-y-3">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between flex-wrap gap-2">
                 <div>
                   <h4 className="text-sm font-bold text-stone-100 flex items-center gap-1.5">
                     <Trophy className="w-4 h-4 text-amber-400" />
-                    <span>{isTr ? `${boss.name} — Küresel Liderlik Tablosu` : `${boss.name} — Global Leaderboard`}</span>
+                    <span>
+                      {leaderboardMode === 'boss_damage'
+                        ? (isTr ? `${boss.name} — Boss Hasar Sıralaması` : `${boss.name} — Boss Damage Leaderboard`)
+                        : (isTr ? 'Küresel Çalışma Süresi Sıralaması' : 'Global Focus Hours Leaderboard')}
+                    </span>
                   </h4>
                   <p className="text-[11px] text-stone-400 mt-0.5">
-                    {isTr 
-                      ? 'Bu bossa dünya genelinde en çok hasar veren ve odaklanan öğrenciler:' 
-                      : 'Top students worldwide who dealt the most damage to this boss:'}
+                    {leaderboardMode === 'boss_damage'
+                      ? (isTr 
+                          ? 'Bu bossa dünya genelinde en çok hasar veren ve vuruş yapan öğrenciler:' 
+                          : 'Top students worldwide who dealt the most damage to this boss:')
+                      : (isTr
+                          ? 'Dünya genelinde en çok odaklanan ve ders çalışan öğrenciler:'
+                          : 'Top studiers worldwide ranked by total verified focus hours:')}
                   </p>
                 </div>
-                <div className="text-right">
-                  <span className="text-[11px] font-mono font-bold text-amber-300">
-                    {liveRaidersCount.toLocaleString()} {isTr ? 'Aktif Akıncı' : 'Active Raiders'}
+
+                <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1 p-0.5 bg-stone-950/80 rounded-xl border border-stone-800">
+                    <button
+                      onClick={() => setLeaderboardMode('boss_damage')}
+                      className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                        leaderboardMode === 'boss_damage'
+                          ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 shadow-sm'
+                          : 'text-stone-400 hover:text-stone-200'
+                      }`}
+                    >
+                      <Swords className="w-3.5 h-3.5 text-amber-400" />
+                      <span>{isTr ? 'Boss Hasarı' : 'Boss Damage'}</span>
+                    </button>
+
+                    <button
+                      onClick={() => setLeaderboardMode('study_hours')}
+                      className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                        leaderboardMode === 'study_hours'
+                          ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-sm'
+                          : 'text-stone-400 hover:text-stone-200'
+                      }`}
+                    >
+                      <Clock className="w-3.5 h-3.5 text-emerald-400" />
+                      <span>{isTr ? 'Çalışma Süresi' : 'Study Time'}</span>
+                    </button>
+                  </div>
+
+                  <span className="text-[11px] font-mono font-bold text-amber-300 hidden sm:inline">
+                    {liveRaidersCount.toLocaleString()} {isTr ? 'Çevrimiçi Oyuncu' : 'Online Players'}
                   </span>
                 </div>
               </div>
 
               {/* Leaderboard Table or Inspiring Empty State */}
-              {getLeaderboard(boss.id).length === 0 ? (
-                <div className="p-8 text-center text-stone-400 text-xs border border-dashed border-stone-800 rounded-2xl bg-stone-950/30">
-                  <div className="text-2xl mb-2">⚔️</div>
-                  <div className="font-bold text-stone-200 mb-1">
-                    {isTr ? 'Henüz Bu Bossa Hasar Verilmedi' : 'No Damage Dealt Yet'}
-                  </div>
-                  <p className="text-[11px] text-stone-400 max-w-sm mx-auto leading-relaxed">
-                    {isTr
-                      ? 'Bu kadim dev yeni uyandı! 25 dk odaklanarak vuruş yükü kazan, ilk saldırıyı yap ve liderlik tablosunun 1. sırasına adını yazdır!'
-                      : 'This ancient titan has just awakened! Earn strike charges, make the first hit, and claim the #1 leaderboard rank!'}
-                  </p>
-                </div>
-              ) : (
-                <div className="bg-stone-950/60 border border-white/10 rounded-2xl overflow-hidden divide-y divide-white/5">
-                  {getLeaderboard(boss.id).slice(0, 10).map((entry) => {
-                    const isPodium = entry.rank <= 3;
-                    const medal = entry.rank === 1 ? '🥇' : entry.rank === 2 ? '🥈' : entry.rank === 3 ? '🥉' : `#${entry.rank}`;
+              {(() => {
+                const rawEntries = getLeaderboard(boss.id);
+                const displayedEntries = leaderboardMode === 'study_hours'
+                  ? [...rawEntries].sort((a, b) => (b.focusHours || 0) - (a.focusHours || 0)).map((e, i) => ({ ...e, rank: i + 1 }))
+                  : rawEntries;
 
-                    return (
-                      <div
-                        key={entry.id}
-                        className={`p-2.5 sm:p-3 flex items-center justify-between transition-all ${
-                          entry.isSelf
-                            ? 'bg-amber-500/15 border-l-4 border-l-amber-400 ring-1 ring-amber-500/30'
-                            : 'hover:bg-stone-900/40'
-                        }`}
-                      >
-                        <div className="flex items-center gap-2.5 min-w-0">
-                          <span className={`font-mono font-bold text-xs sm:text-sm w-7 text-center ${
-                            isPodium ? 'text-base' : 'text-stone-400'
-                          }`}>
-                            {medal}
-                          </span>
-                          <div className="min-w-0">
-                            <div className="flex items-center gap-1.5">
-                              <span className="text-xs">{entry.flag}</span>
-                              <span className={`text-xs font-bold truncate ${
-                                entry.isSelf ? 'text-amber-200' : 'text-stone-200'
-                              }`}>
-                                {entry.name} {entry.isSelf && <span className="text-[10px] text-amber-400 font-mono font-normal">({isTr ? 'SEN' : 'YOU'})</span>}
-                              </span>
-                              <span className="text-[10px] text-stone-500 truncate hidden sm:inline">• {entry.city}</span>
-                            </div>
-                            <div className="text-[10px] text-stone-400 mt-0.5 flex items-center gap-2">
-                              <span className="text-amber-400/90 font-medium">{entry.badge}</span>
-                              <span>•</span>
-                              <span>{entry.focusHours}h {isTr ? 'odak' : 'focus'}</span>
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="text-right flex-shrink-0">
-                          <div className="text-xs font-mono font-bold text-amber-300">
-                            {entry.damage.toLocaleString()} DMG
-                          </div>
-                          <div className="text-[10px] font-mono text-stone-400">
-                            %{entry.contributionPct} {isTr ? 'katkı' : 'share'}
-                          </div>
-                        </div>
+                if (displayedEntries.length === 0) {
+                  return (
+                    <div className="p-8 text-center text-stone-400 text-xs border border-dashed border-stone-800 rounded-2xl bg-stone-950/30">
+                      <div className="text-2xl mb-2">⚔️</div>
+                      <div className="font-bold text-stone-200 mb-1">
+                        {isTr ? 'Henüz Sıralama Verisi Yok' : 'No Leaderboard Data Yet'}
                       </div>
-                    );
-                  })}
-                </div>
-              )}
+                      <p className="text-[11px] text-stone-400 max-w-sm mx-auto leading-relaxed">
+                        {isTr
+                          ? 'Bu kadim boss yeni uyandı! 25 dk odaklanarak ilk saldırıyı yap ve 1. sıraya adını yazdır!'
+                          : 'This ancient titan has awakened! Earn strike charges, make the first hit, and claim the #1 rank!'}
+                      </p>
+                    </div>
+                  );
+                }
+
+                return (
+                  <div className="bg-stone-950/60 border border-white/10 rounded-2xl overflow-hidden divide-y divide-white/5">
+                    {displayedEntries.slice(0, 15).map((entry) => {
+                      const isPodium = entry.rank <= 3;
+                      const medal = entry.rank === 1 ? '🥇' : entry.rank === 2 ? '🥈' : entry.rank === 3 ? '🥉' : `#${entry.rank}`;
+
+                      return (
+                        <div
+                          key={entry.id}
+                          className={`p-2.5 sm:p-3 flex items-center justify-between transition-all ${
+                            entry.isSelf
+                              ? 'bg-amber-500/15 border-l-4 border-l-amber-400 ring-1 ring-amber-500/30'
+                              : 'hover:bg-stone-900/40'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <span className={`font-mono font-bold text-xs sm:text-sm w-7 text-center ${
+                              isPodium ? 'text-base' : 'text-stone-400'
+                            }`}>
+                              {medal}
+                            </span>
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-xs">{entry.flag}</span>
+                                <span className={`text-xs font-bold truncate ${
+                                  entry.isSelf ? 'text-amber-200' : 'text-stone-200'
+                                }`}>
+                                  {entry.name} {entry.isSelf && <span className="text-[10px] text-amber-400 font-mono font-normal">({isTr ? 'SEN' : 'YOU'})</span>}
+                                </span>
+                                <span className="text-[10px] text-stone-500 truncate hidden sm:inline">• {entry.city}</span>
+                              </div>
+                              <div className="text-[10px] text-stone-400 mt-0.5 flex items-center gap-2">
+                                <span className="text-amber-400/90 font-medium">{entry.badge}</span>
+                                <span>•</span>
+                                <span className="font-mono text-emerald-400 font-semibold">{entry.focusHours}h {isTr ? 'odak' : 'focus'}</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="text-right flex-shrink-0">
+                            {leaderboardMode === 'boss_damage' ? (
+                              <>
+                                <div className="text-xs font-mono font-bold text-amber-300">
+                                  {entry.damage.toLocaleString()} DMG
+                                </div>
+                                <div className="text-[10px] font-mono text-stone-400">
+                                  %{entry.contributionPct} {isTr ? 'katkı' : 'share'}
+                                </div>
+                              </>
+                            ) : (
+                              <>
+                                <div className="text-xs font-mono font-bold text-emerald-300">
+                                  {entry.focusHours} Saat
+                                </div>
+                                <div className="text-[10px] font-mono text-stone-400">
+                                  {entry.damage.toLocaleString()} DMG
+                                </div>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
 
               {/* Sticky Personal Standing Card */}
               {(() => {

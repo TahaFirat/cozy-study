@@ -40,6 +40,7 @@ import { useSubscriptionStore } from './store/useSubscriptionStore';
 import { useBossRaidStore } from './store/useBossRaidStore';
 import { useStatsStore } from './store/useStatsStore';
 import { useTaskStore } from './store/useTaskStore';
+import { initScreenWakeLock } from './utils/wakeLock';
 
 if (typeof window !== 'undefined') {
   (window as unknown as { __useAppStore: typeof useAppStore }).__useAppStore = useAppStore;
@@ -68,6 +69,12 @@ export const App: React.FC = () => {
   const selectedCrtTheme = useSubscriptionStore((s) => s.selectedCrtTheme);
 
   const [isTopHovered, setIsTopHovered] = useState(false);
+
+  // Keep screen awake continuously during study to prevent sleep/dimming
+  useEffect(() => {
+    const cleanupWakeLock = initScreenWakeLock();
+    return () => cleanupWakeLock();
+  }, []);
 
   // Sync fullscreen state with native browser events (F11, ESC, etc.)
   useEffect(() => {

@@ -3,6 +3,11 @@ import { persist } from 'zustand/middleware';
 import { webAudioEngine } from '../audio/WebAudioEngine';
 import { useAppStore } from './useAppStore';
 import { useGamificationStore } from './useGamificationStore';
+import { useAuthStore } from './useAuthStore';
+import { 
+  syncBossAttackToFirestore, 
+  resetBossInFirestore 
+} from '../firebase/bossRaidSync';
 
 export type BossId = 'horologium' | 'acedia' | 'cacophony' | 'oblivion';
 
@@ -76,13 +81,13 @@ export const MILESTONE_REWARDS: Record<number, { xp: number; charges: number; ti
   50: {
     xp: 250,
     charges: 2,
-    titleTr: 'Akın Kıdemlisi',
+    titleTr: 'Kadim Muhafız',
     titleEn: 'Raid Veteran',
   },
   25: {
     xp: 500,
     charges: 3,
-    titleTr: 'Dev Avcısı',
+    titleTr: 'Titan Fatihi',
     titleEn: 'Titan Slayer',
   },
   0: {
@@ -224,10 +229,33 @@ export const DEFAULT_BOSSES: Record<BossId, BossData> = {
 };
 
 export const DEFAULT_LEADERBOARDS: Record<BossId, LeaderboardEntry[]> = {
-  horologium: [],
-  acedia: [],
-  cacophony: [],
-  oblivion: [],
+  horologium: [
+    { id: 'lb-h1', rank: 1, name: 'Aoi Takahashi', city: 'Kyoto', flag: '🇯🇵', damage: 8450, contributionPct: 8.45, focusHours: 35.2, badge: '⚔️ Elit Şampiyon' },
+    { id: 'lb-h2', rank: 2, name: 'Lucas Petit', city: 'Paris', flag: '🇫🇷', damage: 6200, contributionPct: 6.20, focusHours: 25.8, badge: '🛡️ Kıdemli Savaşçı' },
+    { id: 'lb-h3', rank: 3, name: 'Defne Kaya', city: 'Istanbul', flag: '🇹🇷', damage: 5800, contributionPct: 5.80, focusHours: 24.1, badge: '🛡️ Kıdemli Savaşçı' },
+    { id: 'lb-h4', rank: 4, name: 'David Miller', city: 'London', flag: '🇬🇧', damage: 4100, contributionPct: 4.10, focusHours: 17.0, badge: '🛡️ Kıdemli Savaşçı' },
+    { id: 'lb-h5', rank: 5, name: 'Hana Song', city: 'Seoul', flag: '🇰🇷', damage: 3450, contributionPct: 3.45, focusHours: 14.3, badge: '🌱 Çaylak Savaşçı' },
+    { id: 'lb-h6', rank: 6, name: 'Mateo Rossi', city: 'Milan', flag: '🇮🇹', damage: 2900, contributionPct: 2.90, focusHours: 12.0, badge: '🌱 Çaylak Savaşçı' },
+  ],
+  acedia: [
+    { id: 'lb-a1', rank: 1, name: 'Elena Voronina', city: 'Berlin', flag: '🇩🇪', damage: 14200, contributionPct: 5.68, focusHours: 59.1, badge: '⚔️ Elit Şampiyon' },
+    { id: 'lb-a2', rank: 2, name: 'Kenji Sato', city: 'Tokyo', flag: '🇯🇵', damage: 11800, contributionPct: 4.72, focusHours: 49.1, badge: '⚔️ Elit Şampiyon' },
+    { id: 'lb-a3', rank: 3, name: 'Emre Demir', city: 'Ankara', flag: '🇹🇷', damage: 9400, contributionPct: 3.76, focusHours: 39.1, badge: '🛡️ Kıdemli Savaşçı' },
+    { id: 'lb-a4', rank: 4, name: 'Sarah Jenkins', city: 'Boston', flag: '🇺🇸', damage: 7600, contributionPct: 3.04, focusHours: 31.6, badge: '🛡️ Kıdemli Savaşçı' },
+    { id: 'lb-a5', rank: 5, name: 'Lars Lindqvist', city: 'Stockholm', flag: '🇸🇪', damage: 5200, contributionPct: 2.08, focusHours: 21.6, badge: '🌱 Çaylak Savaşçı' },
+  ],
+  cacophony: [
+    { id: 'lb-c1', rank: 1, name: 'Sophie Bernard', city: 'Lyon', flag: '🇫🇷', damage: 22500, contributionPct: 4.50, focusHours: 93.7, badge: '⚔️ Elit Şampiyon' },
+    { id: 'lb-c2', rank: 2, name: 'Burak Yılmaz', city: 'Izmir', flag: '🇹🇷', damage: 18400, contributionPct: 3.68, focusHours: 76.6, badge: '⚔️ Elit Şampiyon' },
+    { id: 'lb-c3', rank: 3, name: 'Oliver Schmidt', city: 'Munich', flag: '🇩🇪', damage: 14900, contributionPct: 2.98, focusHours: 62.0, badge: '🛡️ Kıdemli Savaşçı' },
+    { id: 'lb-c4', rank: 4, name: 'Yuki Tanaka', city: 'Osaka', flag: '🇯🇵', damage: 11200, contributionPct: 2.24, focusHours: 46.6, badge: '🛡️ Kıdemli Savaşçı' },
+  ],
+  oblivion: [
+    { id: 'lb-o1', rank: 1, name: 'Alexander Wright', city: 'Oxford', flag: '🇬🇧', damage: 38000, contributionPct: 3.80, focusHours: 158.3, badge: '⚔️ Elit Şampiyon' },
+    { id: 'lb-o2', rank: 2, name: 'Zeynep Öztürk', city: 'Istanbul', flag: '🇹🇷', damage: 31500, contributionPct: 3.15, focusHours: 131.2, badge: '⚔️ Elit Şampiyon' },
+    { id: 'lb-o3', rank: 3, name: 'Liam Keller', city: 'Toronto', flag: '🇨🇦', damage: 26800, contributionPct: 2.68, focusHours: 111.6, badge: '🛡️ Kıdemli Savaşçı' },
+    { id: 'lb-o4', rank: 4, name: 'Min-jun Park', city: 'Busan', flag: '🇰🇷', damage: 21400, contributionPct: 2.14, focusHours: 89.1, badge: '🛡️ Kıdemli Savaşçı' },
+  ],
 };
 
 interface BossRaidState {
@@ -606,7 +634,23 @@ export const useBossRaidStore = create<BossRaidState>()(
           useAppStore.getState().showToast(msg, 3500);
         }
 
-        // Broadcast across network (Vite Live Relay & BroadcastChannel)
+        // Broadcast across network & Firebase Firestore
+        try {
+          const user = useAuthStore.getState().user;
+          syncBossAttackToFirestore(boss.id, {
+            userId: user?.uid || 'guest-studier',
+            userName: user?.displayName || 'Sen',
+            damage: totalDamage,
+            isCritical: critRoll,
+            city: 'Senin Odan',
+            flag: '⭐',
+            minutes: chargeCost * 25,
+            newHp,
+            maxHp: boss.maxHp,
+            defeated,
+          });
+        } catch {}
+
         broadcastAttackOverNetwork({
           bossId: boss.id,
           damage: totalDamage,
@@ -712,6 +756,23 @@ export const useBossRaidStore = create<BossRaidState>()(
             : `⚔️ Dealt ${totalDamage} DMG to ${boss.name}! Remaining HP: ${newHp.toLocaleString()}/${boss.maxHp.toLocaleString()}`;
           useAppStore.getState().showToast(msg, 4000);
         }
+
+        // Broadcast across network & Firebase Firestore
+        try {
+          const user = useAuthStore.getState().user;
+          syncBossAttackToFirestore(boss.id, {
+            userId: user?.uid || 'guest-studier',
+            userName: user?.displayName || 'Sen',
+            damage: totalDamage,
+            isCritical,
+            city: 'Senin Odan',
+            flag: '⭐',
+            minutes: focusMinutes,
+            newHp,
+            maxHp: boss.maxHp,
+            defeated,
+          });
+        } catch {}
 
         broadcastAttackOverNetwork({
           bossId: boss.id,
@@ -835,7 +896,14 @@ export const useBossRaidStore = create<BossRaidState>()(
               isDefeated: false,
             },
           },
+          personalDamagePerBoss: {
+            ...state.personalDamagePerBoss,
+            [bossId]: 0,
+          },
         }));
+        try {
+          resetBossInFirestore(bossId as BossId, defaultBoss.maxHp);
+        } catch {}
       },
 
       unlockTrophy: (trophyId: string) => {
@@ -852,7 +920,9 @@ export const useBossRaidStore = create<BossRaidState>()(
 
       getLeaderboard: (bossId: BossId) => {
         const state = get();
-        const baseEntries = state.leaderboards?.[bossId] || [];
+        const baseEntries = (state.leaderboards?.[bossId] && state.leaderboards[bossId].length > 0)
+          ? state.leaderboards[bossId]
+          : (DEFAULT_LEADERBOARDS[bossId] || []);
         const myDmg = state.personalDamagePerBoss[bossId] || 0;
         const boss = state.bosses[bossId] || DEFAULT_BOSSES[bossId];
         const myPct = boss.maxHp > 0 ? Number(((myDmg / boss.maxHp) * 100).toFixed(2)) : 0;
@@ -860,16 +930,18 @@ export const useBossRaidStore = create<BossRaidState>()(
 
         const entries: LeaderboardEntry[] = [];
         if (myDmg > 0) {
+          const user = useAuthStore.getState().user;
+          const myName = user?.displayName || 'Sen';
           entries.push({
             id: 'self-entry',
             rank: 1,
-            name: 'Sen',
+            name: myName,
             city: 'Senin Odan',
             flag: '⭐',
             damage: myDmg,
             contributionPct: myPct,
             focusHours: myHours,
-            badge: myDmg > 5000 ? '⚔️ Elit Şampiyon' : (myDmg > 1000 ? '🛡️ Kıdemli Akıncı' : '🌱 Çaylak Akıncı'),
+            badge: myDmg > 5000 ? '⚔️ Elit Şampiyon' : (myDmg > 1000 ? '🛡️ Kıdemli Savaşçı' : '🌱 Çaylak Savaşçı'),
             isSelf: true,
           });
         }

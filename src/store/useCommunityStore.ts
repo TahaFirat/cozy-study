@@ -240,11 +240,14 @@ export const useCommunityStore = create<CommunityState>()(
               unreadCount: get().isChatOpen ? 0 : (isFirstLoad ? 0 : Math.max(0, mapped.length - prevMsgs.length)),
             });
 
-            // Yeni başkasından mesaj geldiyse bildirim sesi çal
+            // Yeni başkasından mesaj geldiyse bildirim sesi çal (etkileşim ayarına uygun olarak)
             if (!isFirstLoad && mapped.length > prevMsgs.length) {
               const lastMsg = mapped[mapped.length - 1];
+              const reactionsAllowed = useAppStore.getState().communityReactionsEnabled;
               if (lastMsg && !lastMsg.isUser && useAppStore.getState().soundFxEnabled) {
-                webAudioEngine.playChatPing();
+                if (!lastMsg.isReaction || reactionsAllowed) {
+                  webAudioEngine.playChatPing();
+                }
               }
             }
           },

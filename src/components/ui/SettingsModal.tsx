@@ -22,7 +22,8 @@ import {
   Crown,
   Sparkles,
   Headphones,
-  Brain
+  Brain,
+  Coffee
 } from 'lucide-react';
 import { useAppStore } from '../../store/useAppStore';
 import { useSubscriptionStore } from '../../store/useSubscriptionStore';
@@ -56,6 +57,8 @@ export const SettingsModal: React.FC = () => {
     toggleFireplace,
     batterySaverMode,
     toggleBatterySaverMode,
+    communityReactionsEnabled,
+    toggleCommunityReactions,
     showToast,
   } = useAppStore();
 
@@ -405,6 +408,37 @@ export const SettingsModal: React.FC = () => {
                 </div>
                 <span className={`text-xs font-mono font-bold ${soundFxEnabled ? 'text-amber-400' : 'text-stone-500'}`}>
                   {soundFxEnabled ? (language === 'tr' ? 'AÇIK' : 'ON') : (language === 'tr' ? 'KAPALI' : 'OFF')}
+                </span>
+              </div>
+
+              <div
+                onClick={() => {
+                  toggleCommunityReactions();
+                  const next = !communityReactionsEnabled;
+                  showToast(
+                    next 
+                      ? (language === 'tr' ? 'Kahve ve topluluk bildirimleri açıldı ☕' : 'Community cheers enabled ☕')
+                      : (language === 'tr' ? 'Sessiz odak modu: Kahve bildirimleri susturuldu 🔕' : 'Do Not Disturb: Community cheers muted 🔕'),
+                    2000
+                  );
+                }}
+                className="flex items-center justify-between p-3 bg-stone-950/40 border border-stone-800 rounded-xl cursor-pointer hover:border-stone-700"
+              >
+                <div className="flex items-center gap-2.5">
+                  <Coffee className="w-4 h-4 text-amber-400" />
+                  <div>
+                    <div className="text-sm font-semibold text-stone-200">
+                      {language === 'tr' ? 'Topluluk Etkileşim Bildirimleri (Kahve / Tebrik)' : 'Community Cheers & Coffee Alerts'}
+                    </div>
+                    <div className="text-xs text-stone-400">
+                      {language === 'tr'
+                        ? 'Ders çalışırken başkalarının gönderdiği kahve ve tebrik seslerini sessize alır'
+                        : 'Mutes incoming cheers and coffee notifications to protect deep focus'}
+                    </div>
+                  </div>
+                </div>
+                <span className={`text-xs font-mono font-bold ${communityReactionsEnabled ? 'text-amber-400' : 'text-stone-500'}`}>
+                  {communityReactionsEnabled ? (language === 'tr' ? 'AÇIK' : 'ON') : (language === 'tr' ? 'SESSİZ' : 'MUTED')}
                 </span>
               </div>
             </div>

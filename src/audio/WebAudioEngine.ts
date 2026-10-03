@@ -20,11 +20,14 @@ class WebAudioEngine {
   private binauralOscR: OscillatorNode | null = null;
   private currentBinauralMode: BinauralMode = 'gamma_40hz';
 
-  // Authentic high-fidelity recorded nature loops (hardware decoded, 0% CPU, true acoustic realism)
+  // Authentic high-fidelity recorded nature loops (hardware decoded AudioBuffers, 0% CPU, true gapless looping)
   private masterVolume: number = 0.8;
   private isMuted: boolean = false;
+  private soundFxEnabled: boolean = true;
   private naturalChannelVolumes: Partial<Record<AmbientSoundChannel, number>> = {};
-  private naturalAudioElements: Partial<Record<string, HTMLAudioElement>> = {};
+  private naturalBuffers: Partial<Record<AmbientSoundChannel, AudioBuffer>> = {};
+  private naturalSources: Partial<Record<AmbientSoundChannel, AudioBufferSourceNode>> = {};
+  private loadingNaturalChannels = new Set<AmbientSoundChannel>();
   private readonly naturalAudioSources: Partial<Record<AmbientSoundChannel, string>> = {
     rain: '/sounds/rain.ogg',
     fireplace: '/sounds/fireplace.ogg',
@@ -32,6 +35,10 @@ class WebAudioEngine {
     thunder: '/sounds/thunder.ogg',
     wind: '/sounds/wind.ogg',
   };
+
+  public setSoundFxEnabled(enabled: boolean) {
+    this.soundFxEnabled = enabled;
+  }
 
   public init() {
     if (this.isInitialized && this.ctx) {
@@ -46,7 +53,7 @@ class WebAudioEngine {
       this.ctx = new AudioCtx();
       
       this.masterGain = this.ctx.createGain();
-      this.masterGain.gain.setValueAtTime(1.0, this.ctx.currentTime);
+      this.masterGain.gain.setValueAtTime(this.isMuted ? 0 : this.masterVolume, this.ctx.currentTime);
       this.masterGain.connect(this.ctx.destination);
 
       const channels: AmbientSoundChannel[] = [
@@ -65,6 +72,10 @@ class WebAudioEngine {
       });
 
       this.isInitialized = true;
+
+      // Preload the most essential natural audio loops in the background
+      this.loadNaturalBuffer('fireplace').catch(() => {});
+      this.loadNaturalBuffer('rain').catch(() => {});
     } catch (e) {
       console.warn('Web Audio initialization error:', e);
     }
@@ -76,7 +87,6 @@ class WebAudioEngine {
     if (this.ctx && this.masterGain) {
       this.masterGain.gain.setTargetAtTime(effectiveVol, this.ctx.currentTime, 0.05);
     }
-    this.syncNaturalAudioVolumes();
   }
 
   public setMuted(muted: boolean) {
@@ -84,24 +94,37 @@ class WebAudioEngine {
     this.setMasterVolume(this.masterVolume);
   }
 
-  private syncNaturalAudioVolumes() {
-    const masterMult = this.isMuted ? 0 : this.masterVolume;
-    Object.entries(this.naturalAudioElements).forEach(([ch, audio]) => {
-      if (!audio) return;
-      const chVol = this.naturalChannelVolumes[ch as AmbientSoundChannel] || 0;
-      const finalVol = Math.max(0, Math.min(1, chVol * masterMult));
-      audio.volume = finalVol;
-      if (finalVol > 0.005) {
-        if (audio.paused) {
-          audio.play().catch(() => {});
-        }
-      } else {
-        if (!audio.paused) {
-          audio.pause();
-          audio.currentTime = 0;
+  private async loadNaturalBuffer(channel: AmbientSoundChannel): Promise<AudioBuffer | null> {
+    if (this.naturalBuffers[channel]) return this.naturalBuffers[channel]!;
+    const src = this.naturalAudioSources[channel];
+    if (!src || !this.ctx) return null;
+    if (this.loadingNaturalChannels.has(channel)) return null;
+
+    this.loadingNaturalChannels.add(channel);
+    try {
+      const response = await fetch(src);
+      const arrayBuffer = await response.arrayBuffer();
+      const decoded = await this.ctx.decodeAudioData(arrayBuffer);
+
+      // Apply crossfade smoothing at loop boundary (first and last 2048 samples)
+      // to eliminate any click or waveform jump at the loop point
+      for (let ch = 0; ch < decoded.numberOfChannels; ch++) {
+        const data = decoded.getChannelData(ch);
+        const crossfadeLen = Math.min(2048, Math.floor(data.length / 10));
+        for (let i = 0; i < crossfadeLen; i++) {
+          const t = i / crossfadeLen;
+          data[i] = data[i] * t + data[data.length - crossfadeLen + i] * (1 - t);
         }
       }
-    });
+
+      this.naturalBuffers[channel] = decoded;
+      return decoded;
+    } catch (e) {
+      console.warn(`Could not decode audio buffer for ${channel}:`, e);
+      return null;
+    } finally {
+      this.loadingNaturalChannels.delete(channel);
+    }
   }
 
   public ensureRunning() {
@@ -111,29 +134,61 @@ class WebAudioEngine {
   }
 
   public setChannelVolume(channel: AmbientSoundChannel, volume: number) {
-    // 1. Natural Recorded High-Fidelity Audio Streams (hardware decoded, 0% CPU, true realistic sound)
+    // 1. Natural Recorded High-Fidelity Audio Streams (hardware decoded, 0% CPU, true gapless looping)
     const naturalSrc = this.naturalAudioSources[channel];
     if (naturalSrc) {
       this.naturalChannelVolumes[channel] = volume;
-      let audio = this.naturalAudioElements[channel];
-      if (!audio) {
-        audio = new Audio(naturalSrc);
-        audio.loop = true;
-        audio.preload = 'auto';
-        this.naturalAudioElements[channel] = audio;
-      }
-      const masterMult = this.isMuted ? 0 : this.masterVolume;
-      const finalVol = Math.max(0, Math.min(1, volume * masterMult));
-      audio.volume = finalVol;
-      if (finalVol > 0.005) {
-        if (audio.paused) {
-          audio.play().catch(() => {});
+      if (volume > 0.005) {
+        if (!this.isInitialized) this.init();
+        this.ensureRunning();
+
+        const startPlaying = (buf: AudioBuffer) => {
+          if (!this.ctx) return;
+          // If source node is already active, just adjust gain
+          let source = this.naturalSources[channel];
+          if (!source) {
+            source = this.ctx.createBufferSource();
+            source.buffer = buf;
+            source.loop = true;
+
+            const channelGain = this.ambientGains[channel] || this.masterGain || this.ctx.destination;
+            source.connect(channelGain);
+            source.start(0);
+            this.naturalSources[channel] = source;
+          }
+          const gainNode = this.ambientGains[channel];
+          if (gainNode) {
+            const target = Math.max(0, Math.min(1, volume));
+            gainNode.gain.setTargetAtTime(target, this.ctx.currentTime, 0.08);
+          }
+        };
+
+        if (this.naturalBuffers[channel]) {
+          startPlaying(this.naturalBuffers[channel]!);
+        } else {
+          this.loadNaturalBuffer(channel).then((buf) => {
+            if (buf && (this.naturalChannelVolumes[channel] || 0) > 0.005) {
+              startPlaying(buf);
+            }
+          });
         }
       } else {
-        audio.volume = 0;
-        if (!audio.paused) {
-          audio.pause();
-          audio.currentTime = 0;
+        // Fade out and stop source
+        const gainNode = this.ambientGains[channel];
+        if (gainNode && this.ctx) {
+          gainNode.gain.setTargetAtTime(0, this.ctx.currentTime, 0.06);
+        }
+        const source = this.naturalSources[channel];
+        if (source) {
+          setTimeout(() => {
+            if ((this.naturalChannelVolumes[channel] || 0) <= 0.005) {
+              try {
+                source.stop();
+                source.disconnect();
+              } catch {}
+              delete this.naturalSources[channel];
+            }
+          }, 120);
         }
       }
       return;
@@ -1242,26 +1297,50 @@ class WebAudioEngine {
   }
 
   public playBossHit() {
+    if (!this.soundFxEnabled) return;
     this.init();
     if (!this.ctx) return;
     const now = this.ctx.currentTime;
-    // Metallic impact slash
+
+    // Mature, deep acoustic impact thump (warm sub-frequency resonance)
     const osc = this.ctx.createOscillator();
-    const gain = this.ctx.createGain();
-    osc.type = 'sawtooth';
-    osc.frequency.setValueAtTime(280, now);
-    osc.frequency.exponentialRampToValueAtTime(90, now + 0.12);
+    const oscGain = this.ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(80, now);
+    osc.frequency.exponentialRampToValueAtTime(36, now + 0.09);
 
-    gain.gain.setValueAtTime(0.18, now);
-    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
+    oscGain.gain.setValueAtTime(0.08, now);
+    oscGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.09);
 
-    osc.connect(gain);
-    gain.connect(this.masterGain || this.ctx.destination);
+    osc.connect(oscGain);
+    oscGain.connect(this.masterGain || this.ctx.destination);
     osc.start(now);
-    osc.stop(now + 0.2);
+    osc.stop(now + 0.1);
+
+    // Warm, low-passed subtle tactile desk/punch texture
+    try {
+      const noiseBuf = this.createNoiseBuffer('brown', 0.1);
+      const noiseSource = this.ctx.createBufferSource();
+      noiseSource.buffer = noiseBuf;
+
+      const noiseFilter = this.ctx.createBiquadFilter();
+      noiseFilter.type = 'lowpass';
+      noiseFilter.frequency.setValueAtTime(160, now);
+
+      const noiseGain = this.ctx.createGain();
+      noiseGain.gain.setValueAtTime(0.04, now);
+      noiseGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.06);
+
+      noiseSource.connect(noiseFilter);
+      noiseFilter.connect(noiseGain);
+      noiseGain.connect(this.masterGain || this.ctx.destination);
+      noiseSource.start(now);
+      noiseSource.stop(now + 0.08);
+    } catch {}
   }
 
   public playBossCrit() {
+    if (!this.soundFxEnabled) return;
     this.init();
     if (!this.ctx) return;
     const now = this.ctx.currentTime;

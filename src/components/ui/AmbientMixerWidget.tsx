@@ -25,7 +25,9 @@ import {
   Radio,
   Headphones,
   Bell,
-  PenTool
+  PenTool,
+  Maximize2,
+  Minimize2
 } from 'lucide-react';
 import { useAudioStore } from '../../store/useAudioStore';
 import { useAppStore } from '../../store/useAppStore';
@@ -50,7 +52,7 @@ export const AmbientMixerWidget: React.FC = () => {
     toggleMute,
   } = useAudioStore();
 
-  const { activeModal, setActiveModal, language, showToast } = useAppStore();
+  const { activeModal, setActiveModal, language, showToast, isFullscreen, toggleFullscreen } = useAppStore();
   const { isPro } = useSubscriptionStore();
   const t = TRANSLATIONS[language];
   const isOpen = activeModal === 'mixer';
@@ -84,11 +86,19 @@ export const AmbientMixerWidget: React.FC = () => {
 
   return (
     <>
-      {/* Bottom-right Floating Mixer Trigger Button */}
+      {/* Bottom-right Floating Mixer Trigger & Fullscreen Buttons */}
       <div 
-        className="absolute right-3 sm:right-4 z-30 pointer-events-auto"
-        style={{ bottom: 'max(1rem, env(safe-area-inset-bottom, 1rem))' }}
+        className="absolute right-3 sm:right-4 z-30 pointer-events-auto flex items-center gap-2"
+        style={{ bottom: 'max(1.75rem, calc(env(safe-area-inset-bottom, 0px) + 1.25rem))' }}
       >
+        <button
+          onClick={toggleFullscreen}
+          className="p-2.5 glass-island text-stone-300 hover:text-stone-100 rounded-2xl shadow-2xl transition-all duration-300 border border-white/10 hover:border-white/20 cursor-pointer"
+          title={isFullscreen ? (isTr ? 'Tam Ekrandan Çık' : 'Exit Fullscreen') : (isTr ? 'Tam Ekran' : 'Fullscreen')}
+        >
+          {isFullscreen ? <Minimize2 className="w-4 h-4 text-amber-400" /> : <Maximize2 className="w-4 h-4" />}
+        </button>
+
         <button
           onClick={() => setActiveModal(isOpen ? 'none' : 'mixer')}
           className={`flex items-center gap-2 sm:gap-2.5 px-3 sm:px-4 py-2.5 glass-island text-stone-100 rounded-2xl shadow-2xl transition-all duration-300 cursor-pointer ${

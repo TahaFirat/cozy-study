@@ -46,6 +46,7 @@ interface AppState {
   breakMode: 'none' | 'short' | 'long';
   isFullscreen: boolean;
   batterySaverMode: boolean;
+  communityReactionsEnabled: boolean;
   activeModal: ActiveModalType;
   hoveredObject: InteractiveObjectId | null;
   toastMessage: string | null;
@@ -53,6 +54,8 @@ interface AppState {
   // Actions
   toggleBatterySaverMode: () => void;
   setBatterySaverMode: (enabled: boolean) => void;
+  toggleCommunityReactions: () => void;
+  setCommunityReactions: (enabled: boolean) => void;
   setLanguage: (lang: Language) => void;
   setActiveRoom: (room: RoomId) => void;
   setTimeOfDay: (time: TimeOfDay) => void;
@@ -104,9 +107,13 @@ export const useAppStore = create<AppState>()(
       breakMode: 'none',
       isFullscreen: false,
       batterySaverMode: false,
+      communityReactionsEnabled: true,
       activeModal: 'none',
       hoveredObject: null,
       toastMessage: null,
+
+      toggleCommunityReactions: () => set((state) => ({ communityReactionsEnabled: !state.communityReactionsEnabled })),
+      setCommunityReactions: (communityReactionsEnabled) => set({ communityReactionsEnabled }),
 
       setLanguage: (language) => {
         set({ language });
@@ -193,7 +200,11 @@ export const useAppStore = create<AppState>()(
       setImmersiveMode: (immersiveMode) => set({ immersiveMode }),
       toggleCrtOverlay: () => set((state) => ({ crtOverlay: !state.crtOverlay })),
       toggleReduceMotion: () => set((state) => ({ reduceMotion: !state.reduceMotion })),
-      toggleSoundFx: () => set((state) => ({ soundFxEnabled: !state.soundFxEnabled })),
+      toggleSoundFx: () => {
+        const next = !get().soundFxEnabled;
+        webAudioEngine.setSoundFxEnabled(next);
+        set({ soundFxEnabled: next });
+      },
       setDailyGoalMinutes: (dailyGoalMinutes) => set({ dailyGoalMinutes }),
       setBreakMode: (breakMode) => set({ breakMode }),
       toggleFullscreen: () => {
