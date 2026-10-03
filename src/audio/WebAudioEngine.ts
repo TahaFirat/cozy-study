@@ -1516,57 +1516,9 @@ class WebAudioEngine {
   private lofiInterval: number | null = null;
   private lofiGain: GainNode | null = null;
 
-  public startGenerativeLofi(volume = 0.5) {
-    this.init();
-    if (!this.ctx || this.isLofiPlaying) return;
-    this.isLofiPlaying = true;
-
-    this.lofiGain = this.ctx.createGain();
-    this.lofiGain.gain.setValueAtTime(volume * 0.35, this.ctx.currentTime);
-    this.lofiGain.connect(this.ctx.destination);
-
-    // Warm Rhodes / Lofi 7th & 9th Chord Progressions
-    const progressions = [
-      [155.56, 196.00, 233.08, 293.66, 349.23], // Ebmaj9
-      [130.81, 196.00, 233.08, 261.63, 293.66], // Cm9
-      [174.61, 207.65, 261.63, 311.13, 349.23], // Fm9
-      [116.54, 174.61, 233.08, 293.66, 329.63], // Bb13
-    ];
-
-    const playChord = () => {
-      if (!this.ctx || !this.isLofiPlaying || !this.lofiGain) return;
-      const chord = progressions[this.lofiChordIndex];
-      this.lofiChordIndex = (this.lofiChordIndex + 1) % progressions.length;
-      const now = this.ctx.currentTime;
-
-      // Filter for warm lowpass vintage tone
-      const filter = this.ctx.createBiquadFilter();
-      filter.type = 'lowpass';
-      filter.frequency.setValueAtTime(800, now);
-
-      chord.forEach((freq, idx) => {
-        if (!this.ctx || !this.lofiGain) return;
-        const osc = this.ctx.createOscillator();
-        const noteGain = this.ctx.createGain();
-
-        osc.type = idx === 0 ? 'sine' : 'triangle';
-        osc.frequency.setValueAtTime(freq, now + idx * 0.04);
-
-        noteGain.gain.setValueAtTime(0.001, now);
-        noteGain.gain.linearRampToValueAtTime(0.12, now + 0.3);
-        noteGain.gain.exponentialRampToValueAtTime(0.0001, now + 3.8);
-
-        osc.connect(noteGain);
-        noteGain.connect(filter);
-        osc.start(now);
-        osc.stop(now + 4.0);
-      });
-
-      filter.connect(this.lofiGain);
-    };
-
-    playChord();
-    this.lofiInterval = window.setInterval(playChord, 3800);
+  public startGenerativeLofi(_volume = 0.5) {
+    // Disabled to prevent repetitive synthetic beeps
+    this.stopGenerativeLofi();
   }
 
   public stopGenerativeLofi() {
@@ -1576,14 +1528,12 @@ class WebAudioEngine {
       this.lofiInterval = null;
     }
     if (this.lofiGain && this.ctx) {
-      this.lofiGain.gain.setTargetAtTime(0, this.ctx.currentTime, 0.1);
+      this.lofiGain.gain.setTargetAtTime(0, this.ctx.currentTime, 0.05);
     }
   }
 
-  public setGenerativeLofiVolume(volume: number) {
-    if (this.lofiGain && this.ctx) {
-      this.lofiGain.gain.setTargetAtTime(volume * 0.35, this.ctx.currentTime, 0.05);
-    }
+  public setGenerativeLofiVolume(_volume: number) {
+    // No-op
   }
 }
 

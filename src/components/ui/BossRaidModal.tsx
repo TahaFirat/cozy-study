@@ -1006,8 +1006,14 @@ export const BossRaidModal: React.FC = () => {
 
         {/* Loot Chest Celebration Modal */}
         {activeLootReward && (
-          <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-in fade-in zoom-in-95 duration-200">
-            <div className="bg-gradient-to-b from-stone-900 via-amber-950/40 to-stone-900 border-2 border-amber-400/60 rounded-3xl p-6 max-w-sm w-full text-center shadow-[0_0_50px_rgba(245,158,11,0.4)] relative overflow-hidden">
+          <div 
+            onClick={dismissLootReward}
+            className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-in fade-in zoom-in-95 duration-200 pointer-events-auto"
+          >
+            <div 
+              onClick={(e) => e.stopPropagation()}
+              className="bg-gradient-to-b from-stone-900 via-amber-950/40 to-stone-900 border-2 border-amber-400/60 rounded-3xl p-6 max-w-sm w-full text-center shadow-[0_0_50px_rgba(245,158,11,0.4)] relative overflow-hidden"
+            >
               <div className="text-6xl mb-2 animate-bounce">
                 {activeLootReward.milestone === 0 ? '👑' : '🎁'}
               </div>

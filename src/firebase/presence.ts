@@ -95,10 +95,7 @@ export function subscribeToFirebasePresence(
         });
 
         // Real online count = count of active unique remote peers + 1 (self)
-        // Add a realistic organic baseline for the worldwide study sanctuary feel
-        const hour = new Date().getHours();
-        const timeMultiplier = (hour >= 18 || hour <= 2) ? 14 : (hour >= 9 && hour <= 17 ? 9 : 5);
-        const totalLiveCount = Math.max(activeBuddies.length + 1, activeBuddies.length + timeMultiplier);
+        const totalLiveCount = Math.max(1, activeBuddies.length + 1);
 
         onUpdate(activeBuddies, totalLiveCount);
       },

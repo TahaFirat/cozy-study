@@ -53,7 +53,6 @@ function getAudioElement(): HTMLAudioElement {
   if (!audioPlayer) {
     audioPlayer = new Audio();
     audioPlayer.preload = 'metadata';
-    audioPlayer.crossOrigin = 'anonymous';
 
     audioPlayer.addEventListener('ended', () => {
       const store = useAudioStore.getState();
@@ -175,25 +174,18 @@ export const useAudioStore = create<AudioState>()(
         } else {
           webAudioEngine.init();
           const track = get().getCurrentTrack();
-          if (track.url === 'generative') {
-            player.pause();
-            webAudioEngine.startGenerativeLofi(effectiveVol);
-            set({ isPlayingMusic: true });
-          } else {
-            webAudioEngine.stopGenerativeLofi();
-            if (player.src !== track.url) {
-              player.src = track.url;
-              player.load();
-            }
-            player.volume = effectiveVol;
-            player.play()
-              .then(() => set({ isPlayingMusic: true }))
-              .catch((err) => {
-                console.warn('Network track unavailable, switching to procedural Lo-Fi beats:', err);
-                webAudioEngine.startGenerativeLofi(effectiveVol);
-                set({ isPlayingMusic: true });
-              });
+          webAudioEngine.stopGenerativeLofi();
+          if (player.src !== track.url) {
+            player.src = track.url;
+            player.load();
           }
+          player.volume = effectiveVol;
+          player.play()
+            .then(() => set({ isPlayingMusic: true }))
+            .catch((err) => {
+              console.warn('Network track playback note:', err);
+              set({ isPlayingMusic: false });
+            });
         }
       },
 
@@ -208,19 +200,14 @@ export const useAudioStore = create<AudioState>()(
           webAudioEngine.init();
           const effectiveVol = get().isMuted ? 0 : get().masterVolume * get().musicVolume;
           const player = getAudioElement();
-          if (track.url === 'generative') {
-            player.pause();
-            webAudioEngine.startGenerativeLofi(effectiveVol);
-          } else {
-            webAudioEngine.stopGenerativeLofi();
-            player.src = track.url;
-            player.load();
-            player.volume = effectiveVol;
-            player.play().catch((err) => {
-              console.warn('Track playback failed, switching to procedural Lo-Fi:', err);
-              webAudioEngine.startGenerativeLofi(effectiveVol);
-            });
-          }
+          webAudioEngine.stopGenerativeLofi();
+          player.src = track.url;
+          player.load();
+          player.volume = effectiveVol;
+          player.play().catch((err) => {
+            console.warn('Track playback note:', err);
+            set({ isPlayingMusic: false });
+          });
         }
       },
 

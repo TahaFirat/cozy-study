@@ -399,8 +399,14 @@ export const TaskDrawer: React.FC = () => {
   ];
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-end bg-black/60 backdrop-blur-sm animate-fade-in">
-      <div className="relative w-full max-w-xl h-full bg-stone-900/98 border-l border-stone-800 shadow-2xl flex flex-col text-stone-100">
+    <div 
+      onClick={() => setTaskDrawerOpen(false)}
+      className="fixed inset-0 z-50 flex justify-end bg-black/60 backdrop-blur-sm animate-fade-in pointer-events-auto"
+    >
+      <div 
+        onClick={(e) => e.stopPropagation()}
+        className="relative w-full max-w-xl h-full bg-stone-900/98 border-l border-stone-800 shadow-2xl flex flex-col text-stone-100"
+      >
         {/* Drawer Header */}
         <div className="p-3.5 sm:p-5 border-b border-stone-800 flex items-center justify-between bg-stone-950/50">
           <div className="flex items-center gap-3">
@@ -725,7 +731,56 @@ export const TaskDrawer: React.FC = () => {
                           </div>
                         </div>
 
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-1.5 flex-wrap justify-end">
+                          {/* 1-Tap Status Switcher */}
+                          <div className="flex items-center gap-0.5 bg-stone-900/90 p-0.5 rounded-lg border border-stone-800">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                updateTaskStatus(task.id, 'todo');
+                                webAudioEngine.playChime('wood_block');
+                              }}
+                              className={`px-1.5 py-0.5 rounded text-[9px] font-bold transition-all cursor-pointer ${
+                                task.status === 'todo'
+                                  ? 'bg-stone-700 text-stone-100 shadow-xs'
+                                  : 'text-stone-400 hover:text-stone-200'
+                              }`}
+                              title={isTr ? 'Yapılacak' : 'To Do'}
+                            >
+                              📋 {isTr ? 'Yap' : 'Todo'}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                updateTaskStatus(task.id, 'in_progress');
+                                webAudioEngine.playChime('wood_block');
+                              }}
+                              className={`px-1.5 py-0.5 rounded text-[9px] font-bold transition-all cursor-pointer ${
+                                task.status === 'in_progress'
+                                  ? 'bg-amber-500 text-stone-950 font-black shadow-xs'
+                                  : 'text-stone-400 hover:text-stone-200'
+                              }`}
+                              title={isTr ? 'Çalışılıyor' : 'In Progress'}
+                            >
+                              ⚡ {isTr ? 'Çalış' : 'Active'}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                updateTaskStatus(task.id, 'done');
+                                webAudioEngine.playZenChime('finish');
+                              }}
+                              className={`px-1.5 py-0.5 rounded text-[9px] font-bold transition-all cursor-pointer ${
+                                task.status === 'done'
+                                  ? 'bg-emerald-500 text-stone-950 font-black shadow-xs'
+                                  : 'text-stone-400 hover:text-stone-200'
+                              }`}
+                              title={isTr ? 'Tamamlandı' : 'Completed'}
+                            >
+                              ✅ {isTr ? 'Bitti' : 'Done'}
+                            </button>
+                          </div>
+
                           <button
                             onClick={() => setActiveTaskId(task.id === activeTaskId ? null : task.id)}
                             className={`px-2 py-1 rounded text-[10px] font-bold transition-colors cursor-pointer ${
@@ -734,7 +789,7 @@ export const TaskDrawer: React.FC = () => {
                                 : 'bg-stone-800 text-stone-400 hover:text-stone-200'
                             }`}
                           >
-                            {task.id === activeTaskId ? (isTr ? 'Aktif Odak' : 'Active') : (isTr ? 'Odaklan' : 'Focus')}
+                            {task.id === activeTaskId ? (isTr ? 'Aktif' : 'Active') : (isTr ? 'Odak' : 'Focus')}
                           </button>
 
                           <button
@@ -943,31 +998,54 @@ export const TaskDrawer: React.FC = () => {
                                             {t.id === activeTaskId ? (isTr ? 'Aktif' : 'Active') : (isTr ? 'Odak' : 'Focus')}
                                           </button>
 
-                                          {col.id !== 'todo' && (
+                                          {/* 1-Tap Status Switcher for Touch & Tablet */}
+                                          <div className="flex items-center gap-0.5 bg-stone-950/80 p-0.5 rounded-lg border border-stone-800">
                                             <button
                                               type="button"
-                                              onClick={() => moveTaskStep(t, 'backward')}
-                                              className="px-1.5 py-0.5 bg-stone-800 hover:bg-stone-700 text-stone-300 rounded text-[9px] font-medium flex items-center gap-0.5 cursor-pointer transition-colors"
-                                              title={isTr ? 'Geri Al' : 'Step Back'}
+                                              onClick={() => {
+                                                moveTask(t.id, 'todo');
+                                                webAudioEngine.playChime('wood_block');
+                                              }}
+                                              className={`px-1.5 py-0.5 rounded text-[9px] font-bold transition-all cursor-pointer ${
+                                                t.status === 'todo'
+                                                  ? 'bg-stone-700 text-stone-100 shadow-xs'
+                                                  : 'text-stone-400 hover:text-stone-200'
+                                              }`}
+                                              title={isTr ? 'Yapılacak' : 'To Do'}
                                             >
-                                              <ArrowLeft className="w-2.5 h-2.5" />
-                                              <span className="sm:hidden">{isTr ? 'Geri' : 'Back'}</span>
+                                              📋 {isTr ? 'Yap' : 'Todo'}
                                             </button>
-                                          )}
-
-                                          {col.id !== 'done' && (
                                             <button
                                               type="button"
-                                              onClick={() => moveTaskStep(t, 'forward')}
-                                              className="px-1.5 py-0.5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30 rounded text-[9px] font-medium flex items-center gap-0.5 cursor-pointer transition-colors"
-                                              title={col.id === 'todo' ? (isTr ? 'Çalışmaya başla' : 'Start work') : (isTr ? 'Görevi tamamla' : 'Complete task')}
+                                              onClick={() => {
+                                                moveTask(t.id, 'in_progress');
+                                                webAudioEngine.playChime('wood_block');
+                                              }}
+                                              className={`px-1.5 py-0.5 rounded text-[9px] font-bold transition-all cursor-pointer ${
+                                                t.status === 'in_progress'
+                                                  ? 'bg-amber-500 text-stone-950 font-black shadow-xs'
+                                                  : 'text-stone-400 hover:text-stone-200'
+                                              }`}
+                                              title={isTr ? 'Çalışılıyor' : 'In Progress'}
                                             >
-                                              <span className="font-semibold">
-                                                {col.id === 'todo' ? (isTr ? '⚡ Başla' : '⚡ Start') : (isTr ? '✅ Bitir' : '✅ Done')}
-                                              </span>
-                                              <ArrowRight className="w-2.5 h-2.5 hidden sm:inline" />
+                                              ⚡ {isTr ? 'Çalış' : 'Active'}
                                             </button>
-                                          )}
+                                            <button
+                                              type="button"
+                                              onClick={() => {
+                                                moveTask(t.id, 'done');
+                                                webAudioEngine.playZenChime('finish');
+                                              }}
+                                              className={`px-1.5 py-0.5 rounded text-[9px] font-bold transition-all cursor-pointer ${
+                                                t.status === 'done'
+                                                  ? 'bg-emerald-500 text-stone-950 font-black shadow-xs'
+                                                  : 'text-stone-400 hover:text-stone-200'
+                                              }`}
+                                              title={isTr ? 'Tamamlandı' : 'Completed'}
+                                            >
+                                              ✅ {isTr ? 'Bitti' : 'Done'}
+                                            </button>
+                                          </div>
 
                                           <button
                                             type="button"

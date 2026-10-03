@@ -96,9 +96,9 @@ export class PixelRenderer {
       (navigator.maxTouchPoints && navigator.maxTouchPoints > 1)
     );
 
-    // 30 FPS for mobile/tablet provides silky smooth pixel art animations while keeping the device completely cool
-    // 36 FPS for desktop provides optimal balance of low power and fluid motion
-    const targetFPS = isMobileOrTablet ? 30 : 36;
+    // 24 FPS for mobile/tablet provides optimal cinematic pixel cadence while keeping mobile GPUs ice-cold
+    // 32 FPS for desktop provides optimal balance of low power and fluid motion
+    const targetFPS = isMobileOrTablet ? 24 : 32;
     const frameInterval = 1000 / targetFPS;
 
     let lastTime = performance.now();

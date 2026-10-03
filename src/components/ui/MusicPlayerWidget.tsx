@@ -58,8 +58,8 @@ export const MusicPlayerWidget: React.FC = () => {
   const [showPlaylist, setShowPlaylist] = useState(false);
   const [isMobileModalOpen, setIsMobileModalOpen] = useState(false);
   
-  // Media Tabs: 'radio' | 'spotify' | 'youtube'
-  const [mediaTab, setMediaTab] = useState<'radio' | 'spotify' | 'youtube'>('radio');
+  // Media Tabs: 'radio' | 'spotify' | 'youtube' (Spotify default for high-fidelity audio)
+  const [mediaTab, setMediaTab] = useState<'radio' | 'spotify' | 'youtube'>('spotify');
   const [selectedSpotify, setSelectedSpotify] = useState<SpotifyPlaylist>(SPOTIFY_PLAYLISTS[0]);
   const [selectedYouTube, setSelectedYouTube] = useState<YouTubeStream>(YOUTUBE_STREAMS[0]);
 

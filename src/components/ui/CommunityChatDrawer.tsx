@@ -1,357 +1,216 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React from 'react';
 import { 
   X, 
-  MessageCircle, 
   Users, 
-  Send, 
   Coffee, 
   Flame, 
-  Sparkles, 
-  Smile, 
-  Volume2, 
   Clock, 
-  CheckCircle2, 
-  ChevronRight,
-  Heart,
-  AlertTriangle
+  Award,
+  Sparkles,
+  Compass,
+  CheckCircle2
 } from 'lucide-react';
 import { useCommunityStore } from '../../store/useCommunityStore';
 import { useAppStore } from '../../store/useAppStore';
 import { useAuthStore } from '../../store/useAuthStore';
-import { webAudioEngine } from '../../audio/WebAudioEngine';
-
-function formatMsgTime(timestamp: number): string {
-  const d = new Date(timestamp);
-  return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-}
+import { useTimerStore } from '../../store/useTimerStore';
+import { useStatsStore } from '../../store/useStatsStore';
+import { TRANSLATIONS } from '../../i18n/translations';
 
 export const CommunityChatDrawer: React.FC = () => {
   const { 
     isChatOpen, 
     setChatOpen, 
-    activeTab, 
-    setActiveTab, 
     onlineCount, 
     studyBuddies, 
-    messages, 
-    sendMessage, 
-    sendReaction,
-    firestoreError
+    sendReaction 
   } = useCommunityStore();
 
-  const { language, setActiveModal } = useAppStore();
+  const { language, activeRoom, showToast } = useAppStore();
   const { user } = useAuthStore();
-  const [inputText, setInputText] = useState('');
-  const messagesEndRef = useRef<HTMLDivElement | null>(null);
-
-  const scrollToBottom = useCallback(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, []);
-
-  useEffect(() => {
-    const unsub = useCommunityStore.getState().initChatSubscription();
-    return () => {
-      unsub?.();
-    };
-  }, []);
-
-  useEffect(() => {
-    if (isChatOpen) {
-      scrollToBottom();
-    }
-  }, [messages, isChatOpen, scrollToBottom]);
-
-  const handleSend = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const text = inputText.trim();
-    if (!text) return;
-    setInputText('');
-    const success = await sendMessage(text);
-    if (!success) {
-      setInputText(text);
-    }
-  };
+  const { timerState, currentGoal } = useTimerStore();
+  const { streakDays, getTodayMinutes } = useStatsStore();
 
   if (!isChatOpen) return null;
 
+  const isTr = language === 'tr';
+  const t = TRANSLATIONS[language];
+  const roomName = t?.rooms?.[activeRoom]?.name || (isTr ? 'Sıcak Yatak Odası' : 'Cozy Bedroom');
+  const todayMinutes = typeof getTodayMinutes === 'function' ? getTodayMinutes() : 0;
+
   return (
     <>
-      {/* Mobile/Tablet Dimmer Backdrop */}
+      {/* Full Backdrop (Closes on outside click across mobile, tablet, and desktop) */}
       <div 
         onClick={() => setChatOpen(false)}
-        className="fixed inset-0 z-40 bg-black/60 backdrop-blur-xs lg:hidden pointer-events-auto animate-fade-in"
+        className="fixed inset-0 z-40 bg-black/60 backdrop-blur-xs pointer-events-auto animate-fade-in"
       />
 
-      <div className="fixed inset-y-0 sm:inset-y-3 right-0 sm:right-3 w-full sm:w-96 max-w-full sm:max-w-md z-50 flex flex-col bg-stone-900/98 text-stone-100 border-l sm:border border-stone-800 rounded-none sm:rounded-2xl shadow-2xl backdrop-blur-md overflow-hidden animate-in slide-in-from-right-10 duration-200 pointer-events-auto">
+      <div 
+        onClick={(e) => e.stopPropagation()}
+        className="fixed inset-y-0 sm:inset-y-3 right-0 sm:right-3 w-full sm:w-96 max-w-full sm:max-w-md z-50 flex flex-col bg-stone-900/98 text-stone-100 border-l sm:border border-stone-800 rounded-none sm:rounded-2xl shadow-2xl backdrop-blur-md overflow-hidden animate-in slide-in-from-right-10 duration-200 pointer-events-auto"
+      >
         {/* Top Header */}
-      <div className="p-3.5 border-b border-stone-800/90 bg-stone-950/40 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <span className="relative flex h-2.5 w-2.5">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
-          </span>
-          <div className="flex items-center gap-1.5">
-            <h3 className="text-sm font-bold text-amber-200">
-              {language === 'tr' ? 'Birlikte Çalışma Odası' : 'Co-Study Room'}
-            </h3>
-            <span className="text-xs font-mono font-semibold text-stone-400 bg-stone-800 px-2 py-0.5 rounded-full">
-              {onlineCount} {language === 'tr' ? 'aktif' : 'online'}
+        <div className="p-3.5 sm:p-4 border-b border-stone-800/90 bg-stone-950/50 flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <span className="relative flex h-2.5 w-2.5">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
             </span>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="text-sm font-bold text-amber-200">
+                  {isTr ? 'Canlı Çalışma Arkadaşları' : 'Live Study Buddies'}
+                </h3>
+                <span className="text-[10px] font-mono font-bold text-emerald-300 bg-emerald-500/20 border border-emerald-500/30 px-2 py-0.5 rounded-full">
+                  {onlineCount} {isTr ? 'Yayında' : 'Live'}
+                </span>
+              </div>
+              <p className="text-[11px] text-stone-400 mt-0.5">
+                {isTr ? 'Dünya genelinde seninle odaklananlar' : 'Studying live together around the world'}
+              </p>
+            </div>
           </div>
+
+          <button
+            onClick={() => setChatOpen(false)}
+            className="p-1.5 text-stone-400 hover:text-stone-100 rounded-lg hover:bg-stone-800 transition-colors cursor-pointer"
+            title={isTr ? 'Kapat (Esc veya C)' : 'Close (Esc or C)'}
+          >
+            <X className="w-5 h-5" />
+          </button>
         </div>
 
-        <button
-          onClick={() => setChatOpen(false)}
-          className="p-1.5 text-stone-400 hover:text-stone-100 rounded-lg hover:bg-stone-800 transition-colors cursor-pointer"
-          title={language === 'tr' ? 'Kapat (Esc veya C)' : 'Close (Esc or C)'}
-        >
-          <X className="w-4 h-4" />
-        </button>
-      </div>
-
-      {/* Firestore Permissions Alert Banner */}
-      {firestoreError === 'permission-denied' && (
-        <div className="px-3 py-2 bg-amber-500/15 border-b border-amber-500/30 text-[11px] text-amber-200 flex items-start gap-2">
-          <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
-          <div className="flex-1 leading-snug">
-            <span className="font-bold">{language === 'tr' ? 'Firebase Firestore İzin Uyarısı: ' : 'Firestore Permission Notice: '}</span>
-            <span>
-              {language === 'tr' 
-                ? 'Mesajların diğer kullanıcılara ulaşması için Firebase Console > Firestore Database > Rules sekmesinde izinleri açmalısınız.'
-                : 'Please configure Firestore Rules in Firebase Console to enable global sync.'}
-            </span>
-          </div>
-        </div>
-      )}
-
-      {/* Tabs Switcher: Sohbet & Çalışma Arkadaşları */}
-      <div className="flex items-center border-b border-stone-800/80 bg-stone-950/20 text-xs font-semibold">
-        <button
-          onClick={() => setActiveTab('chat')}
-          className={`flex-1 py-2.5 flex items-center justify-center gap-1.5 transition-colors cursor-pointer border-b-2 ${
-            activeTab === 'chat'
-              ? 'border-amber-400 text-amber-300 bg-amber-500/10'
-              : 'border-transparent text-stone-400 hover:text-stone-200'
-          }`}
-        >
-          <MessageCircle className="w-3.5 h-3.5" />
-          <span>{language === 'tr' ? 'Sohbet & Akış' : 'Chat & Stream'}</span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab('buddies')}
-          className={`flex-1 py-2.5 flex items-center justify-center gap-1.5 transition-colors cursor-pointer border-b-2 ${
-            activeTab === 'buddies'
-              ? 'border-amber-400 text-amber-300 bg-amber-500/10'
-              : 'border-transparent text-stone-400 hover:text-stone-200'
-          }`}
-        >
-          <Users className="w-3.5 h-3.5" />
-          <span>{language === 'tr' ? 'Çalışanlar' : 'Study Buddies'}</span>
-          <span className="text-[10px] bg-stone-800 text-stone-300 px-1.5 py-0.2 rounded-full font-mono">
-            {studyBuddies.length}
+        {/* Quick Cheer / Room Energy Bar (1-Tap interactions) */}
+        <div className="px-3.5 py-2.5 bg-stone-950/40 border-b border-stone-800/70 flex items-center justify-between gap-2">
+          <span className="text-[11px] font-semibold text-stone-400 shrink-0">
+            {isTr ? 'Odaya Enerji Gönder:' : 'Send Cheer:'}
           </span>
-        </button>
-      </div>
-
-      {/* TAB 1: Chat Stream */}
-      {activeTab === 'chat' && (
-        <div className="flex-1 flex flex-col min-h-0">
-          {/* Quick Cheer / Reaction bar */}
-          <div className="px-3 py-2 bg-stone-950/50 border-b border-stone-800/70 flex items-center justify-between gap-1.5 overflow-x-auto no-scrollbar">
+          <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
             <button
               onClick={() => sendReaction('coffee')}
-              className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-stone-800/90 hover:bg-amber-950/40 text-amber-200 text-xs font-medium border border-stone-700/80 transition-colors cursor-pointer whitespace-nowrap shadow-xs"
-              title={language === 'tr' ? 'Tüm odaya sıcak kahve ikram et' : 'Share coffee with the room'}
+              className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-stone-800/90 hover:bg-amber-950/50 text-amber-200 text-xs font-semibold border border-stone-700/80 transition-all cursor-pointer whitespace-nowrap active:scale-95"
+              title={isTr ? 'Odadakilere sıcak kahve ikram et' : 'Share coffee with the room'}
             >
               <Coffee className="w-3.5 h-3.5 text-amber-400" />
-              <span>{language === 'tr' ? 'Kahve Gönder' : 'Coffee Cheer'}</span>
+              <span>{isTr ? 'Kahve ☕' : 'Coffee'}</span>
             </button>
 
             <button
               onClick={() => sendReaction('cheer')}
-              className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-stone-800/90 hover:bg-amber-950/40 text-amber-200 text-xs font-medium border border-stone-700/80 transition-colors cursor-pointer whitespace-nowrap shadow-xs"
-              title={language === 'tr' ? 'Herkesi alkışla ve tebrik et' : 'Cheer everyone on'}
+              className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-stone-800/90 hover:bg-amber-950/50 text-amber-200 text-xs font-semibold border border-stone-700/80 transition-all cursor-pointer whitespace-nowrap active:scale-95"
+              title={isTr ? 'Herkesi alkışla ve tebrik et' : 'Cheer everyone on'}
             >
               <span>👏</span>
-              <span>{language === 'tr' ? 'Tebrik Et' : 'Cheer'}</span>
+              <span>{isTr ? 'Tebrik' : 'Cheer'}</span>
             </button>
 
             <button
               onClick={() => sendReaction('fire')}
-              className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-stone-800/90 hover:bg-amber-950/40 text-amber-200 text-xs font-medium border border-stone-700/80 transition-colors cursor-pointer whitespace-nowrap shadow-xs"
-              title={language === 'tr' ? 'Derin odak motivasyon ateşi gönder' : 'Send focus energy'}
+              className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-stone-800/90 hover:bg-amber-950/50 text-amber-200 text-xs font-semibold border border-stone-700/80 transition-all cursor-pointer whitespace-nowrap active:scale-95"
+              title={isTr ? 'Derin odak motivasyon ateşi gönder' : 'Send focus energy'}
             >
               <Flame className="w-3.5 h-3.5 text-orange-400" />
-              <span>{language === 'tr' ? 'Odak Ateşi' : 'Focus Spark'}</span>
+              <span>{isTr ? 'Ateş 🔥' : 'Fire'}</span>
             </button>
           </div>
+        </div>
 
-          {/* Messages List */}
-          <div className="flex-1 overflow-y-auto p-3 space-y-3 pr-1.5 flex flex-col">
-            <div className="text-center py-1 shrink-0">
-              <span className="text-[11px] text-stone-500 bg-stone-950/60 px-2.5 py-1 rounded-full border border-stone-800">
-                {language === 'tr' 
-                  ? '🌿 Birlikte sessiz ve derin odaklanma alanı' 
-                  : '🌿 Quiet and gentle co-study sanctuary'}
+        {/* Study Buddies List */}
+        <div className="flex-1 overflow-y-auto p-3.5 space-y-3 custom-scrollbar">
+          {/* 1. Self Card (Always at the top) */}
+          <div className="p-3.5 rounded-xl border border-amber-500/40 bg-amber-950/20 shadow-md">
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-full bg-amber-500/20 border border-amber-500/50 flex items-center justify-center text-base shadow-inner">
+                  {user?.photoURL?.startsWith('http') ? (
+                    <img src={user.photoURL} alt="Avatar" className="w-full h-full rounded-full object-cover" />
+                  ) : (
+                    <span>🧑‍💻</span>
+                  )}
+                </div>
+                <div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs font-bold text-amber-100">
+                      {user?.displayName || (isTr ? 'Sen (Bu Cihaz)' : 'You (This Device)')}
+                    </span>
+                    <span className="text-[10px] bg-amber-500/30 text-amber-200 font-extrabold px-1.5 py-0.2 rounded-full border border-amber-500/40">
+                      {isTr ? 'SEN' : 'YOU'}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1 text-[11px] text-stone-400">
+                    <Compass className="w-3 h-3 text-stone-400" />
+                    <span>{roomName}</span>
+                  </div>
+                </div>
+              </div>
+
+              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                timerState === 'running'
+                  ? 'bg-amber-500/20 text-amber-300 border-amber-500/40 animate-pulse'
+                  : 'bg-stone-800 text-stone-300 border-stone-700'
+              }`}>
+                {timerState === 'running' 
+                  ? (isTr ? '⚡ Odaklanıyor' : '⚡ Focusing') 
+                  : (isTr ? '☕ Hazırlanıyor' : '☕ Ready')}
               </span>
             </div>
 
-            {messages.length === 0 ? (
-              <div className="flex-1 flex flex-col items-center justify-center p-6 text-center text-stone-400 my-auto">
-                <div className="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/25 flex items-center justify-center text-2xl mb-3 shadow-inner">
-                  ☕
-                </div>
-                <h4 className="text-sm font-semibold text-stone-200 mb-1">
-                  {language === 'tr' ? 'Birlikte Çalışma Sohbeti' : 'Co-Study Room Chat'}
-                </h4>
-                <p className="text-xs text-stone-400 max-w-[240px] leading-relaxed">
-                  {language === 'tr'
-                    ? 'Henüz mesaj yok. İlk mesajı yaz, hedefini paylaş veya odaya sıcak bir kahve ikram et!'
-                    : 'No messages yet. Send the first message, share your focus goal, or pour a coffee!'}
-                </p>
+            {/* Self Stats & Goal */}
+            <div className="pt-2 border-t border-amber-500/20 flex items-center justify-between text-[11px] text-stone-300">
+              <span className="truncate max-w-[190px] text-stone-300 italic">
+                🎯 {currentGoal || (isTr ? 'Derin Odak Seansı' : 'Deep Focus Session')}
+              </span>
+              <div className="flex items-center gap-2 font-mono shrink-0">
+                <span className="text-amber-400">🔥 {streakDays} gün</span>
+                <span className="text-stone-400">⏱️ {todayMinutes} dk</span>
               </div>
-            ) : (
-              messages.map((m) => {
-                const isMe = Boolean(user && m.userId && m.userId === user.uid);
-                const displayName = isMe ? (language === 'tr' ? 'Sen' : 'You') : m.senderName;
-                return (
-                  <div
-                    key={m.id}
-                    className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}
-                  >
-                    <div className="flex items-center gap-1.5 mb-1 px-1">
-                      {m.avatar?.startsWith('https://') ? (
-                        <img 
-                          src={m.avatar} 
-                          alt={m.senderName} 
-                          className="w-4 h-4 rounded-full object-cover inline-block" 
-                          onError={(e) => {
-                            (e.target as HTMLElement).style.display = 'none';
-                          }}
-                        />
-                      ) : (
-                        <span className="text-xs">{m.avatar || '🧑‍💻'}</span>
-                      )}
-                      <span className="text-[11px] font-semibold text-stone-300">
-                        {displayName} {m.flag}
-                      </span>
-                      <span className="text-[10px] text-stone-500 font-mono">
-                        {formatMsgTime(m.timestamp)}
-                      </span>
-                    </div>
-
-                    <div
-                      className={`max-w-[85%] px-3 py-2 rounded-2xl text-xs leading-relaxed ${
-                        m.isReaction
-                          ? 'bg-amber-500/15 text-amber-200 border border-amber-500/30 font-medium italic'
-                          : isMe
-                          ? 'bg-amber-500/25 text-amber-100 border border-amber-500/40 rounded-tr-xs'
-                          : 'bg-stone-800/80 text-stone-200 border border-stone-700/60 rounded-tl-xs'
-                      }`}
-                    >
-                      {m.text}
-                    </div>
-                  </div>
-                );
-              })
-            )}
-            <div ref={messagesEndRef} />
-          </div>
-
-          {/* Message Input Form or Guest Login CTA */}
-          {user ? (
-            <form onSubmit={handleSend} className="p-3 border-t border-stone-800/80 bg-stone-950/50 flex items-center gap-2">
-              <input
-                type="text"
-                value={inputText}
-                onChange={(e) => setInputText(e.target.value)}
-                placeholder={language === 'tr' ? 'Mesaj yaz veya hedefini paylaş...' : 'Share what you are focusing on...'}
-                className="flex-1 bg-stone-900 border border-stone-700/80 rounded-xl px-3 py-2 text-xs text-stone-100 placeholder-stone-500 focus:outline-none focus:border-amber-500"
-                maxLength={250}
-              />
-              <button
-                type="submit"
-                disabled={!inputText.trim()}
-                className={`p-2 rounded-xl text-stone-950 font-bold transition-all ${
-                  inputText.trim()
-                    ? 'bg-amber-500 hover:bg-amber-400 cursor-pointer shadow-md'
-                    : 'bg-stone-800 text-stone-500 cursor-not-allowed'
-                }`}
-                title="Gönder"
-              >
-                <Send className="w-4 h-4" />
-              </button>
-            </form>
-          ) : (
-            <div className="p-3 border-t border-stone-800/80 bg-stone-950/90 flex items-center justify-between gap-2.5">
-              <div className="flex items-center gap-2 text-stone-300 text-xs min-w-0">
-                <span className="text-sm">🔒</span>
-                <span className="truncate">
-                  {language === 'tr' 
-                    ? 'Mesaj göndermek için giriş yapmalısınız' 
-                    : 'Sign in to send messages'}
-                </span>
-              </div>
-              <button
-                type="button"
-                onClick={() => setActiveModal('auth')}
-                className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-stone-950 font-bold text-xs whitespace-nowrap shadow-md hover:shadow-amber-500/20 transition-all cursor-pointer"
-              >
-                {language === 'tr' ? 'Giriş Yap' : 'Sign In'}
-              </button>
             </div>
-          )}
-        </div>
-      )}
-
-      {/* TAB 2: Active Study Buddies List */}
-      {activeTab === 'buddies' && (
-        <div className="flex-1 overflow-y-auto p-3 space-y-2.5 pr-1.5">
-          <div className="text-xs text-stone-400 pb-1 flex items-center justify-between font-medium">
-            <span>{language === 'tr' ? 'Şu Anda Odada Çalışanlar' : 'Studying Right Now'}</span>
-            <span className="text-amber-300 font-mono font-bold">{studyBuddies.length} {language === 'tr' ? 'kişi' : 'active'}</span>
           </div>
 
-          {studyBuddies.map((buddy) => {
-            const isSelf = Boolean(buddy.isSelf);
-
-            return (
-              <div
-                key={buddy.id}
-                className={`p-3 rounded-xl transition-all flex items-start gap-3 ${
-                  isSelf
-                    ? 'bg-amber-950/25 border border-amber-500/40 shadow-sm ring-1 ring-amber-500/20'
-                    : 'bg-stone-950/40 border border-stone-800/80 hover:border-stone-700'
-                }`}
-              >
-                <div className="w-9 h-9 rounded-xl bg-stone-800 border border-stone-700 flex items-center justify-center text-lg flex-shrink-0 shadow-inner">
-                  {buddy.avatar?.startsWith('https://') ? (
-                    <img 
-                      src={buddy.avatar} 
-                      alt={buddy.name} 
-                      className="w-full h-full rounded-xl object-cover" 
-                      onError={(e) => {
-                        (e.target as HTMLElement).style.display = 'none';
-                      }}
-                    />
-                  ) : (
-                    <span>{buddy.avatar || '🧑‍💻'}</span>
-                  )}
-                </div>
-
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-1.5 min-w-0">
-                      <span className={`text-xs font-bold truncate ${isSelf ? 'text-amber-300' : 'text-stone-200'}`}>
-                        {buddy.name}
-                      </span>
-                      {isSelf && (
-                        <span className="text-[9px] bg-amber-500/20 text-amber-300 px-1.5 py-0.2 rounded-full font-bold border border-amber-500/30 shrink-0">
-                          {language === 'tr' ? 'Sen' : 'You'}
+          {/* 2. Remote Peers / Study Buddies */}
+          {studyBuddies.filter((b) => !b.isSelf).length === 0 ? (
+            <div className="p-6 rounded-xl border border-dashed border-stone-800 text-center flex flex-col items-center justify-center space-y-2 mt-4 bg-stone-950/30">
+              <div className="w-12 h-12 rounded-2xl bg-stone-800/80 border border-stone-700/80 flex items-center justify-center text-xl shadow-inner text-amber-400">
+                👥
+              </div>
+              <h4 className="text-xs font-bold text-stone-200">
+                {isTr ? 'Tek Başına Derin Odaktasın' : 'Solo Deep Focus'}
+              </h4>
+              <p className="text-[11px] text-stone-400 max-w-xs leading-relaxed">
+                {isTr 
+                  ? 'Arkadaşların veya diğer kullanıcılar LockIn uygulamasını açtığında burada anlık olarak canlı görünecekler.' 
+                  : 'When your friends or peers open LockIn, they will appear here live in real-time.'}
+              </p>
+            </div>
+          ) : (
+            studyBuddies
+              .filter((b) => !b.isSelf)
+              .map((buddy) => (
+                <div 
+                  key={buddy.id || buddy.sessionId}
+                  className="p-3 rounded-xl border border-stone-800/80 bg-stone-950/40 hover:border-stone-700 transition-colors"
+                >
+                  <div className="flex items-center justify-between mb-1.5">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <div className="w-7 h-7 rounded-full bg-stone-800 border border-stone-700 flex items-center justify-center text-sm shrink-0">
+                        {buddy.avatar?.startsWith('http') ? (
+                          <img src={buddy.avatar} alt={buddy.name} className="w-full h-full rounded-full object-cover" />
+                        ) : (
+                          <span>{buddy.avatar || '🧑‍💻'}</span>
+                        )}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-xs font-bold text-stone-200 truncate">
+                            {buddy.name}
+                          </span>
+                          <span className="text-[11px] shrink-0">{buddy.flag || '🇹🇷'}</span>
+                        </div>
+                        <span className="text-[10px] text-stone-400 block truncate">
+                          {buddy.roomName || (isTr ? 'Çalışma Odası' : 'Study Room')}
                         </span>
-                      )}
-                      <span className="text-xs shrink-0">{buddy.flag}</span>
+                      </div>
                     </div>
 
                     <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border shrink-0 ${
@@ -359,49 +218,37 @@ export const CommunityChatDrawer: React.FC = () => {
                         ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
                         : buddy.status === 'break'
                         ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
-                        : 'bg-sky-500/20 text-sky-300 border-sky-500/40'
+                        : 'bg-stone-800 text-stone-400 border-stone-700'
                     }`}>
-                      {buddy.status === 'focusing' 
-                        ? (language === 'tr' ? 'Odakta' : 'Focusing')
+                      {buddy.status === 'focusing'
+                        ? (isTr ? '⚡ Odakta' : '⚡ Focusing')
                         : buddy.status === 'break'
-                        ? (language === 'tr' ? 'Molada' : 'On Break')
-                        : (language === 'tr' ? 'Yeni Başladı' : 'Started')}
+                        ? (isTr ? '☕ Mola' : '☕ Break')
+                        : (isTr ? '🌱 Başladı' : '🌱 Started')}
                     </span>
                   </div>
 
-                  <p className="text-xs text-stone-300 mt-1 truncate">
-                    {buddy.task}
-                  </p>
-
-                  <div className="flex items-center gap-2 mt-1.5 text-[10px] text-stone-400">
-                    <span className="flex items-center gap-1 text-amber-400/90 font-mono font-semibold">
-                      <Clock className="w-3 h-3" />
-                      {buddy.minutesFocused} {language === 'tr' ? 'dk' : 'm'}
+                  <div className="pt-2 border-t border-stone-800/60 flex items-center justify-between text-[10px] text-stone-400">
+                    <span className="truncate max-w-[180px] text-stone-300">
+                      🎯 {buddy.task || (isTr ? 'Derin Çalışma' : 'Deep Study')}
                     </span>
-                    <span>•</span>
-                    <span className="text-stone-400 truncate">{buddy.roomName}</span>
+                    <div className="flex items-center gap-2 font-mono shrink-0">
+                      <span className="text-amber-400/90">🔥 {buddy.streakDays || 1}g</span>
+                      <span className="text-stone-400">⏱️ {buddy.minutesFocused || 0} dk</span>
+                    </div>
                   </div>
                 </div>
-              </div>
-            );
-          })}
-
-          {studyBuddies.length <= 1 && (
-            <div className="p-4 rounded-2xl bg-stone-950/30 border border-stone-800/60 text-center mt-3">
-              <div className="text-xl mb-1.5">🌿</div>
-              <div className="text-xs font-semibold text-stone-200">
-                {language === 'tr' ? 'Oda Sessiz & Huzurlu' : 'Quiet & Peaceful Study'}
-              </div>
-              <p className="text-[11px] text-stone-400 mt-1 leading-relaxed">
-                {language === 'tr'
-                  ? 'Şu anda odadasın. Tek başına derin odaklanmanın tadını çıkar veya arkadaşlarını davet et!'
-                  : 'You are studying solo right now. Enjoy deep focus or invite friends to join!'}
-              </p>
-            </div>
+              ))
           )}
         </div>
-      )}
-    </div>
+
+        {/* Drawer Footer Notice */}
+        <div className="p-3 border-t border-stone-800 bg-stone-950/60 text-center text-[11px] text-stone-400">
+          <span>🌿 {isTr ? 'Sessiz ve sakin çalışma alanı. Birlikte odaklanın!' : 'Quiet co-study sanctuary. Focus together!'}</span>
+        </div>
+      </div>
     </>
   );
 };
+
+export default CommunityChatDrawer;

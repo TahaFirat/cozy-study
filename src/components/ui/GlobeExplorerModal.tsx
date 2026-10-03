@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { Globe, X, RotateCw, BookOpen, MapPin, Award } from 'lucide-react';
 import { useAppStore } from '../../store/useAppStore';
 import { useGamificationStore } from '../../store/useGamificationStore';
@@ -121,8 +121,14 @@ export const GlobeExplorerModal: React.FC = () => {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md animate-in fade-in zoom-in-95 duration-150">
-      <div className="relative w-full max-w-lg bg-stone-900 border border-amber-600/50 rounded-2xl shadow-2xl p-6 text-stone-100 flex flex-col gap-4">
+    <div 
+      onClick={() => setActiveModal('none')}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md animate-in fade-in zoom-in-95 duration-150 pointer-events-auto"
+    >
+      <div 
+        onClick={(e) => e.stopPropagation()}
+        className="relative w-full max-w-lg bg-stone-900 border border-amber-600/50 rounded-2xl shadow-2xl p-6 text-stone-100 flex flex-col gap-4"
+      >
         {/* Header */}
         <div className="flex items-center justify-between border-b border-stone-800 pb-3">
           <div className="flex items-center gap-2.5">

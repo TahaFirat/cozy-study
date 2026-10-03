@@ -124,8 +124,14 @@ export const AuthModal: React.FC = () => {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm pointer-events-auto">
-      <div className="bg-stone-900/98 text-stone-100 border border-stone-800 rounded-2xl shadow-2xl w-full max-w-md animate-in fade-in zoom-in-95 duration-150 overflow-hidden">
+    <div 
+      onClick={() => setActiveModal('none')}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm pointer-events-auto"
+    >
+      <div 
+        onClick={(e) => e.stopPropagation()}
+        className="bg-stone-900/98 text-stone-100 border border-stone-800 rounded-2xl shadow-2xl w-full max-w-md animate-in fade-in zoom-in-95 duration-150 overflow-hidden"
+      >
         
         {/* Header */}
         <div className="flex items-center justify-between p-5 border-b border-stone-800 bg-stone-950/40">

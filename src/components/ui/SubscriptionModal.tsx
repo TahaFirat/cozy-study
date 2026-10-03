@@ -89,8 +89,14 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ isOpen, on
   ];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-fade-in">
-      <div className="relative w-full max-w-4xl max-h-[92vh] overflow-y-auto bg-stone-900/95 border border-amber-500/40 rounded-2xl shadow-2xl shadow-amber-950/40 text-stone-100 flex flex-col custom-scrollbar">
+    <div 
+      onClick={() => setActiveModal('none')}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-fade-in pointer-events-auto"
+    >
+      <div 
+        onClick={(e) => e.stopPropagation()}
+        className="relative w-full max-w-4xl max-h-[92vh] overflow-y-auto bg-stone-900/95 border border-amber-500/40 rounded-2xl shadow-2xl shadow-amber-950/40 text-stone-100 flex flex-col custom-scrollbar"
+      >
         {/* Header Ribbon */}
         <div className="relative p-6 pb-4 border-b border-stone-800 bg-gradient-to-r from-amber-950/40 via-stone-900 to-amber-950/30 flex items-center justify-between">
           <div className="flex items-center gap-3">

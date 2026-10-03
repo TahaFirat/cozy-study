@@ -68,10 +68,10 @@ const chatChannel = typeof window !== 'undefined' && 'BroadcastChannel' in windo
 export const clientSessionId = (() => {
   if (typeof window === 'undefined') return 'peer-1';
   try {
-    let sid = sessionStorage.getItem('cozypixel_session_id');
+    let sid = localStorage.getItem('cozypixel_session_id');
     if (!sid) {
       sid = `peer-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-      sessionStorage.setItem('cozypixel_session_id', sid);
+      localStorage.setItem('cozypixel_session_id', sid);
     }
     return sid;
   } catch {
@@ -149,20 +149,8 @@ function updateBuddiesState() {
   });
 }
 
-// Send presence ping over HTTP to Vite live relay (bridges normal & incognito tabs)
 export async function sendPresencePingHttp() {
-  if (typeof window === 'undefined') return;
-  try {
-    const buddy = getLocalBuddyInfo();
-    await fetch('/api/presence', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        clientId: clientSessionId,
-        buddy,
-      }),
-    });
-  } catch {}
+  // No-op: Presence is handled directly and cleanly via Firestore and BroadcastChannel
 }
 
 export const useCommunityStore = create<CommunityState>()(
@@ -314,13 +302,6 @@ export const useCommunityStore = create<CommunityState>()(
         // 2. Diğer açık sekmelere ve sunucu aktarıcısına yayınla
         chatChannel?.postMessage(optimisticMsg);
         webAudioEngine.playChatPing();
-        if (typeof window !== 'undefined') {
-          fetch('/api/chat', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ clientId: clientSessionId, message: optimisticMsg }),
-          }).catch(() => {});
-        }
 
         // 3. Bulut veritabanına yaz
         try {
@@ -401,13 +382,6 @@ export const useCommunityStore = create<CommunityState>()(
         }));
 
         chatChannel?.postMessage(optimisticMsg);
-        if (typeof window !== 'undefined') {
-          fetch('/api/chat', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ clientId: clientSessionId, message: optimisticMsg }),
-          }).catch(() => {});
-        }
         useAppStore.getState().showToast(toastText, 3000);
 
         try {
@@ -514,92 +488,8 @@ if (typeof window !== 'undefined' && chatChannel) {
   }, 8000);
 }
 
-// Real-Time Live Stream (SSE) & HTTP Heartbeat: Bridges Normal & Incognito Windows
+// Real-Time Global Firestore Presence & Cross-Platform Synchronization
 if (typeof window !== 'undefined') {
-  let eventSource: EventSource | null = null;
-
-  function connectLiveStream() {
-    try {
-      if (eventSource) {
-        eventSource.close();
-      }
-      eventSource = new EventSource(`/api/live-stream?clientId=${encodeURIComponent(clientSessionId)}`);
-
-      eventSource.addEventListener('presence_sync', (e: MessageEvent) => {
-        try {
-          const data = JSON.parse(e.data);
-          if (data && Array.isArray(data.buddies)) {
-            const selfBuddy = getLocalBuddyInfo();
-            const currentUserId = useAuthStore.getState().user?.uid;
-            activePeers.clear();
-            const uniquePeers = new Map<string, StudyBuddy>();
-
-            for (const b of data.buddies) {
-              const isSelf = Boolean(
-                (b.sessionId && b.sessionId === clientSessionId) ||
-                (b.id && b.id === clientSessionId) ||
-                (currentUserId && (b.id === currentUserId || b.userId === currentUserId))
-              );
-
-              if (!isSelf) {
-                const peerKey = b.id || b.sessionId;
-                if (peerKey && !uniquePeers.has(peerKey)) {
-                  uniquePeers.set(peerKey, { ...b, isSelf: false });
-                  activePeers.set(peerKey, { buddy: { ...b, isSelf: false }, lastSeen: Date.now() });
-                }
-              }
-            }
-
-            const otherBuddies = Array.from(uniquePeers.values());
-            useCommunityStore.setState({
-              onlineCount: Math.max(1, otherBuddies.length + 1),
-              studyBuddies: [selfBuddy, ...otherBuddies],
-            });
-          }
-        } catch (err) {
-          console.error('[SSE presence_sync error]', err);
-        }
-      });
-
-      eventSource.addEventListener('chat_message', (e: MessageEvent) => {
-        try {
-          const msg = JSON.parse(e.data) as ChatMessage;
-          const store = useCommunityStore.getState();
-          const currentUserId = useAuthStore.getState().user?.uid;
-          if (store.messages.some((m) => m.id === msg.id || (m.timestamp === msg.timestamp && m.text === msg.text))) return;
-          const isMe = Boolean(currentUserId && msg.userId === currentUserId);
-          useCommunityStore.setState((state) => ({
-            messages: [...state.messages, { ...msg, isUser: isMe }],
-            unreadCount: state.isChatOpen ? 0 : state.unreadCount + 1,
-          }));
-          if (!isMe && useAppStore.getState().soundFxEnabled) {
-            webAudioEngine.playChatPing();
-          }
-        } catch (err) {
-          console.error('[SSE chat_message error]', err);
-        }
-      });
-
-      eventSource.addEventListener('boss_attack', (e: MessageEvent) => {
-        try {
-          const attack = JSON.parse(e.data);
-          const { handleRemoteBossAttack } = useBossRaidStore.getState() as any;
-          if (typeof handleRemoteBossAttack === 'function') {
-            handleRemoteBossAttack(attack);
-          }
-        } catch (err) {
-          console.error('[SSE boss_attack error]', err);
-        }
-      });
-
-      eventSource.onerror = () => {
-        // Handled automatically by EventSource retry
-      };
-    } catch {}
-  }
-
-  connectLiveStream();
-
   // 1. Real-time Firebase Presence across all mobile, tablet, and web devices worldwide
   let firestorePresenceUnsub: Unsubscribe | null = null;
   try {
@@ -635,7 +525,6 @@ if (typeof window !== 'undefined') {
   }
 
   const sendRealPresence = () => {
-    sendPresencePingHttp();
     const buddy = getLocalBuddyInfo();
     sendFirebasePresencePing(clientSessionId, buddy);
   };
@@ -648,29 +537,17 @@ if (typeof window !== 'undefined') {
     try {
       removeFirebasePresence(clientSessionId);
       if (firestorePresenceUnsub) firestorePresenceUnsub();
-      if (eventSource) eventSource.close();
       chatChannel?.postMessage({
         type: 'PRESENCE_LEAVE',
         clientId: clientSessionId,
       });
-      const payload = JSON.stringify({ clientId: clientSessionId });
-      if (typeof navigator !== 'undefined' && navigator.sendBeacon) {
-        navigator.sendBeacon('/api/presence-leave', payload);
-      } else {
-        fetch('/api/presence-leave', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: payload,
-          keepalive: true,
-        }).catch(() => {});
-      }
     } catch {}
   };
 
   window.addEventListener('beforeunload', handlePresenceLeave);
   window.addEventListener('pagehide', handlePresenceLeave);
 
-  // Clean up timers & sockets on Vite HMR
+  // Clean up timers on Vite HMR
   if (import.meta.hot) {
     import.meta.hot.dispose(() => {
       if ((window as any).__cozy_presence_interval) {
@@ -679,7 +556,9 @@ if (typeof window !== 'undefined') {
       if ((window as any).__cozy_bc_interval) {
         clearInterval((window as any).__cozy_bc_interval);
       }
-      if (eventSource) eventSource.close();
+      if (firestorePresenceUnsub) {
+        firestorePresenceUnsub();
+      }
     });
   }
 }

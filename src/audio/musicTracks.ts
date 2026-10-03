@@ -151,14 +151,6 @@ export const MUSIC_TRACKS: MusicTrack[] = [
     url: 'https://ice2.somafm.com/beatblender-128-mp3',
     duration: 3600,
   },
-  {
-    id: 'track-generative',
-    title: 'Endless Lo-Fi Radio (Vinyl Chords)',
-    artist: 'WebAudio Procedural Synth (Offline Ready)',
-    category: 'lofi',
-    url: 'generative',
-    duration: 3600,
-  },
 ];
 
 export const MUSIC_CATEGORIES: { id: MusicCategory; label: string }[] = [
