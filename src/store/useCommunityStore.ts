@@ -118,7 +118,12 @@ export function getLocalBuddyInfo(): StudyBuddy {
 
 const activePeers = new Map<string, { buddy: StudyBuddy; lastSeen: number }>();
 
+let hasReceivedFirestorePresence = false;
+
 function updateBuddiesState() {
+  // If Firestore real-time cloud presence is active, never overwrite with local-only BroadcastChannel peers!
+  if (hasReceivedFirestorePresence) return;
+
   const threshold = Date.now() - 20000;
   for (const [id, peer] of activePeers.entries()) {
     if (peer.lastSeen < threshold) activePeers.delete(id);
@@ -510,6 +515,7 @@ if (typeof window !== 'undefined') {
         isSelf: false,
       }));
 
+      hasReceivedFirestorePresence = true;
       useCommunityStore.setState({
         onlineCount: totalCount,
         studyBuddies: [selfBuddy, ...mappedBuddies],

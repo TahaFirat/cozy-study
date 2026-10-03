@@ -103,7 +103,8 @@ export const useAudioStore = create<AudioState>()(
 
       setMasterVolume: (masterVolume) => {
         set({ masterVolume });
-        webAudioEngine.setMasterVolume(get().isMuted ? 0 : masterVolume);
+        webAudioEngine.setMuted(get().isMuted);
+        webAudioEngine.setMasterVolume(masterVolume);
         const player = getAudioElement();
         player.volume = get().isMuted ? 0 : masterVolume * get().musicVolume;
       },
@@ -112,7 +113,7 @@ export const useAudioStore = create<AudioState>()(
         const isMuted = !get().isMuted;
         set({ isMuted });
         const masterVolume = get().masterVolume;
-        webAudioEngine.setMasterVolume(isMuted ? 0 : masterVolume);
+        webAudioEngine.setMuted(isMuted);
         const player = getAudioElement();
         const effectiveVol = isMuted ? 0 : masterVolume * get().musicVolume;
         player.volume = effectiveVol;

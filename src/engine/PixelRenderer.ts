@@ -73,12 +73,13 @@ export class PixelRenderer {
 
     const cfg = this.getRoomConfig(roomId);
 
-    // Check hotspots (reverse order)
+    // Check hotspots with comfortable 12px touch padding for mobile/tablet screens
+    const touchPad = 12;
     for (let i = cfg.hotspots.length - 1; i >= 0; i--) {
       const h = cfg.hotspots[i];
       if (
-        canvasX >= h.x && canvasX <= h.x + h.w &&
-        canvasY >= h.y && canvasY <= h.y + h.h
+        canvasX >= h.x - touchPad && canvasX <= h.x + h.w + touchPad &&
+        canvasY >= h.y - touchPad && canvasY <= h.y + h.h + touchPad
       ) {
         return h.id;
       }
@@ -96,11 +97,6 @@ export class PixelRenderer {
       (navigator.maxTouchPoints && navigator.maxTouchPoints > 1)
     );
 
-    // 24 FPS for mobile/tablet provides optimal cinematic pixel cadence while keeping mobile GPUs ice-cold
-    // 32 FPS for desktop provides optimal balance of low power and fluid motion
-    const targetFPS = isMobileOrTablet ? 24 : 32;
-    const frameInterval = 1000 / targetFPS;
-
     let lastTime = performance.now();
     let lastRenderTime = 0;
 
@@ -113,6 +109,14 @@ export class PixelRenderer {
         return;
       }
 
+      const sceneCtx = getContext();
+
+      // Dynamic battery & thermal optimization:
+      // If user enabled batterySaverMode: cap to 12 FPS! This keeps mobile chips ice-cold during 5-hour study blocks!
+      // Otherwise: 20 FPS on mobile/tablet, 28 FPS on desktop
+      const targetFPS = sceneCtx.batterySaverMode ? 12 : (isMobileOrTablet ? 20 : 28);
+      const frameInterval = 1000 / targetFPS;
+
       // Throttle render rate: skips unnecessary frames on 90Hz/120Hz tablet screens
       const elapsedSinceLastRender = time - lastRenderTime;
       if (elapsedSinceLastRender < frameInterval) {
@@ -123,7 +127,6 @@ export class PixelRenderer {
 
       const delta = Math.min(100, Math.max(1, time - lastTime));
       lastTime = time;
-      const sceneCtx = getContext();
       if (this.currentRoomId !== sceneCtx.roomId) {
         this.currentRoomId = sceneCtx.roomId;
       }

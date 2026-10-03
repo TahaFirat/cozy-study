@@ -45,11 +45,14 @@ interface AppState {
   dailyGoalMinutes: number;
   breakMode: 'none' | 'short' | 'long';
   isFullscreen: boolean;
+  batterySaverMode: boolean;
   activeModal: ActiveModalType;
   hoveredObject: InteractiveObjectId | null;
   toastMessage: string | null;
   
   // Actions
+  toggleBatterySaverMode: () => void;
+  setBatterySaverMode: (enabled: boolean) => void;
   setLanguage: (lang: Language) => void;
   setActiveRoom: (room: RoomId) => void;
   setTimeOfDay: (time: TimeOfDay) => void;
@@ -100,6 +103,7 @@ export const useAppStore = create<AppState>()(
       dailyGoalMinutes: 120,
       breakMode: 'none',
       isFullscreen: false,
+      batterySaverMode: false,
       activeModal: 'none',
       hoveredObject: null,
       toastMessage: null,
@@ -203,6 +207,18 @@ export const useAppStore = create<AppState>()(
           set({ isFullscreen: false });
         }
       },
+      toggleBatterySaverMode: () => {
+        const next = !get().batterySaverMode;
+        set({ batterySaverMode: next });
+        const lang = get().language;
+        get().showToast(
+          next 
+            ? (lang === 'tr' ? '🔋 Güç Tasarrufu Modu Açıldı (12 FPS, Isınma Önleyici)' : '🔋 Battery Saver Enabled (12 FPS, Anti-Heat)')
+            : (lang === 'tr' ? '⚡ Normal Performans Modu' : '⚡ Normal Performance Mode'),
+          2500
+        );
+      },
+      setBatterySaverMode: (batterySaverMode) => set({ batterySaverMode }),
       setActiveModal: (activeModal) => set({ activeModal }),
       setHoveredObject: (hoveredObject) => set({ hoveredObject }),
       showToast: (toastMessage, durationMs = 3000) => {

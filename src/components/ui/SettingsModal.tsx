@@ -20,7 +20,9 @@ import {
   Download,
   Bell,
   Crown,
-  Sparkles
+  Sparkles,
+  Headphones,
+  Brain
 } from 'lucide-react';
 import { useAppStore } from '../../store/useAppStore';
 import { useSubscriptionStore } from '../../store/useSubscriptionStore';
@@ -52,6 +54,8 @@ export const SettingsModal: React.FC = () => {
     toggleLamp,
     fireplaceActive,
     toggleFireplace,
+    batterySaverMode,
+    toggleBatterySaverMode,
     showToast,
   } = useAppStore();
 
@@ -192,6 +196,41 @@ export const SettingsModal: React.FC = () => {
                 </button>
               ))}
             </div>
+          </div>
+
+          {/* Battery Saver Mode Toggle (Thermal & Battery Optimization) */}
+          <div className="p-3.5 bg-gradient-to-r from-emerald-950/30 to-stone-900 border border-emerald-500/30 rounded-xl flex items-center justify-between">
+            <div className="flex-1 pr-3">
+              <div className="text-xs font-bold text-emerald-200 flex items-center gap-1.5 uppercase tracking-wider">
+                <span>🔋</span>
+                <span>{language === 'tr' ? 'Güç Tasarrufu & Isınma Önleyici Mod' : 'Battery Saver & Anti-Overheat Mode'}</span>
+                <span className="text-[9px] bg-emerald-500/20 text-emerald-300 font-bold px-1.5 py-0.5 rounded-full border border-emerald-500/30">
+                  {batterySaverMode ? (language === 'tr' ? 'AKTİF' : 'ACTIVE') : (language === 'tr' ? 'KAPALI' : 'OFF')}
+                </span>
+              </div>
+              <p className="text-[11px] text-stone-400 mt-1 leading-relaxed">
+                {language === 'tr'
+                  ? 'Uzun çalışma seanslarında tablet ve telefonların ısınmasını önler, kare hızını 12 FPS ile sınırlar ve GPU yükünü %60 azaltır.'
+                  : 'Keeps tablets and phones cool during long study sessions, caps frame rate to 12 FPS and cuts GPU load by 60%.'}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                webAudioEngine.init();
+                webAudioEngine.playChime('wood_block');
+                toggleBatterySaverMode();
+              }}
+              className={`w-12 h-6.5 rounded-full transition-colors p-0.5 cursor-pointer relative shrink-0 ${
+                batterySaverMode ? 'bg-emerald-500' : 'bg-stone-700'
+              }`}
+            >
+              <div
+                className={`w-5.5 h-5.5 rounded-full bg-white transition-transform ${
+                  batterySaverMode ? 'translate-x-5.5' : 'translate-x-0'
+                }`}
+              />
+            </button>
           </div>
 
           {/* Time of Day */}
@@ -368,6 +407,91 @@ export const SettingsModal: React.FC = () => {
                   {soundFxEnabled ? (language === 'tr' ? 'AÇIK' : 'ON') : (language === 'tr' ? 'KAPALI' : 'OFF')}
                 </span>
               </div>
+            </div>
+          </div>
+
+          {/* Binaural Beats & Cognitive Brainwave Science Guide */}
+          <div className="p-4 bg-gradient-to-br from-indigo-950/30 via-stone-950 to-purple-950/20 border border-indigo-500/30 rounded-2xl space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-7 rounded-lg bg-indigo-500/20 border border-indigo-500/40 flex items-center justify-center text-indigo-300">
+                  <Brain className="w-4 h-4" />
+                </div>
+                <div>
+                  <h4 className="text-xs font-bold text-indigo-200 uppercase tracking-wider flex items-center gap-1.5">
+                    <span>{language === 'tr' ? 'Binaural Beats & Frekans Rehberi' : 'Binaural Beats Science Guide'}</span>
+                  </h4>
+                  <p className="text-[10px] text-stone-400">
+                    {language === 'tr' ? 'Nörolojik Beyin Dalgası Senkronizasyonu' : 'Auditory Brainwave Entrainment'}
+                  </p>
+                </div>
+              </div>
+              <span className="flex items-center gap-1 text-[10px] bg-indigo-500/20 text-indigo-300 font-bold px-2 py-0.5 rounded-full border border-indigo-500/30">
+                <Headphones className="w-3 h-3 text-indigo-400" />
+                <span>{language === 'tr' ? 'Stereo Kulaklık Şart' : 'Headphones Required'}</span>
+              </span>
+            </div>
+
+            <p className="text-[11px] text-stone-300 leading-relaxed bg-black/30 p-2.5 rounded-xl border border-white/5">
+              {language === 'tr'
+                ? '🎧 Gerçek Akustik Çift-Osilatör Sentezi: Uygulamamız yapay ses kaydı değil; sol ve sağ kulaklarınıza bağımsız saf sinüs frekansları göndererek beyin sapındaki üst zeytinsi kompleksi (SOC) uyarır ve zihninizi seçtiğiniz çalışma moduna kilitler.'
+                : '🎧 True Dual-Oscillator Synthesis: Lock In synthesizes real-time phase-shifted sine waves into each ear to stimulate the superior olivary complex and align your neural brainwave rhythms.'}
+            </p>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+              <div className="p-2.5 rounded-xl bg-stone-900/80 border border-amber-500/20">
+                <div className="flex items-center justify-between text-amber-300 font-bold text-[11px]">
+                  <span>⚡ 40 Hz Gamma</span>
+                  <span className="text-[9px] bg-amber-500/20 text-amber-300 px-1.5 py-0.2 rounded font-mono">Zirve Odak</span>
+                </div>
+                <p className="text-[10px] text-stone-400 mt-1 leading-snug">
+                  {language === 'tr'
+                    ? 'Yüksek kavrama, yoğun kodlama, karmaşık problem çözme ve derin hafıza geri çağırma.'
+                    : 'Peak cognitive focus, intense problem-solving, math & complex logic recall.'}
+                </p>
+              </div>
+
+              <div className="p-2.5 rounded-xl bg-stone-900/80 border border-sky-500/20">
+                <div className="flex items-center justify-between text-sky-300 font-bold text-[11px]">
+                  <span>🎯 14 Hz Beta</span>
+                  <span className="text-[9px] bg-sky-500/20 text-sky-300 px-1.5 py-0.2 rounded font-mono">Konsantrasyon</span>
+                </div>
+                <p className="text-[10px] text-stone-400 mt-1 leading-snug">
+                  {language === 'tr'
+                    ? 'Zihinsel uyanıklık, aktif ders dinleme, okuma, ezber ve dikkat dağınıklığını önleme.'
+                    : 'Active mental alertness, lecture absorption, reading, and sustained vigilance.'}
+                </p>
+              </div>
+
+              <div className="p-2.5 rounded-xl bg-stone-900/80 border border-emerald-500/20">
+                <div className="flex items-center justify-between text-emerald-300 font-bold text-[11px]">
+                  <span>🌊 10 Hz Alpha</span>
+                  <span className="text-[9px] bg-emerald-500/20 text-emerald-300 px-1.5 py-0.2 rounded font-mono">Akış & Sakinlik</span>
+                </div>
+                <p className="text-[10px] text-stone-400 mt-1 leading-snug">
+                  {language === 'tr'
+                    ? 'Yaratıcı düşünce, akış hali (Flow State), sınav öncesi stres ve anksiyete regülasyonu.'
+                    : 'Creative flow state, calm laser focus, exam anxiety reduction, and mental ease.'}
+                </p>
+              </div>
+
+              <div className="p-2.5 rounded-xl bg-stone-900/80 border border-purple-500/20">
+                <div className="flex items-center justify-between text-purple-300 font-bold text-[11px]">
+                  <span>🌙 6 Hz Theta</span>
+                  <span className="text-[9px] bg-purple-500/20 text-purple-300 px-1.5 py-0.2 rounded font-mono">Derin Öğrenme</span>
+                </div>
+                <p className="text-[10px] text-stone-400 mt-1 leading-snug">
+                  {language === 'tr'
+                    ? 'Kalıcı uzun süreli hafıza pekiştirme, sezgisel kavrayış ve yorulmadan saatlerce çalışma.'
+                    : 'Deep memory consolidation, conceptual synthesis, and long fatigue-free study blocks.'}
+                </p>
+              </div>
+            </div>
+
+            <div className="text-[10px] text-indigo-300/80 text-center font-mono pt-1">
+              {language === 'tr'
+                ? '💡 Müzik & Ses Mikseri (🔊) panelinden Binaural modunu açıp dilediğiniz frekansı seçebilirsiniz.'
+                : '💡 Activate and switch frequencies in the Audio Mixer (🔊) panel anytime.'}
             </div>
           </div>
 

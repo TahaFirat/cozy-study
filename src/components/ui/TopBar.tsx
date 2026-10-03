@@ -26,7 +26,8 @@ import {
   Trophy,
   Menu,
   X,
-  Clock
+  Clock,
+  Zap
 } from 'lucide-react';
 import { useAppStore } from '../../store/useAppStore';
 import { useStatsStore } from '../../store/useStatsStore';
@@ -51,6 +52,8 @@ export const TopBar: React.FC = () => {
     toggleImmersiveMode,
     isFullscreen,
     toggleFullscreen,
+    batterySaverMode,
+    toggleBatterySaverMode,
     setActiveModal,
   } = useAppStore();
 
@@ -372,6 +375,26 @@ export const TopBar: React.FC = () => {
             {immersiveMode ? <Minimize2 className="w-4 h-4 text-amber-400 animate-pulse" /> : <Maximize2 className="w-4 h-4" />}
           </button>
 
+          {/* Battery Saver Mode Quick Toggle */}
+          <button
+            onClick={() => {
+              webAudioEngine.init();
+              webAudioEngine.playChime('wood_block');
+              toggleBatterySaverMode();
+            }}
+            className={`p-1.5 rounded-xl transition-all cursor-pointer ${
+              batterySaverMode 
+                ? 'bg-emerald-500/25 text-emerald-300 border border-emerald-500/40 shadow-sm shadow-emerald-500/20' 
+                : 'hover:bg-white/5 text-stone-400 hover:text-emerald-300'
+            }`}
+            title={batterySaverMode 
+              ? (language === 'tr' ? "🔋 Güç Tasarrufu Modu: Açık (12 FPS, Isınma Önleyici)" : "🔋 Battery Saver: ON (12 FPS)") 
+              : (language === 'tr' ? "🔋 Güç Tasarrufu Modunu Aç (Tablet ve Telefon Isınmasını Önle)" : "🔋 Enable Battery Saver Mode")
+            }
+          >
+            <Zap className={`w-4 h-4 ${batterySaverMode ? 'text-emerald-400 fill-current animate-pulse' : ''}`} />
+          </button>
+
           {/* Settings */}
           <button
             onClick={() => setActiveModal('settings')}
@@ -513,6 +536,29 @@ export const TopBar: React.FC = () => {
                 <div className="min-w-0 font-medium">
                   <div>{language === 'tr' ? 'Hikaye Paylaş' : 'Share Story'}</div>
                   <div className="text-[10px] text-stone-400">9:16 Card</div>
+                </div>
+              </button>
+
+              {/* Battery Saver Mode (Mobile Menu) */}
+              <button
+                onClick={() => {
+                  setIsMobileMenuOpen(false);
+                  webAudioEngine.init();
+                  webAudioEngine.playChime('wood_block');
+                  toggleBatterySaverMode();
+                }}
+                className={`p-2.5 rounded-xl text-left flex items-center gap-2 transition-colors cursor-pointer border ${
+                  batterySaverMode 
+                    ? 'bg-emerald-950/40 text-emerald-200 border-emerald-500/40 shadow-sm' 
+                    : 'bg-stone-800/80 hover:bg-stone-700 text-stone-200 border-transparent'
+                }`}
+              >
+                <Zap className={`w-4 h-4 shrink-0 ${batterySaverMode ? 'text-emerald-400 fill-current' : 'text-stone-400'}`} />
+                <div className="min-w-0 font-medium">
+                  <div>{language === 'tr' ? 'Güç Tasarruf Modu' : 'Battery Saver Mode'}</div>
+                  <div className="text-[10px] text-stone-400">
+                    {batterySaverMode ? (language === 'tr' ? 'Etkin (12 FPS)' : 'Active (12 FPS)') : (language === 'tr' ? 'Isınmayı önle' : 'Prevent heating')}
+                  </div>
                 </div>
               </button>
 

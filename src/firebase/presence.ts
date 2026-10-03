@@ -82,13 +82,17 @@ export function subscribeToFirebasePresence(
       (snapshot) => {
         const now = Date.now();
         const activeBuddies: PresenceBuddy[] = [];
-        // Active within last 50 seconds (heartbeat is every 12 seconds)
-        const threshold = 50000;
+        // Heartbeat is sent every 12-14 seconds. Use generous 90s threshold to absorb mobile backgrounding and minor clock skew
+        const threshold = 90000;
 
         snapshot.forEach((docSnap) => {
           const data = docSnap.data() as PresenceBuddy;
-          if (data && data.lastSeen && now - data.lastSeen < threshold) {
-            if (docSnap.id !== clientId) {
+          if (data) {
+            const lastSeenTime = data.lastSeen || (data as any).updatedAt?.toMillis?.() || now;
+            const diff = now - lastSeenTime;
+            // If timestamp is slightly in the future (clock skew) or within threshold in past, they are active
+            const isFresh = diff < threshold && diff > -threshold;
+            if (isFresh && docSnap.id !== clientId) {
               activeBuddies.push(data);
             }
           }

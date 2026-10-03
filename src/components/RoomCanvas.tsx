@@ -25,6 +25,7 @@ export const RoomCanvas: React.FC = () => {
     mugHot,
     fireplaceActive,
     reduceMotion,
+    batterySaverMode,
     hoveredObject,
     setHoveredObject,
     toggleLamp,
@@ -43,6 +44,8 @@ export const RoomCanvas: React.FC = () => {
   const [mousePos, setMousePos] = useState<{ x: number; y: number } | null>(null);
   const isMouseDownRef = useRef(false);
   const dragDistanceRef = useRef(0);
+  const touchStartPosRef = useRef<{ x: number; y: number } | null>(null);
+  const touchStartTimeRef = useRef(0);
   const lastTouchPosRef = useRef<{ x: number; y: number } | null>(null);
   const lastTouchTimeRef = useRef(0);
   const lastInteractionTimeRef = useRef(0);
@@ -66,6 +69,7 @@ export const RoomCanvas: React.FC = () => {
     isPlayingMusic,
     currentGoal,
     unlockedTrophies,
+    batterySaverMode,
   });
 
   // Always keep sceneContextRef updated synchronously with latest React state
@@ -86,6 +90,7 @@ export const RoomCanvas: React.FC = () => {
     isPlayingMusic,
     currentGoal,
     unlockedTrophies,
+    batterySaverMode,
   };
 
   // Initialize Canvas & Renderer Loop strictly ONCE - zero flickering on hover or interaction!
@@ -295,6 +300,8 @@ export const RoomCanvas: React.FC = () => {
     isMouseDownRef.current = true;
     dragDistanceRef.current = 0;
     const touch = e.touches[0];
+    touchStartPosRef.current = { x: touch.clientX, y: touch.clientY };
+    touchStartTimeRef.current = performance.now();
     lastTouchPosRef.current = { x: touch.clientX, y: touch.clientY };
     const hovered = rendererRef.current.getHoveredObject(touch.clientX, touch.clientY, activeRoom);
     if (hovered !== hoveredObject) {
@@ -348,12 +355,23 @@ export const RoomCanvas: React.FC = () => {
   const handleTouchEnd = (e: React.TouchEvent<HTMLCanvasElement>) => {
     isMouseDownRef.current = false;
     lastTouchPosRef.current = null;
-    lastTouchTimeRef.current = performance.now();
-    if (dragDistanceRef.current < 15 && e.changedTouches[0] && canvasRef.current && rendererRef.current) {
+    const now = performance.now();
+    lastTouchTimeRef.current = now;
+
+    if (e.changedTouches[0] && canvasRef.current && rendererRef.current) {
       const touch = e.changedTouches[0];
-      const clicked = rendererRef.current.getHoveredObject(touch.clientX, touch.clientY, activeRoom);
-      if (clicked) {
-        handleInteractiveClick(clicked);
+      const startPos = touchStartPosRef.current;
+      const duration = now - touchStartTimeRef.current;
+      const totalMoved = startPos 
+        ? Math.hypot(touch.clientX - startPos.x, touch.clientY - startPos.y) 
+        : dragDistanceRef.current;
+
+      // Reliable mobile tap: movement < 32px and tap duration < 500ms
+      if (totalMoved < 32 && duration < 500) {
+        const clicked = rendererRef.current.getHoveredObject(touch.clientX, touch.clientY, activeRoom);
+        if (clicked) {
+          handleInteractiveClick(clicked);
+        }
       }
     }
   };
@@ -377,7 +395,13 @@ export const RoomCanvas: React.FC = () => {
     : (fallbackLocalized?.hint || '');
 
   return (
-    <div className="relative w-full h-full flex items-center justify-center overflow-hidden bg-black select-none">
+    <div 
+      className="relative w-full h-full flex items-center justify-center overflow-hidden bg-black select-none"
+      style={{
+        paddingTop: 'max(0.5rem, env(safe-area-inset-top, 0.5rem))',
+        paddingBottom: 'max(0.5rem, env(safe-area-inset-bottom, 0.5rem))',
+      }}
+    >
       {/* Dynamic Living Ambilight Aura (Radiates room ambiance outwards) */}
       <div 
         className="absolute inset-0 ambilight-halo pointer-events-none flex items-center justify-center overflow-hidden"
@@ -401,7 +425,7 @@ export const RoomCanvas: React.FC = () => {
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
-        className={`relative z-10 pixel-canvas object-contain w-full h-full max-w-[177.78vh] max-h-[56.25vw] cursor-${
+        className={`relative z-10 pixel-canvas object-contain w-full h-full max-w-[177.78vh] max-h-[calc(100vh-env(safe-area-inset-top,0px)-5rem)] xs:max-h-[56.25vw] cursor-${
           hoveredObject ? 'pointer' : 'default'
         } transition-all duration-700`}
         style={{

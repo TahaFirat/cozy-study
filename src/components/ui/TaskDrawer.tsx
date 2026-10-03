@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   CheckSquare, 
   Square, 
@@ -60,6 +60,19 @@ export const TaskDrawer: React.FC = () => {
   const [modalCategory, setModalCategory] = useState('Genel');
   const [modalPomodoros, setModalPomodoros] = useState(2);
 
+  useEffect(() => {
+    if (!isAddModalOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsAddModalOpen(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown, true);
+    return () => window.removeEventListener('keydown', handleKeyDown, true);
+  }, [isAddModalOpen]);
+
   const openAddModal = (status: TaskStatus = 'todo') => {
     if (!user && tasks.length >= 3) {
       showToast(
@@ -78,6 +91,7 @@ export const TaskDrawer: React.FC = () => {
 
   const handleModalSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    e.stopPropagation();
     if (!modalTitle.trim()) return;
     if (!user && tasks.length >= 3) {
       showToast(
@@ -1133,13 +1147,15 @@ export const TaskDrawer: React.FC = () => {
       {/* Add Task Modal Dialog */}
       {isAddModalOpen && (
         <div 
-          className="fixed inset-0 z-[70] bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in"
+          className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 animate-fade-in pointer-events-auto"
           onClick={(e) => {
+            e.stopPropagation();
             if (e.target === e.currentTarget) setIsAddModalOpen(false);
           }}
         >
           <div 
-            className="bg-stone-900 border border-stone-700/80 rounded-2xl shadow-2xl w-full max-w-md p-6 relative flex flex-col gap-4 text-stone-100 animate-scale-up"
+            onClick={(e) => e.stopPropagation()}
+            className="bg-stone-900 border border-stone-700/80 rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto p-5 sm:p-6 relative flex flex-col gap-4 text-stone-100 animate-scale-up"
             role="dialog"
             aria-modal="true"
           >
@@ -1160,10 +1176,14 @@ export const TaskDrawer: React.FC = () => {
               </div>
               <button
                 type="button"
-                onClick={() => setIsAddModalOpen(false)}
-                className="p-1.5 text-stone-400 hover:text-stone-200 hover:bg-stone-800 rounded-lg transition-colors cursor-pointer"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsAddModalOpen(false);
+                }}
+                className="p-2 text-stone-400 hover:text-stone-200 hover:bg-stone-800 rounded-xl transition-colors cursor-pointer"
+                title={isTr ? 'Kapat' : 'Close'}
               >
-                <X className="w-4 h-4" />
+                <X className="w-5 h-5" />
               </button>
             </div>
 
@@ -1276,15 +1296,18 @@ export const TaskDrawer: React.FC = () => {
               <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-stone-800 mt-1">
                 <button
                   type="button"
-                  onClick={() => setIsAddModalOpen(false)}
-                  className="px-4 py-2 rounded-xl text-xs font-medium text-stone-400 hover:text-stone-200 hover:bg-stone-800 transition-colors cursor-pointer"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsAddModalOpen(false);
+                  }}
+                  className="px-4 py-2 rounded-xl text-xs font-medium text-stone-300 hover:text-white bg-stone-800 hover:bg-stone-700 transition-colors cursor-pointer"
                 >
                   {isTr ? 'Vazgeç' : 'Cancel'}
                 </button>
                 <button
                   type="submit"
                   disabled={!modalTitle.trim()}
-                  className="px-5 py-2 rounded-xl text-xs font-semibold bg-amber-500 hover:bg-amber-400 text-stone-950 transition-all shadow-md shadow-amber-500/20 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5 cursor-pointer active:scale-95"
+                  className="px-5 py-2 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-400 text-stone-950 transition-all shadow-md shadow-amber-500/20 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5 cursor-pointer active:scale-95"
                 >
                   <Plus className="w-4 h-4 stroke-[2.5]" />
                   <span>{isTr ? 'Görevi Ekle' : 'Add Task'}</span>

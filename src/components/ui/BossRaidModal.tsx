@@ -89,6 +89,23 @@ export const BossRaidModal: React.FC = () => {
     };
   }, [boss?.currentHp, boss?.id]);
 
+  // Ensure player never lands on a boss whose level requirement they haven't met
+  useEffect(() => {
+    if (activeModal === 'boss_raid' && bosses[currentBossId]) {
+      const activeBoss = bosses[currentBossId];
+      if (playerLevel < (activeBoss.unlockLevel || 1)) {
+        const unlocked = Object.values(bosses)
+          .filter((b) => playerLevel >= (b.unlockLevel || 1))
+          .sort((a, b) => b.unlockLevel - a.unlockLevel);
+        if (unlocked.length > 0) {
+          setCurrentBoss(unlocked[0].id);
+        } else {
+          setCurrentBoss('horologium');
+        }
+      }
+    }
+  }, [activeModal, currentBossId, playerLevel, bosses, setCurrentBoss]);
+
   const bossMaxHp = Math.max(1, boss?.maxHp || 100000);
   const hpPercent = Math.max(0, Math.min(100, Math.round(((boss?.currentHp || 0) / bossMaxHp) * 100)));
   const ghostPercent = Math.max(0, Math.min(100, Math.round((ghostHp / bossMaxHp) * 100)));
@@ -409,27 +426,45 @@ export const BossRaidModal: React.FC = () => {
                     return (
                       <button
                         key={b.id}
+                        type="button"
                         onClick={() => {
+                          if (isLocked) {
+                            webAudioEngine.init();
+                            webAudioEngine.playChime('wood_block');
+                            showToast(
+                              isTr
+                                ? `🔒 Bu kadim boss henüz keşfedilmedi! Meydan okumak için Seviye ${b.unlockLevel} gereklidir.`
+                                : `🔒 Undiscovered titan! Reach Level ${b.unlockLevel} to challenge this boss.`,
+                              3000
+                            );
+                            return;
+                          }
                           setCurrentBoss(b.id as BossId);
                           rendererRef.current.clearCombatVFX();
                         }}
                         style={{
                           borderColor: isSelected ? `${b.themeColor}80` : undefined,
                         }}
-                        className={`p-1.5 rounded-xl border text-left transition-all cursor-pointer relative overflow-hidden ${
+                        className={`p-1.5 rounded-xl border text-left transition-all relative overflow-hidden ${
                           isSelected
-                            ? 'bg-stone-800/90 ring-1 ring-white/10 shadow-sm'
+                            ? 'bg-stone-800/90 ring-1 ring-white/10 shadow-sm cursor-pointer'
                             : isLocked
-                              ? 'bg-stone-950/70 border-white/5 opacity-75 hover:opacity-90 hover:bg-stone-900/40'
-                              : 'bg-stone-950/40 border-white/5 hover:border-white/10 hover:bg-stone-900/40'
+                              ? 'bg-stone-950/60 border-dashed border-stone-800/80 opacity-60 hover:opacity-80 cursor-not-allowed'
+                              : 'bg-stone-950/40 border-white/5 hover:border-white/10 hover:bg-stone-900/40 cursor-pointer'
                         }`}
                       >
                         <div className="flex items-center justify-between">
-                          <img 
-                            src={`/sprites/bosses/boss_${b.id}.png`} 
-                            alt={b.name} 
-                            className={`w-6 h-6 object-contain ${isLocked ? 'grayscale opacity-60' : ''}`} 
-                          />
+                          {isLocked ? (
+                            <div className="w-6 h-6 rounded-lg bg-stone-900 border border-stone-800 flex items-center justify-center text-xs text-stone-500 shadow-inner">
+                              <span>❓</span>
+                            </div>
+                          ) : (
+                            <img 
+                              src={`/sprites/bosses/boss_${b.id}.png`} 
+                              alt={b.name} 
+                              className="w-6 h-6 object-contain" 
+                            />
+                          )}
                           {isLocked ? (
                             <span className="text-[8px] bg-amber-500/15 text-amber-300 font-semibold px-1 py-0.2 rounded border border-amber-500/25 flex items-center gap-0.5">
                               <Lock className="w-2.5 h-2.5" /> Lv.{b.unlockLevel}
@@ -445,11 +480,10 @@ export const BossRaidModal: React.FC = () => {
                           )}
                         </div>
                         <div className="text-[11px] font-bold text-stone-200 mt-0.5 truncate flex items-center gap-1">
-                          <span>{b.name}</span>
-                          {isLocked && <Lock className="w-2.5 h-2.5 text-stone-400 inline" />}
+                          <span>{isLocked ? (isTr ? '🔒 ??? (Gizemli Dev)' : '🔒 ??? (Mysterious Titan)') : b.name}</span>
                         </div>
                         <div className="text-[9px] text-stone-400 truncate">
-                          {b.maxHp.toLocaleString()} HP
+                          {isLocked ? (isTr ? `Seviye ${b.unlockLevel} Gerekli` : `Requires Lv.${b.unlockLevel}`) : `${b.maxHp.toLocaleString()} HP`}
                         </div>
 
                         {/* Live Mini-HP Gauge Bar */}
@@ -457,8 +491,8 @@ export const BossRaidModal: React.FC = () => {
                           <div 
                             className="h-full rounded-full transition-all duration-300"
                             style={{
-                              width: `${bHpPct}%`,
-                              backgroundColor: isLocked ? '#57534e' : (b.isDefeated ? '#10b981' : b.themeColor),
+                              width: isLocked ? '0%' : `${bHpPct}%`,
+                              backgroundColor: isLocked ? '#44403c' : (b.isDefeated ? '#10b981' : b.themeColor),
                             }}
                           />
                         </div>
@@ -886,7 +920,8 @@ export const BossRaidModal: React.FC = () => {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                 {Object.values(bosses).map((b) => {
-                  const unlocked = unlockedTrophies.includes(b.trophyId) || (Boolean(b.isDefeated) && (personalDamagePerBoss[b.id] || 0) > 0);
+                  const isLevelLocked = playerLevel < (b.unlockLevel || 1);
+                  const unlocked = !isLevelLocked && (unlockedTrophies.includes(b.trophyId) || (Boolean(b.isDefeated) && (personalDamagePerBoss[b.id] || 0) > 0));
 
                   return (
                     <div
@@ -894,15 +929,21 @@ export const BossRaidModal: React.FC = () => {
                       className={`p-3.5 rounded-2xl border transition-all ${
                         unlocked
                           ? 'bg-amber-950/20 border-amber-500/50 shadow-md'
-                          : 'bg-stone-950/40 border-stone-800/80 opacity-60'
+                          : isLevelLocked
+                            ? 'bg-stone-950/40 border-stone-900 border-dashed opacity-50'
+                            : 'bg-stone-950/40 border-stone-800/80 opacity-60'
                       }`}
                     >
                       <div className="flex items-center justify-between">
-                        <span className="text-2xl">{b.avatar}</span>
+                        <span className="text-2xl">{isLevelLocked ? '🔒' : b.avatar}</span>
                         {unlocked ? (
                           <span className="text-[11px] font-bold text-emerald-400 flex items-center gap-1">
                             <CheckCircle className="w-3.5 h-3.5" />
                             {isTr ? 'Kazanıldı & Profilde' : 'Earned & Showcased'}
+                          </span>
+                        ) : isLevelLocked ? (
+                          <span className="text-[10px] text-amber-400/80 font-mono font-bold flex items-center gap-0.5">
+                            <Lock className="w-3 h-3" /> Lv.{b.unlockLevel} {isTr ? 'Gerekli' : 'Required'}
                           </span>
                         ) : (
                           <span className="text-[10px] text-stone-500 font-mono">
@@ -912,16 +953,22 @@ export const BossRaidModal: React.FC = () => {
                       </div>
 
                       <div className="text-sm font-bold text-amber-200 mt-2">
-                        {isTr ? b.trophyNameTr : b.trophyNameEn}
+                        {isLevelLocked 
+                          ? (isTr ? '🔒 ??? (Gizemli Kadim Ganimet)' : '🔒 ??? (Mysterious Ancient Relic)')
+                          : (isTr ? b.trophyNameTr : b.trophyNameEn)}
                       </div>
                       <p className="text-xs text-stone-400 mt-1 leading-relaxed">
-                        {isTr ? b.trophyDescTr : b.trophyDescEn}
+                        {isLevelLocked 
+                          ? (isTr 
+                              ? `Bu kadim ganimetin kilidini açmak için Seviye ${b.unlockLevel}'e ulaş ve bossu dize getir.` 
+                              : `Reach Level ${b.unlockLevel} and vanquish this titan to discover this ancient relic.`)
+                          : (isTr ? b.trophyDescTr : b.trophyDescEn)}
                       </p>
 
                       <div className="mt-3 pt-2.5 border-t border-stone-800 flex items-center justify-between text-xs">
                         <span className="text-stone-400">{isTr ? 'Unvan:' : 'Title:'}</span>
                         <span className="font-bold text-amber-300">
-                          👑 {isTr ? b.playerTitleTr : b.playerTitleEn}
+                          {isLevelLocked ? '🔒 ???' : `👑 ${isTr ? b.playerTitleTr : b.playerTitleEn}`}
                         </span>
                       </div>
                     </div>

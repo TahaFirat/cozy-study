@@ -39,8 +39,12 @@ export const RoomSwitcherModal: React.FC = () => {
     setTimeOfDay(room.defaultTimeOfDay);
     setWeather(room.defaultWeather);
 
-    // Apply complete room soundscape (crossfading out non-room channels and strictly syncing with weather)
-    applyRoomVolumes(room.defaultAmbient || {}, room.defaultWeather);
+    // Apply subtle room soundscape if user has soundscapes active, or leave silent if user prefers silence
+    const currentAmbientVolumes = useAudioStore.getState().ambientVolumes;
+    const isUserListeningToSound = Object.values(currentAmbientVolumes).some((v) => v > 0.02);
+    if (isUserListeningToSound) {
+      applyRoomVolumes(room.defaultAmbient || {}, room.defaultWeather);
+    }
 
     setActiveModal('none');
     const localizedRoomName = getRoomTranslation(language, roomId)?.name || room.name;

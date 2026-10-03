@@ -164,10 +164,10 @@ export const ROOMS: RoomDefinition[] = [
     defaultTimeOfDay: 'evening',
     defaultWeather: 'rain',
     defaultAmbient: {
-      rain: 0.45,
-      fireplace: 0.4,
-      vinyl: 0.2,
-      roomTone: 0.15,
+      rain: 0.22,
+      fireplace: 0.18,
+      vinyl: 0.10,
+      roomTone: 0.08,
     }
   },
   {
@@ -179,10 +179,10 @@ export const ROOMS: RoomDefinition[] = [
     defaultTimeOfDay: 'midnight',
     defaultWeather: 'heavy_rain',
     defaultAmbient: {
-      rain: 0.7,
-      thunder: 0.2,
-      roomTone: 0.25,
-      keyboard: 0.2,
+      rain: 0.24,
+      thunder: 0.08,
+      roomTone: 0.10,
+      keyboard: 0.10,
     }
   },
   {
@@ -194,9 +194,9 @@ export const ROOMS: RoomDefinition[] = [
     defaultTimeOfDay: 'golden_hour',
     defaultWeather: 'snow',
     defaultAmbient: {
-      wind: 0.45,
-      fireplace: 0.75,
-      roomTone: 0.2,
+      wind: 0.18,
+      fireplace: 0.22,
+      roomTone: 0.08,
     }
   },
   {
@@ -208,10 +208,10 @@ export const ROOMS: RoomDefinition[] = [
     defaultTimeOfDay: 'afternoon',
     defaultWeather: 'clear',
     defaultAmbient: {
-      clock: 0.35,
-      vinyl: 0.15,
-      roomTone: 0.3,
-      keyboard: 0.1,
+      clock: 0.12,
+      vinyl: 0.08,
+      roomTone: 0.10,
+      keyboard: 0.08,
     }
   },
   {
@@ -223,10 +223,10 @@ export const ROOMS: RoomDefinition[] = [
     defaultTimeOfDay: 'evening',
     defaultWeather: 'rain',
     defaultAmbient: {
-      cafe: 0.5,
-      rain: 0.3,
-      vinyl: 0.3,
-      roomTone: 0.15,
+      cafe: 0.20,
+      rain: 0.15,
+      vinyl: 0.10,
+      roomTone: 0.08,
     }
   },
   {
@@ -238,10 +238,10 @@ export const ROOMS: RoomDefinition[] = [
     defaultTimeOfDay: 'afternoon',
     defaultWeather: 'rain',
     defaultAmbient: {
-      rain: 0.5,
-      roomTone: 0.2,
-      catPurr: 0.3,
-      binaural: 0.25,
+      rain: 0.20,
+      roomTone: 0.10,
+      catPurr: 0.15,
+      binaural: 0.12,
     }
   },
   {
@@ -253,10 +253,10 @@ export const ROOMS: RoomDefinition[] = [
     defaultTimeOfDay: 'midnight',
     defaultWeather: 'heavy_rain',
     defaultAmbient: {
-      rain: 0.65,
-      thunder: 0.25,
-      keyboard: 0.45,
-      binaural: 0.35,
+      rain: 0.22,
+      thunder: 0.08,
+      keyboard: 0.12,
+      binaural: 0.12,
     }
   }
 ];

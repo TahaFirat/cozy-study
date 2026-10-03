@@ -21,6 +21,9 @@ class WebAudioEngine {
   private currentBinauralMode: BinauralMode = 'gamma_40hz';
 
   // Authentic high-fidelity recorded nature loops (hardware decoded, 0% CPU, true acoustic realism)
+  private masterVolume: number = 0.8;
+  private isMuted: boolean = false;
+  private naturalChannelVolumes: Partial<Record<AmbientSoundChannel, number>> = {};
   private naturalAudioElements: Partial<Record<string, HTMLAudioElement>> = {};
   private readonly naturalAudioSources: Partial<Record<AmbientSoundChannel, string>> = {
     rain: '/sounds/rain.ogg',
@@ -68,9 +71,37 @@ class WebAudioEngine {
   }
 
   public setMasterVolume(vol: number) {
-    if (!this.ctx || !this.masterGain) return;
-    const clamped = Math.max(0, Math.min(1, vol));
-    this.masterGain.gain.setTargetAtTime(clamped, this.ctx.currentTime, 0.05);
+    this.masterVolume = Math.max(0, Math.min(1, vol));
+    const effectiveVol = this.isMuted ? 0 : this.masterVolume;
+    if (this.ctx && this.masterGain) {
+      this.masterGain.gain.setTargetAtTime(effectiveVol, this.ctx.currentTime, 0.05);
+    }
+    this.syncNaturalAudioVolumes();
+  }
+
+  public setMuted(muted: boolean) {
+    this.isMuted = muted;
+    this.setMasterVolume(this.masterVolume);
+  }
+
+  private syncNaturalAudioVolumes() {
+    const masterMult = this.isMuted ? 0 : this.masterVolume;
+    Object.entries(this.naturalAudioElements).forEach(([ch, audio]) => {
+      if (!audio) return;
+      const chVol = this.naturalChannelVolumes[ch as AmbientSoundChannel] || 0;
+      const finalVol = Math.max(0, Math.min(1, chVol * masterMult));
+      audio.volume = finalVol;
+      if (finalVol > 0.005) {
+        if (audio.paused) {
+          audio.play().catch(() => {});
+        }
+      } else {
+        if (!audio.paused) {
+          audio.pause();
+          audio.currentTime = 0;
+        }
+      }
+    });
   }
 
   public ensureRunning() {
@@ -83,6 +114,7 @@ class WebAudioEngine {
     // 1. Natural Recorded High-Fidelity Audio Streams (hardware decoded, 0% CPU, true realistic sound)
     const naturalSrc = this.naturalAudioSources[channel];
     if (naturalSrc) {
+      this.naturalChannelVolumes[channel] = volume;
       let audio = this.naturalAudioElements[channel];
       if (!audio) {
         audio = new Audio(naturalSrc);
@@ -90,8 +122,10 @@ class WebAudioEngine {
         audio.preload = 'auto';
         this.naturalAudioElements[channel] = audio;
       }
-      if (volume > 0.01) {
-        audio.volume = Math.max(0, Math.min(1, volume));
+      const masterMult = this.isMuted ? 0 : this.masterVolume;
+      const finalVol = Math.max(0, Math.min(1, volume * masterMult));
+      audio.volume = finalVol;
+      if (finalVol > 0.005) {
         if (audio.paused) {
           audio.play().catch(() => {});
         }
@@ -360,7 +394,12 @@ class WebAudioEngine {
             oscR.connect(gainR);
             gainR.connect(merger, 0, 1);
 
-            merger.connect(this.ambientGains.binaural);
+            const warmFilter = this.ctx.createBiquadFilter();
+            warmFilter.type = 'lowpass';
+            warmFilter.frequency.setValueAtTime(380, this.ctx.currentTime);
+            merger.connect(warmFilter);
+            warmFilter.connect(this.ambientGains.binaural);
+
             this.binauralOscL = oscL;
             this.binauralOscR = oscR;
 

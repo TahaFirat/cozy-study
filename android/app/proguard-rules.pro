@@ -11,3 +11,7 @@
 -dontwarn com.getcapacitor.**
 -dontwarn org.apache.cordova.**
 
+# Google Play Console DEX Optimization & Class Repackaging
+-repackageclasses ''
+-allowaccessmodification
+

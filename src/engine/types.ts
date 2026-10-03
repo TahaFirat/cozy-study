@@ -17,6 +17,7 @@ export interface SceneContext {
   isPlayingMusic?: boolean;
   currentGoal?: string;
   unlockedTrophies?: string[];
+  batterySaverMode?: boolean;
 }
 
 export interface Hotspot {
