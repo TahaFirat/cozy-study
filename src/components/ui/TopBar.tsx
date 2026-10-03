@@ -164,38 +164,6 @@ export const TopBar: React.FC = () => {
 
         <div className="w-[1px] h-4 bg-amber-500/20" />
 
-        {/* Boss Raid Arena Trigger */}
-        <button
-          onClick={() => setActiveModal('boss_raid')}
-          className={`flex items-center gap-1.5 text-xs font-bold transition-all cursor-pointer px-2 py-0.5 rounded-lg border ${
-            frenzyActive 
-              ? 'bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 border-amber-500/50 shadow-[0_0_10px_rgba(245,158,11,0.3)]'
-              : 'bg-red-950/40 hover:bg-red-900/60 text-red-300 hover:text-red-200 border-red-500/30'
-          }`}
-          title={
-            language === 'tr' 
-              ? (frenzyActive ? '🔥 ALTIN SAAT: 2x Yük & 1.5x Hasar Aktif!' : 'Kronos Boss Savaşı Arenası') 
-              : (frenzyActive ? '🔥 FRENZY HOUR: 2x Charges & 1.5x DMG Active!' : 'Chronos Boss Raid Arena')
-          }
-        >
-          {frenzyActive ? (
-            <Flame className="w-3.5 h-3.5 text-amber-400 fill-amber-400 animate-pulse" />
-          ) : (
-            <Swords className="w-3.5 h-3.5 text-red-400" />
-          )}
-          <span>Boss</span>
-          <span className={`text-[10px] font-mono ${frenzyActive ? 'text-amber-300 font-black' : 'text-red-300'}`}>
-            {bossHpPercent}%
-          </span>
-          {frenzyActive && (
-            <span className="text-[9px] bg-amber-400 text-stone-950 font-black px-1 rounded-sm leading-tight">
-              2x
-            </span>
-          )}
-        </button>
-
-        <div className="w-[1px] h-4 bg-amber-500/20" />
-
         <ProBadge onClick={() => setActiveModal('subscription')} />
       </div>
 
@@ -211,6 +179,36 @@ export const TopBar: React.FC = () => {
           <span className="hidden sm:inline">{language === 'tr' ? 'İstatistikler' : 'Stats'}</span>
         </button>
 
+        {/* Boss Raid Arena Trigger — Visible & Prominent on all screens! */}
+        <button
+          onClick={() => setActiveModal('boss_raid')}
+          className={`flex items-center gap-1.5 px-2 sm:px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer border shrink-0 ${
+            frenzyActive 
+              ? 'bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 border-amber-500/50 shadow-[0_0_10px_rgba(245,158,11,0.3)] animate-pulse'
+              : 'bg-red-950/50 hover:bg-red-900/70 text-red-200 hover:text-red-100 border-red-500/40 shadow-sm'
+          }`}
+          title={
+            language === 'tr' 
+              ? (frenzyActive ? '🔥 ALTIN SAAT: 2x Yük & 1.5x Hasar Aktif!' : 'Kronos Boss Savaşı Arenası') 
+              : (frenzyActive ? '🔥 FRENZY HOUR: 2x Charges & 1.5x DMG Active!' : 'Chronos Boss Raid Arena')
+          }
+        >
+          {frenzyActive ? (
+            <Flame className="w-3.5 h-3.5 text-amber-400 fill-amber-400 animate-pulse" />
+          ) : (
+            <Swords className="w-3.5 h-3.5 text-red-400" />
+          )}
+          <span className="hidden sm:inline">Boss</span>
+          <span className={`text-[10px] font-mono font-bold ${frenzyActive ? 'text-amber-300' : 'text-red-300'}`}>
+            {bossHpPercent}%
+          </span>
+          {frenzyActive && (
+            <span className="text-[9px] bg-amber-400 text-stone-950 font-black px-1 rounded-sm leading-tight hidden sm:inline">
+              2x
+            </span>
+          )}
+        </button>
+
         {/* Study Tasks & Mini Kanban */}
         <button
           onClick={toggleTaskDrawer}
@@ -224,8 +222,8 @@ export const TopBar: React.FC = () => {
           )}
         </button>
 
-        {/* DESKTOP-ONLY SHORTCUTS (hidden on screens < 1280px / tablet portrait/landscape, shown in Studio Menu instead) */}
-        <div className="hidden xl:flex items-center gap-1">
+        {/* DESKTOP-ONLY SHORTCUTS (hidden on screens < 1536px / tablet & laptop, accessible via Studio Menu) */}
+        <div className="hidden 2xl:flex items-center gap-1">
           {/* Social Share 9:16 Story Card */}
           <button
             onClick={() => setActiveModal('session_share')}
@@ -233,13 +231,13 @@ export const TopBar: React.FC = () => {
             title={language === 'tr' ? 'Sosyal Hikaye Kartı Oluştur (9:16)' : 'Create Social Story Card (9:16)'}
           >
             <Share2 className="w-3.5 h-3.5 text-amber-400" />
-            <span className="hidden xl:inline">{language === 'tr' ? 'Paylaş' : 'Share'}</span>
+            <span>{language === 'tr' ? 'Paylaş' : 'Share'}</span>
           </button>
 
           {/* Break & Reset Guide */}
           <button
             onClick={() => setActiveModal('break_guide')}
-            className="hidden xl:flex items-center gap-1.5 px-2 py-1.5 rounded-xl hover:bg-white/5 text-stone-300 hover:text-emerald-300 text-xs font-medium transition-colors cursor-pointer"
+            className="flex items-center gap-1.5 px-2 py-1.5 rounded-xl hover:bg-white/5 text-stone-300 hover:text-emerald-300 text-xs font-medium transition-colors cursor-pointer"
             title={language === 'tr' ? 'Mola & Göz Dinlendirme Rehberi' : 'Break & Eye Rest Guide'}
           >
             <Activity className="w-3.5 h-3.5 text-emerald-400" />
@@ -341,10 +339,10 @@ export const TopBar: React.FC = () => {
           </button>
         </div>
 
-        {/* STUDIO MENU TOGGLE BUTTON (Screens < 1280px, Mobile & Tablet) */}
+        {/* STUDIO MENU TOGGLE BUTTON (Screens < 1536px, Mobile & Tablet) */}
         <button
           onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-          className={`xl:hidden p-1.5 rounded-xl transition-all cursor-pointer ${
+          className={`2xl:hidden p-1.5 rounded-xl transition-all cursor-pointer ${
             isMobileMenuOpen ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40' : 'hover:bg-white/5 text-stone-300'
           }`}
           title={language === 'tr' ? 'Stüdyo Menüsü' : 'Studio Menu'}
@@ -358,10 +356,10 @@ export const TopBar: React.FC = () => {
         <UserMenu />
       </div>
 
-      {/* 4. MOBILE & TABLET STUDIO DRAWER / MENU POPUP (Screens < 1280px) */}
+      {/* 4. MOBILE & TABLET STUDIO DRAWER / MENU POPUP (Screens < 1536px) */}
       {isMobileMenuOpen && (
         <div 
-          className="xl:hidden fixed inset-0 z-50 bg-black/60 backdrop-blur-sm pointer-events-auto animate-fade-in flex flex-col justify-start p-4 pt-16"
+          className="2xl:hidden fixed inset-0 z-50 bg-black/60 backdrop-blur-sm pointer-events-auto animate-fade-in flex flex-col justify-start p-4 pt-16"
           onClick={() => setIsMobileMenuOpen(false)}
         >
           <div 

@@ -13,7 +13,9 @@ import {
   ArrowRight,
   ArrowLeft,
   GripVertical,
-  Flame
+  Flame,
+  ChevronUp,
+  ChevronDown
 } from 'lucide-react';
 import { useTaskStore, TaskPriority, TaskStatus, StudyTask } from '../../store/useTaskStore';
 import { useAppStore } from '../../store/useAppStore';
@@ -104,6 +106,97 @@ export const TaskDrawer: React.FC = () => {
   const [dragOverColumn, setDragOverColumn] = useState<TaskStatus | null>(null);
   const [dragOverTaskId, setDragOverTaskId] = useState<string | null>(null);
   const [dropPosition, setDropPosition] = useState<'before' | 'after' | null>(null);
+  const [mobileKanbanCol, setMobileKanbanCol] = useState<TaskStatus | 'all'>('all');
+
+  const handleTouchStart = (taskId: string) => {
+    setDraggedTaskId(taskId);
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!draggedTaskId) return;
+    const touch = e.touches[0];
+    const elem = document.elementFromPoint(touch.clientX, touch.clientY);
+    if (!elem) return;
+
+    const colElem = elem.closest('[data-column-id]');
+    if (colElem) {
+      const colId = colElem.getAttribute('data-column-id') as TaskStatus;
+      if (colId && colId !== dragOverColumn) {
+        setDragOverColumn(colId);
+      }
+    }
+
+    const cardElem = elem.closest('[data-task-id]');
+    if (cardElem) {
+      const tId = cardElem.getAttribute('data-task-id');
+      if (tId && tId !== draggedTaskId) {
+        setDragOverTaskId(tId);
+        const rect = cardElem.getBoundingClientRect();
+        const midY = rect.top + rect.height / 2;
+        setDropPosition(touch.clientY < midY ? 'before' : 'after');
+      }
+    }
+  };
+
+  const handleTouchEnd = () => {
+    if (!draggedTaskId) return;
+
+    if (dragOverColumn) {
+      webAudioEngine.init();
+      if (dragOverColumn === 'done') {
+        webAudioEngine.playZenChime('finish');
+      } else {
+        webAudioEngine.playChime('wood_block');
+      }
+      moveTask(draggedTaskId, dragOverColumn);
+    } else if (dragOverTaskId && viewMode === 'list') {
+      const fromIdx = tasks.findIndex((t) => t.id === draggedTaskId);
+      const toIdx = tasks.findIndex((t) => t.id === dragOverTaskId);
+      if (fromIdx !== -1 && toIdx !== -1) {
+        const newTasks = [...tasks];
+        const [moved] = newTasks.splice(fromIdx, 1);
+        const insertIdx = dropPosition === 'after' ? (toIdx > fromIdx ? toIdx : toIdx + 1) : (toIdx > fromIdx ? toIdx - 1 : toIdx);
+        newTasks.splice(Math.max(0, Math.min(newTasks.length, insertIdx)), 0, moved);
+        reorderTasks(newTasks);
+        webAudioEngine.init();
+        webAudioEngine.playChime('wood_block');
+      }
+    }
+
+    handleDragEnd();
+  };
+
+  const moveTaskStep = (task: StudyTask, direction: 'forward' | 'backward') => {
+    webAudioEngine.init();
+    if (direction === 'forward') {
+      const nextStatus: TaskStatus = task.status === 'todo' ? 'in_progress' : 'done';
+      updateTaskStatus(task.id, nextStatus);
+      if (nextStatus === 'done') {
+        webAudioEngine.playZenChime('finish');
+      } else {
+        webAudioEngine.playChime('wood_block');
+      }
+    } else {
+      const prevStatus: TaskStatus = task.status === 'done' ? 'in_progress' : 'todo';
+      updateTaskStatus(task.id, prevStatus);
+      webAudioEngine.playChime('wood_block');
+    }
+  };
+
+  const moveTaskInList = (taskOrIndex: string | number, direction: 'up' | 'down') => {
+    const index = typeof taskOrIndex === 'number' 
+      ? taskOrIndex 
+      : tasks.findIndex((t) => t.id === taskOrIndex);
+    if (index === -1) return;
+    const targetIndex = direction === 'up' ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= tasks.length) return;
+    const newTasks = [...tasks];
+    const [moved] = newTasks.splice(index, 1);
+    newTasks.splice(targetIndex, 0, moved);
+    reorderTasks(newTasks);
+    webAudioEngine.init();
+    webAudioEngine.playChime('wood_block');
+  };
 
   if (!isTaskDrawerOpen) return null;
 
@@ -349,22 +442,13 @@ export const TaskDrawer: React.FC = () => {
                 <ListTodo className="w-3.5 h-3.5" />
               </button>
               <button
-                onClick={() => {
-                  if (!isPro) {
-                    setActiveModal('subscription');
-                    return;
-                  }
-                  setViewMode('kanban');
-                }}
-                className={`p-1.5 rounded text-xs transition-colors cursor-pointer relative ${
+                onClick={() => setViewMode('kanban')}
+                className={`p-1.5 rounded text-xs transition-colors cursor-pointer ${
                   viewMode === 'kanban' ? 'bg-amber-500 text-stone-950 font-bold' : 'text-stone-400 hover:text-white'
                 }`}
-                title={isPro ? 'Kanban Görünümü' : 'PRO: Kanban Görünümü'}
+                title="Kanban Görünümü"
               >
                 <Kanban className="w-3.5 h-3.5" />
-                {!isPro && (
-                  <span className="absolute -top-1 -right-1 text-[8px] bg-amber-500 text-stone-950 rounded-full w-3.5 h-3.5 flex items-center justify-center font-bold">👑</span>
-                )}
               </button>
             </div>
 
@@ -562,6 +646,7 @@ export const TaskDrawer: React.FC = () => {
                       )}
 
                       <div
+                        data-task-id={task.id}
                         draggable
                         onDragStart={(e) => handleDragStart(e, task)}
                         onDragEnd={handleDragEnd}
@@ -582,8 +667,35 @@ export const TaskDrawer: React.FC = () => {
                         }`}
                       >
                         <div className="flex items-center gap-2.5 flex-1 min-w-0">
-                          <div className="text-stone-600 group-hover:text-amber-400 transition-colors flex-shrink-0">
+                          {/* Grip handle with touch support */}
+                          <div
+                            className="text-stone-600 group-hover:text-amber-400 active:text-amber-300 transition-colors flex-shrink-0 touch-none cursor-grab active:cursor-grabbing p-1"
+                            onTouchStart={() => handleTouchStart(task.id)}
+                            onTouchMove={handleTouchMove}
+                            onTouchEnd={handleTouchEnd}
+                            title={isTr ? 'Sürükle veya Taşı' : 'Drag or Move'}
+                          >
                             <GripVertical className="w-3.5 h-3.5" />
+                          </div>
+
+                          {/* Mobile quick up/down reorder */}
+                          <div className="flex flex-col -my-1 sm:hidden">
+                            <button
+                              type="button"
+                              onClick={() => moveTaskInList(task.id, 'up')}
+                              className="p-0.5 text-stone-500 hover:text-white"
+                              title={isTr ? 'Yukarı Taşı' : 'Move Up'}
+                            >
+                              <ChevronUp className="w-3 h-3" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => moveTaskInList(task.id, 'down')}
+                              className="p-0.5 text-stone-500 hover:text-white"
+                              title={isTr ? 'Aşağı Taşı' : 'Move Down'}
+                            >
+                              <ChevronDown className="w-3 h-3" />
+                            </button>
                           </div>
 
                           <button
@@ -627,7 +739,7 @@ export const TaskDrawer: React.FC = () => {
 
                           <button
                             onClick={() => deleteTask(task.id)}
-                            className="p-1 text-stone-500 hover:text-red-400 transition-colors cursor-pointer opacity-0 group-hover:opacity-100"
+                            className="p-1 text-stone-500 hover:text-red-400 transition-colors cursor-pointer opacity-80 sm:opacity-0 sm:group-hover:opacity-100"
                             title={isTr ? 'Sil' : 'Delete'}
                           >
                             <Trash2 className="w-3.5 h-3.5" />
@@ -644,202 +756,237 @@ export const TaskDrawer: React.FC = () => {
               )}
             </div>
           ) : (
-            /* Kanban Grid with Animated Drag & Drop */
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 h-full min-h-[420px]">
-              {kanbanColumns.map((col) => {
-                const colTasks = tasks.filter((t) => t.status === col.id);
-                const isOverCol = dragOverColumn === col.id;
+            /* Kanban Grid with Mobile Column Selector & Animated Drag & Drop */
+            <div className="flex flex-col h-full min-h-[420px]">
+              {/* Mobile Column Tabs for Small Screens / Tablets */}
+              <div className="flex sm:hidden items-center gap-1.5 mb-3 p-1 rounded-xl bg-stone-950/70 border border-stone-800 overflow-x-auto">
+                <button
+                  type="button"
+                  onClick={() => setMobileKanbanCol('all')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors ${
+                    mobileKanbanCol === 'all'
+                      ? 'bg-amber-500 text-stone-950 font-bold shadow-sm'
+                      : 'text-stone-400 hover:text-white'
+                  }`}
+                >
+                  {isTr ? 'Tümü' : 'All'} ({tasks.length})
+                </button>
+                {kanbanColumns.map((c) => {
+                  const count = tasks.filter((t) => t.status === c.id).length;
+                  return (
+                    <button
+                      key={c.id}
+                      type="button"
+                      onClick={() => setMobileKanbanCol(c.id)}
+                      className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors flex items-center gap-1.5 ${
+                        mobileKanbanCol === c.id
+                          ? 'bg-amber-500 text-stone-950 font-bold shadow-sm'
+                          : 'text-stone-400 hover:text-white'
+                      }`}
+                    >
+                      <span className={`w-2 h-2 rounded-full ${c.dotColor}`} />
+                      <span>{c.title}</span>
+                      <span className="text-[10px] opacity-80 font-mono">({count})</span>
+                    </button>
+                  );
+                })}
+              </div>
 
-                return (
-                  <div 
-                    key={col.id} 
-                    onDragOver={(e) => handleColumnDragOver(e, col.id)}
-                    onDragLeave={(e) => {
-                      const rect = e.currentTarget.getBoundingClientRect();
-                      if (e.clientX < rect.left || e.clientX >= rect.right || e.clientY < rect.top || e.clientY >= rect.bottom) {
-                        if (dragOverColumn === col.id) setDragOverColumn(null);
-                      }
-                    }}
-                    onDrop={(e) => handleDropOnColumn(e, col.id)}
-                    className={`flex flex-col rounded-xl p-3 transition-all duration-200 border ${
-                      isOverCol 
-                        ? `${col.accentBorder} ${col.bgActive}` 
-                        : `bg-stone-950/40 border-stone-800/80`
-                    }`}
-                  >
-                    {/* Column Header */}
-                    <div className="flex items-center justify-between pb-2 mb-2.5 border-b border-stone-800 select-none">
-                      <div className="flex items-center gap-1.5">
-                        <span className={`w-2 h-2 rounded-full ${col.dotColor} ${col.id === 'in_progress' ? 'animate-pulse' : ''}`} />
-                        <span className="text-[11px] font-bold uppercase tracking-wider text-stone-200">
-                          {col.title}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-1.5">
-                        <button
-                          type="button"
-                          onClick={() => openAddModal(col.id)}
-                          className="p-1 text-stone-400 hover:text-amber-400 hover:bg-stone-800 rounded transition-colors cursor-pointer"
-                          title={isTr ? `${col.title} sütununa yeni görev ekle` : `Add task to ${col.title}`}
-                        >
-                          <Plus className="w-3.5 h-3.5" />
-                        </button>
-                        <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded transition-colors ${
-                          isOverCol ? 'bg-amber-500/30 text-amber-200 font-bold' : 'bg-stone-800 text-stone-400'
-                        }`}>
-                          {colTasks.length}
-                        </span>
-                      </div>
-                    </div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 flex-1">
+                {kanbanColumns
+                  .filter((col) => mobileKanbanCol === 'all' || mobileKanbanCol === col.id)
+                  .map((col) => {
+                    const colTasks = tasks.filter((t) => t.status === col.id);
+                    const isOverCol = dragOverColumn === col.id;
 
-                    {/* Column Body / Cards Container */}
-                    <div className="flex-1 overflow-y-auto space-y-2 custom-scrollbar flex flex-col">
-                      {colTasks.length === 0 ? (
-                        <div 
-                          onDragEnter={(e) => { e.preventDefault(); e.stopPropagation(); setDragOverColumn(col.id); }}
-                          onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); setDragOverColumn(col.id); }}
-                          onDrop={(e) => { e.preventDefault(); e.stopPropagation(); handleDropOnColumn(e, col.id); }}
-                          onClick={() => openAddModal(col.id)}
-                          className={`flex-1 min-h-[140px] rounded-xl border-2 border-dashed flex flex-col items-center justify-center p-3 text-center transition-all duration-200 cursor-pointer ${
-                            isOverCol
-                              ? 'border-amber-400/80 bg-amber-500/10 text-amber-300 scale-[1.02]'
-                              : 'border-stone-800/70 text-stone-500 hover:border-amber-500/50 hover:text-stone-300 bg-stone-950/20'
-                          }`}
-                        >
-                          <Sparkles className={`w-4 h-4 mb-1.5 pointer-events-none ${isOverCol ? 'text-amber-400 animate-bounce' : 'opacity-40'}`} />
-                          <span className="text-[11px] font-medium text-stone-300 pointer-events-none">
-                            {isTr ? 'Buraya Sürükleyin veya Tıklayın' : 'Drop Here or Click to Add'}
-                          </span>
-                          <span className="text-[9px] text-stone-500 mt-0.5 pointer-events-none">
-                            + {isTr ? `${col.title} Kartı Ekle` : `Add ${col.title} Card`}
-                          </span>
+                    return (
+                      <div 
+                        key={col.id} 
+                        data-column-id={col.id}
+                        onDragOver={(e) => handleColumnDragOver(e, col.id)}
+                        onDragLeave={(e) => {
+                          const rect = e.currentTarget.getBoundingClientRect();
+                          if (e.clientX < rect.left || e.clientX >= rect.right || e.clientY < rect.top || e.clientY >= rect.bottom) {
+                            if (dragOverColumn === col.id) setDragOverColumn(null);
+                          }
+                        }}
+                        onDrop={(e) => handleDropOnColumn(e, col.id)}
+                        className={`flex flex-col rounded-xl p-3 transition-all duration-200 border ${
+                          isOverCol 
+                            ? `${col.accentBorder} ${col.bgActive}` 
+                            : `bg-stone-950/40 border-stone-800/80`
+                        }`}
+                      >
+                        {/* Column Header */}
+                        <div className="flex items-center justify-between pb-2 mb-2.5 border-b border-stone-800 select-none">
+                          <div className="flex items-center gap-1.5">
+                            <span className={`w-2 h-2 rounded-full ${col.dotColor} ${col.id === 'in_progress' ? 'animate-pulse' : ''}`} />
+                            <span className="text-[11px] font-bold uppercase tracking-wider text-stone-200">
+                              {col.title}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => openAddModal(col.id)}
+                              className="p-1 text-stone-400 hover:text-amber-400 hover:bg-stone-800 rounded transition-colors cursor-pointer"
+                              title={isTr ? `${col.title} sütununa yeni görev ekle` : `Add task to ${col.title}`}
+                            >
+                              <Plus className="w-3.5 h-3.5" />
+                            </button>
+                            <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded transition-colors ${
+                              isOverCol ? 'bg-amber-500/30 text-amber-200 font-bold' : 'bg-stone-800 text-stone-400'
+                            }`}>
+                              {colTasks.length}
+                            </span>
+                          </div>
                         </div>
-                      ) : (
-                        <>
-                          {colTasks.map((t) => {
-                            const isDragging = draggedTaskId === t.id;
-                            const isOverThisCard = dragOverTaskId === t.id;
 
-                            return (
-                              <React.Fragment key={t.id}>
-                                {isOverThisCard && dropPosition === 'before' && (
-                                  <div className="h-1 -my-0.5 rounded-full bg-gradient-to-r from-amber-500 via-amber-300 to-amber-500 shadow-md shadow-amber-500/50 animate-pulse transition-all" />
-                                )}
+                        {/* Column Body / Cards Container */}
+                        <div className="flex-1 overflow-y-auto space-y-2 custom-scrollbar flex flex-col">
+                          {colTasks.length === 0 ? (
+                            <div 
+                              onDragEnter={(e) => { e.preventDefault(); e.stopPropagation(); setDragOverColumn(col.id); }}
+                              onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); setDragOverColumn(col.id); }}
+                              onDrop={(e) => { e.preventDefault(); e.stopPropagation(); handleDropOnColumn(e, col.id); }}
+                              onClick={() => openAddModal(col.id)}
+                              className={`flex-1 min-h-[140px] rounded-xl border-2 border-dashed flex flex-col items-center justify-center p-3 text-center transition-all duration-200 cursor-pointer ${
+                                isOverCol
+                                  ? 'border-amber-400/80 bg-amber-500/10 text-amber-300 scale-[1.02]'
+                                  : 'border-stone-800/70 text-stone-500 hover:border-amber-500/50 hover:text-stone-300 bg-stone-950/20'
+                              }`}
+                            >
+                              <Sparkles className={`w-4 h-4 mb-1.5 pointer-events-none ${isOverCol ? 'text-amber-400 animate-bounce' : 'opacity-40'}`} />
+                              <span className="text-[11px] font-medium text-stone-300 pointer-events-none">
+                                {isTr ? 'Buraya Sürükleyin veya Tıklayın' : 'Drop Here or Click to Add'}
+                              </span>
+                              <span className="text-[9px] text-stone-500 mt-0.5 pointer-events-none">
+                                + {isTr ? `${col.title} Kartı Ekle` : `Add ${col.title} Card`}
+                              </span>
+                            </div>
+                          ) : (
+                            <>
+                              {colTasks.map((t) => {
+                                const isDragging = draggedTaskId === t.id;
+                                const isOverThisCard = dragOverTaskId === t.id;
 
-                                <div
-                                  draggable
-                                  onDragStart={(e) => handleDragStart(e, t)}
-                                  onDragEnd={handleDragEnd}
-                                  onDragOver={(e) => handleCardDragOver(e, t)}
-                                  onDragLeave={(e) => {
-                                    if (e.currentTarget.contains(e.relatedTarget as Node)) return;
-                                    if (dragOverTaskId === t.id) {
-                                      setDragOverTaskId(null);
-                                      setDropPosition(null);
-                                    }
-                                  }}
-                                  onDrop={(e) => handleDropOnCard(e, t)}
-                                  className={`group relative p-2.5 rounded-xl border transition-all duration-200 select-none cursor-grab active:cursor-grabbing ${
-                                    isDragging
-                                      ? 'opacity-35 scale-95 border-dashed border-amber-500/70 bg-amber-950/30'
-                                      : t.id === activeTaskId
-                                        ? 'bg-amber-950/30 border-amber-500/60 shadow-lg shadow-amber-950/30'
-                                        : 'bg-stone-900/90 border-stone-800/80 hover:border-stone-650 hover:bg-stone-850 hover:shadow-md hover:shadow-black/40 hover:-translate-y-0.5'
-                                  }`}
-                                >
-                                  {/* Grip Handle & Task Title */}
-                                  <div className="flex items-start gap-1.5 pointer-events-none">
-                                    <div className="pt-0.5 text-stone-600 group-hover:text-amber-400 transition-colors flex-shrink-0">
-                                      <GripVertical className="w-3.5 h-3.5" />
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                      <div className={`text-xs font-semibold leading-snug break-words ${
-                                        t.status === 'done' ? 'line-through text-stone-500' : 'text-stone-100'
-                                      }`}>
-                                        {t.title}
+                                return (
+                                  <React.Fragment key={t.id}>
+                                    {isOverThisCard && dropPosition === 'before' && (
+                                      <div className="h-1 -my-0.5 rounded-full bg-gradient-to-r from-amber-500 via-amber-300 to-amber-500 shadow-md shadow-amber-500/50 animate-pulse transition-all" />
+                                    )}
+
+                                    <div
+                                      data-task-id={t.id}
+                                      draggable
+                                      onDragStart={(e) => handleDragStart(e, t)}
+                                      onDragEnd={handleDragEnd}
+                                      onDragOver={(e) => handleCardDragOver(e, t)}
+                                      onDragLeave={(e) => {
+                                        if (e.currentTarget.contains(e.relatedTarget as Node)) return;
+                                        if (dragOverTaskId === t.id) {
+                                          setDragOverTaskId(null);
+                                          setDropPosition(null);
+                                        }
+                                      }}
+                                      onDrop={(e) => handleDropOnCard(e, t)}
+                                      className={`group relative p-2.5 rounded-xl border transition-all duration-200 select-none cursor-grab active:cursor-grabbing ${
+                                        isDragging
+                                          ? 'opacity-35 scale-95 border-dashed border-amber-500/70 bg-amber-950/30'
+                                          : t.id === activeTaskId
+                                            ? 'bg-amber-950/30 border-amber-500/60 shadow-lg shadow-amber-950/30'
+                                            : 'bg-stone-900/90 border-stone-800/80 hover:border-stone-650 hover:bg-stone-850 hover:shadow-md hover:shadow-black/40 hover:-translate-y-0.5'
+                                      }`}
+                                    >
+                                      {/* Grip Handle & Task Title */}
+                                      <div className="flex items-start gap-1.5">
+                                        <div 
+                                          className="pt-0.5 text-stone-500 hover:text-amber-400 active:text-amber-300 transition-colors flex-shrink-0 touch-none cursor-grab active:cursor-grabbing p-1"
+                                          onTouchStart={() => handleTouchStart(t.id)}
+                                          onTouchMove={handleTouchMove}
+                                          onTouchEnd={handleTouchEnd}
+                                          title={isTr ? 'Sürükle veya Taşı' : 'Drag or Move'}
+                                        >
+                                          <GripVertical className="w-3.5 h-3.5" />
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                          <div className={`text-xs font-semibold leading-snug break-words ${
+                                            t.status === 'done' ? 'line-through text-stone-500' : 'text-stone-100'
+                                          }`}>
+                                            {t.title}
+                                          </div>
+                                          <div className="flex flex-wrap items-center gap-1 mt-1.5 text-[10px]">
+                                            <span className={`px-1.5 py-0.2 rounded border font-bold ${priorityColor(t.priority)}`}>
+                                              {t.priority.toUpperCase()}
+                                            </span>
+                                            <span className="text-stone-400">#{t.category}</span>
+                                          </div>
+                                        </div>
                                       </div>
-                                      <div className="flex flex-wrap items-center gap-1 mt-1.5 text-[10px]">
-                                        <span className={`px-1.5 py-0.2 rounded border font-bold ${priorityColor(t.priority)}`}>
-                                          {t.priority.toUpperCase()}
+
+                                      {/* Bottom info & actions */}
+                                      <div className="flex items-center justify-between text-[10px] text-stone-400 pt-2 mt-2 border-t border-stone-800/60">
+                                        <span className="text-amber-400/90 font-mono text-[10px]">
+                                          🍅 {t.pomodorosCompleted}/{t.pomodoroEstimate}
                                         </span>
-                                        <span className="text-stone-400">#{t.category}</span>
+                                        
+                                        <div className="flex items-center gap-1">
+                                          <button
+                                            type="button"
+                                            onClick={() => setActiveTaskId(t.id === activeTaskId ? null : t.id)}
+                                            className={`px-1.5 py-0.5 rounded text-[9px] font-bold transition-all cursor-pointer ${
+                                              t.id === activeTaskId
+                                                ? 'bg-amber-500 text-stone-950'
+                                                : 'bg-stone-800 text-stone-400 hover:text-stone-200'
+                                            }`}
+                                          >
+                                            {t.id === activeTaskId ? (isTr ? 'Aktif' : 'Active') : (isTr ? 'Odak' : 'Focus')}
+                                          </button>
+
+                                          {col.id !== 'todo' && (
+                                            <button
+                                              type="button"
+                                              onClick={() => moveTaskStep(t, 'backward')}
+                                              className="px-1.5 py-0.5 bg-stone-800 hover:bg-stone-700 text-stone-300 rounded text-[9px] font-medium flex items-center gap-0.5 cursor-pointer transition-colors"
+                                              title={isTr ? 'Geri Al' : 'Step Back'}
+                                            >
+                                              <ArrowLeft className="w-2.5 h-2.5" />
+                                              <span className="sm:hidden">{isTr ? 'Geri' : 'Back'}</span>
+                                            </button>
+                                          )}
+
+                                          {col.id !== 'done' && (
+                                            <button
+                                              type="button"
+                                              onClick={() => moveTaskStep(t, 'forward')}
+                                              className="px-1.5 py-0.5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30 rounded text-[9px] font-medium flex items-center gap-0.5 cursor-pointer transition-colors"
+                                              title={col.id === 'todo' ? (isTr ? 'Çalışmaya başla' : 'Start work') : (isTr ? 'Görevi tamamla' : 'Complete task')}
+                                            >
+                                              <span className="font-semibold">
+                                                {col.id === 'todo' ? (isTr ? '⚡ Başla' : '⚡ Start') : (isTr ? '✅ Bitir' : '✅ Done')}
+                                              </span>
+                                              <ArrowRight className="w-2.5 h-2.5 hidden sm:inline" />
+                                            </button>
+                                          )}
+
+                                          <button
+                                            type="button"
+                                            onClick={() => deleteTask(t.id)}
+                                            className="p-1 text-stone-500 hover:text-red-400 hover:bg-red-500/10 rounded transition-colors cursor-pointer opacity-80 sm:opacity-0 sm:group-hover:opacity-100"
+                                            title={isTr ? 'Sil' : 'Delete'}
+                                          >
+                                            <Trash2 className="w-3 h-3" />
+                                          </button>
+                                        </div>
                                       </div>
                                     </div>
-                                  </div>
 
-                                  {/* Bottom info & actions */}
-                                  <div className="flex items-center justify-between text-[10px] text-stone-400 pt-2 mt-2 border-t border-stone-800/60">
-                                    <span className="text-amber-400/90 font-mono text-[10px]">
-                                      🍅 {t.pomodorosCompleted}/{t.pomodoroEstimate}
-                                    </span>
-                                    
-                                    <div className="flex items-center gap-1">
-                                      <button
-                                        type="button"
-                                        onClick={() => setActiveTaskId(t.id === activeTaskId ? null : t.id)}
-                                        className={`px-1.5 py-0.5 rounded text-[9px] font-bold transition-all cursor-pointer ${
-                                          t.id === activeTaskId
-                                            ? 'bg-amber-500 text-stone-950'
-                                            : 'bg-stone-800 text-stone-400 hover:text-stone-200'
-                                        }`}
-                                      >
-                                        {t.id === activeTaskId ? (isTr ? 'Aktif' : 'Active') : (isTr ? 'Odak' : 'Focus')}
-                                      </button>
-
-                                      {col.id !== 'todo' && (
-                                        <button
-                                          type="button"
-                                          onClick={() => {
-                                            const prevStatus: TaskStatus = col.id === 'done' ? 'in_progress' : 'todo';
-                                            updateTaskStatus(t.id, prevStatus);
-                                            webAudioEngine.init();
-                                            webAudioEngine.playChime('wood_block');
-                                          }}
-                                          className="p-1 text-stone-400 hover:text-white hover:bg-stone-800 rounded cursor-pointer transition-colors"
-                                          title={isTr ? 'Geri Al' : 'Step Back'}
-                                        >
-                                          <ArrowLeft className="w-3 h-3" />
-                                        </button>
-                                      )}
-
-                                      {col.id !== 'done' && (
-                                        <button
-                                          type="button"
-                                          onClick={() => {
-                                            const nextStatus: TaskStatus = col.id === 'todo' ? 'in_progress' : 'done';
-                                            updateTaskStatus(t.id, nextStatus);
-                                            webAudioEngine.init();
-                                            if (nextStatus === 'done') {
-                                              webAudioEngine.playZenChime('finish');
-                                            } else {
-                                              webAudioEngine.playChime('wood_block');
-                                            }
-                                          }}
-                                          className="p-1 text-amber-400 hover:text-amber-300 hover:bg-amber-500/10 rounded cursor-pointer transition-colors"
-                                          title={isTr ? 'İlerlet' : 'Advance'}
-                                        >
-                                          <ArrowRight className="w-3 h-3" />
-                                        </button>
-                                      )}
-
-                                      <button
-                                        type="button"
-                                        onClick={() => deleteTask(t.id)}
-                                        className="p-1 text-stone-500 hover:text-red-400 hover:bg-red-500/10 rounded transition-colors cursor-pointer opacity-0 group-hover:opacity-100"
-                                        title={isTr ? 'Sil' : 'Delete'}
-                                      >
-                                        <Trash2 className="w-3 h-3" />
-                                      </button>
-                                    </div>
-                                  </div>
-                                </div>
-
-                                {isOverThisCard && dropPosition === 'after' && (
-                                  <div className="h-1 -my-0.5 rounded-full bg-gradient-to-r from-amber-500 via-amber-300 to-amber-500 shadow-md shadow-amber-500/50 animate-pulse transition-all" />
-                                )}
-                              </React.Fragment>
-                            );
-                          })}
+                                    {isOverThisCard && dropPosition === 'after' && (
+                                      <div className="h-1 -my-0.5 rounded-full bg-gradient-to-r from-amber-500 via-amber-300 to-amber-500 shadow-md shadow-amber-500/50 animate-pulse transition-all" />
+                                    )}
+                                  </React.Fragment>
+                                );
+                              })}
 
                           {/* Bottom drop spacer and Quick Add button */}
                           <div 
@@ -863,6 +1010,7 @@ export const TaskDrawer: React.FC = () => {
                   </div>
                 );
               })}
+              </div>
             </div>
           )}
         </div>

@@ -11,11 +11,20 @@ import {
   ListMusic, 
   ChevronDown, 
   ChevronUp,
-  X
+  X,
+  ExternalLink,
+  Music2,
+  Tv
 } from 'lucide-react';
 import { useAudioStore } from '../../store/useAudioStore';
 import { useAppStore } from '../../store/useAppStore';
-import { MUSIC_CATEGORIES } from '../../audio/musicTracks';
+import { 
+  MUSIC_CATEGORIES, 
+  SPOTIFY_PLAYLISTS, 
+  YOUTUBE_STREAMS,
+  SpotifyPlaylist,
+  YouTubeStream 
+} from '../../audio/musicTracks';
 import { MusicCategory } from '../../types';
 import { TRANSLATIONS } from '../../i18n/translations';
 import { webAudioEngine } from '../../audio/WebAudioEngine';
@@ -43,10 +52,16 @@ export const MusicPlayerWidget: React.FC = () => {
 
   const { language } = useAppStore();
   const t = TRANSLATIONS[language];
+  const isTr = language === 'tr';
 
   const [expanded, setExpanded] = useState(false);
   const [showPlaylist, setShowPlaylist] = useState(false);
   const [isMobileModalOpen, setIsMobileModalOpen] = useState(false);
+  
+  // Media Tabs: 'radio' | 'spotify' | 'youtube'
+  const [mediaTab, setMediaTab] = useState<'radio' | 'spotify' | 'youtube'>('radio');
+  const [selectedSpotify, setSelectedSpotify] = useState<SpotifyPlaylist>(SPOTIFY_PLAYLISTS[0]);
+  const [selectedYouTube, setSelectedYouTube] = useState<YouTubeStream>(YOUTUBE_STREAMS[0]);
 
   const currentTrack = getCurrentTrack();
   const playlist = getFilteredTracks();
@@ -67,82 +82,52 @@ export const MusicPlayerWidget: React.FC = () => {
 
   // Content for the complete player card (reusable for desktop & mobile modal)
   const renderPlayerCardContent = (isMobileView = false) => (
-    <>
-      {/* Upper: Now Playing Info, Dancing Equalizer & Controls */}
-      <div className="flex items-center gap-3">
-        {/* Cassette / Disc Icon */}
-        <button
-          onClick={handleTogglePlay}
-          className={`w-10 h-10 flex-shrink-0 flex items-center justify-center rounded-xl bg-stone-900/80 border border-stone-700/80 hover:border-amber-500/80 transition-all cursor-pointer shadow-md ${
-            isPlayingMusic ? 'text-amber-400 border-amber-500/50 shadow-[0_0_12px_rgba(245,158,11,0.2)]' : 'text-stone-400'
-          }`}
-          title={isPlayingMusic ? t.player.pause : t.player.play}
-        >
-          {isPlayingMusic ? (
-            <Radio className="w-5 h-5 animate-spin" style={{ animationDuration: '4s' }} />
-          ) : (
-            <Radio className="w-5 h-5" />
-          )}
-        </button>
+    <div className="flex flex-col gap-2.5">
+      {/* 1. Header with Source Tabs & Close Button */}
+      <div className="flex items-center justify-between pb-2 border-b border-stone-800">
+        <div className="flex items-center gap-1 bg-stone-950/80 p-0.5 rounded-xl border border-stone-800">
+          <button
+            onClick={() => setMediaTab('radio')}
+            className={`px-2.5 py-1 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+              mediaTab === 'radio'
+                ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 shadow-sm'
+                : 'text-stone-400 hover:text-stone-200'
+            }`}
+          >
+            <Radio className="w-3.5 h-3.5" />
+            <span>{isTr ? '24/7 Radyo' : 'Radio'}</span>
+          </button>
 
-        {/* Title, Artist & Live Dancing Waveform Equalizer */}
-        <div className="flex-1 min-w-0 pr-1">
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-bold text-amber-100 truncate block leading-tight">
-              {currentTrack.title}
-            </span>
+          <button
+            onClick={() => setMediaTab('spotify')}
+            className={`px-2.5 py-1 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+              mediaTab === 'spotify'
+                ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-sm'
+                : 'text-stone-400 hover:text-stone-200'
+            }`}
+          >
+            <Music2 className="w-3.5 h-3.5 text-emerald-400" />
+            <span>Spotify</span>
+          </button>
 
-            {/* Dynamic Dancing Audio Spectrum Bars */}
-            {isPlayingMusic && (
-              <div className="flex items-end gap-[2.5px] h-3.5 shrink-0" title="Audio Spectrum">
-                <span className="w-[2.5px] bg-amber-400 rounded-full animate-eq-1" />
-                <span className="w-[2.5px] bg-amber-300 rounded-full animate-eq-2" />
-                <span className="w-[2.5px] bg-amber-400 rounded-full animate-eq-3" />
-                <span className="w-[2.5px] bg-amber-300 rounded-full animate-eq-4" />
-              </div>
-            )}
-          </div>
-          <span className="text-xs text-stone-400 font-medium truncate block mt-0.5">
-            {currentTrack.artist}
-          </span>
+          <button
+            onClick={() => setMediaTab('youtube')}
+            className={`px-2.5 py-1 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+              mediaTab === 'youtube'
+                ? 'bg-red-500/20 text-red-300 border border-red-500/40 shadow-sm'
+                : 'text-stone-400 hover:text-stone-200'
+            }`}
+          >
+            <Tv className="w-3.5 h-3.5 text-red-400" />
+            <span>YouTube</span>
+          </button>
         </div>
 
-        {/* Play / Next / Expander Controls */}
         <div className="flex items-center gap-1">
-          <button
-            onClick={() => {
-              webAudioEngine.init();
-              prevTrack();
-            }}
-            className="p-1.5 text-stone-400 hover:text-stone-100 transition-colors cursor-pointer rounded-lg hover:bg-white/5"
-            title={t.player.prev}
-          >
-            <SkipBack className="w-4 h-4" />
-          </button>
-
-          <button
-            onClick={handleTogglePlay}
-            className="w-8 h-8 flex items-center justify-center rounded-full bg-amber-500 hover:bg-amber-400 text-stone-950 transition-all cursor-pointer shadow-lg hover:scale-105 active:scale-95"
-            title={isPlayingMusic ? t.player.pause : t.player.play}
-          >
-            {isPlayingMusic ? <Pause className="w-4 h-4 fill-current" /> : <Play className="w-4 h-4 fill-current ml-0.5" />}
-          </button>
-
-          <button
-            onClick={() => {
-              webAudioEngine.init();
-              nextTrack();
-            }}
-            className="p-1.5 text-stone-400 hover:text-stone-100 transition-colors cursor-pointer rounded-lg hover:bg-white/5"
-            title={t.player.next}
-          >
-            <SkipForward className="w-4 h-4" />
-          </button>
-
           {!isMobileView ? (
             <button
               onClick={() => setExpanded(!expanded)}
-              className="p-1.5 text-stone-400 hover:text-amber-300 transition-colors cursor-pointer ml-0.5 rounded-lg hover:bg-white/5"
+              className="p-1.5 text-stone-400 hover:text-amber-300 transition-colors cursor-pointer rounded-lg hover:bg-white/5"
               title={expanded ? t.player.minimize : t.player.expand}
             >
               {expanded ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
@@ -150,7 +135,7 @@ export const MusicPlayerWidget: React.FC = () => {
           ) : (
             <button
               onClick={() => setIsMobileModalOpen(false)}
-              className="p-1.5 text-stone-400 hover:text-stone-100 transition-colors cursor-pointer ml-0.5 rounded-lg hover:bg-white/5"
+              className="p-1.5 text-stone-400 hover:text-stone-100 transition-colors cursor-pointer rounded-lg hover:bg-white/5"
               title="Kapat"
             >
               <X className="w-4 h-4" />
@@ -159,126 +144,279 @@ export const MusicPlayerWidget: React.FC = () => {
         </div>
       </div>
 
-      {/* Progress Line */}
-      <div className="w-full bg-stone-800/80 h-1.5 rounded-full mt-2.5 overflow-hidden">
-        <div 
-          className="bg-amber-400 h-full transition-all duration-300 rounded-full shadow-[0_0_8px_rgba(251,191,36,0.5)]"
-          style={{ width: `${progressPercent}%` }}
-        />
-      </div>
+      {/* 2. TAB A: 24/7 LO-FI & CHILL RADIO */}
+      {mediaTab === 'radio' && (
+        <>
+          {/* Upper: Now Playing Info, Dancing Equalizer & Controls */}
+          <div className="flex items-center gap-3">
+            {/* Cassette / Disc Icon */}
+            <button
+              onClick={handleTogglePlay}
+              className={`w-10 h-10 flex-shrink-0 flex items-center justify-center rounded-xl bg-stone-900/80 border border-stone-700/80 hover:border-amber-500/80 transition-all cursor-pointer shadow-md ${
+                isPlayingMusic ? 'text-amber-400 border-amber-500/50 shadow-[0_0_12px_rgba(245,158,11,0.2)]' : 'text-stone-400'
+              }`}
+              title={isPlayingMusic ? t.player.pause : t.player.play}
+            >
+              {isPlayingMusic ? (
+                <Radio className="w-5 h-5 animate-spin" style={{ animationDuration: '4s' }} />
+              ) : (
+                <Radio className="w-5 h-5" />
+              )}
+            </button>
 
-      {/* Expanded Section: Categories, Volume, Shuffle, Playlist */}
-      {(expanded || isMobileView) && (
-        <div className="mt-3 pt-2.5 border-t border-stone-800 space-y-2.5 text-xs">
-          {/* Scrubber & Time */}
-          <div className="flex items-center justify-between text-xs text-stone-400 font-mono">
-            <span>{formatTime(currentTime)}</span>
-            <span>{formatTime(duration || currentTrack.duration)}</span>
-          </div>
+            {/* Title, Artist & Live Dancing Waveform Equalizer */}
+            <div className="flex-1 min-w-0 pr-1">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-bold text-amber-100 truncate block leading-tight">
+                  {currentTrack.title}
+                </span>
 
-          {/* Volume slider & Toggles */}
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2 flex-1">
-              <Volume2 className="w-4 h-4 text-stone-400 flex-shrink-0" />
-              <input
-                type="range"
-                min="0"
-                max="1"
-                step="0.05"
-                value={musicVolume}
-                onChange={(e) => setMusicVolume(parseFloat(e.target.value))}
-                className="w-full h-1.5 bg-stone-700 rounded appearance-none cursor-pointer accent-amber-400"
-                title={t.player.volume}
-              />
+                {/* Dynamic Dancing Audio Spectrum Bars */}
+                {isPlayingMusic && (
+                  <div className="flex items-end gap-[2.5px] h-3.5 shrink-0" title="Audio Spectrum">
+                    <span className="w-[2.5px] bg-amber-400 rounded-full animate-eq-1" />
+                    <span className="w-[2.5px] bg-amber-300 rounded-full animate-eq-2" />
+                    <span className="w-[2.5px] bg-amber-400 rounded-full animate-eq-3" />
+                    <span className="w-[2.5px] bg-amber-300 rounded-full animate-eq-4" />
+                  </div>
+                )}
+              </div>
+              <span className="text-xs text-stone-400 font-medium truncate block mt-0.5">
+                {currentTrack.artist}
+              </span>
             </div>
 
-            <div className="flex items-center gap-1.5">
+            {/* Play / Next / Expander Controls */}
+            <div className="flex items-center gap-1">
               <button
-                onClick={toggleShuffle}
-                className={`p-1.5 rounded-md cursor-pointer transition-colors ${
-                  isShuffle ? 'text-amber-400 bg-stone-800' : 'text-stone-400 hover:text-stone-200'
-                }`}
-                title={t.player.shuffle}
+                onClick={() => {
+                  webAudioEngine.init();
+                  prevTrack();
+                }}
+                className="p-1.5 text-stone-400 hover:text-stone-100 transition-colors cursor-pointer rounded-lg hover:bg-white/5"
+                title={t.player.prev}
               >
-                <Shuffle className="w-4 h-4" />
+                <SkipBack className="w-4 h-4" />
               </button>
 
               <button
-                onClick={toggleRepeat}
-                className={`p-1.5 rounded-md cursor-pointer transition-colors ${
-                  isRepeat ? 'text-amber-400 bg-stone-800' : 'text-stone-400 hover:text-stone-200'
-                }`}
-                title={t.player.repeat}
+                onClick={handleTogglePlay}
+                className="w-8 h-8 flex items-center justify-center rounded-full bg-amber-500 hover:bg-amber-400 text-stone-950 transition-all cursor-pointer shadow-lg hover:scale-105 active:scale-95"
+                title={isPlayingMusic ? t.player.pause : t.player.play}
               >
-                <Repeat className="w-4 h-4" />
+                {isPlayingMusic ? <Pause className="w-4 h-4 fill-current" /> : <Play className="w-4 h-4 fill-current ml-0.5" />}
               </button>
 
               <button
-                onClick={() => setShowPlaylist(!showPlaylist)}
-                className={`p-1.5 rounded-md cursor-pointer transition-colors ${
-                  showPlaylist ? 'text-amber-400 bg-stone-800' : 'text-stone-400 hover:text-stone-200'
-                }`}
-                title={t.player.playlist}
+                onClick={() => {
+                  webAudioEngine.init();
+                  nextTrack();
+                }}
+                className="p-1.5 text-stone-400 hover:text-stone-100 transition-colors cursor-pointer rounded-lg hover:bg-white/5"
+                title={t.player.next}
               >
-                <ListMusic className="w-4 h-4" />
+                <SkipForward className="w-4 h-4" />
               </button>
             </div>
           </div>
 
-          {/* Category Tags */}
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar">
-            {MUSIC_CATEGORIES.map((cat) => {
-              const localizedCat = t.player.categories[cat.id as keyof typeof t.player.categories] || cat.label;
-              return (
-                <button
-                  key={cat.id}
-                  onClick={() => setCategory(cat.id as MusicCategory)}
-                  className={`px-2.5 py-1 rounded-md text-xs font-medium whitespace-nowrap cursor-pointer transition-colors ${
-                    selectedCategory === cat.id
-                      ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
-                      : 'bg-stone-800/80 text-stone-300 hover:text-stone-100 border border-transparent'
-                  }`}
-                >
-                  {localizedCat}
-                </button>
-              );
-            })}
+          {/* Progress / Live indicator */}
+          <div className="w-full bg-stone-800/80 h-1.5 rounded-full mt-1 overflow-hidden">
+            <div 
+              className={`h-full transition-all duration-300 rounded-full ${
+                isPlayingMusic ? 'bg-amber-400 animate-pulse shadow-[0_0_8px_rgba(251,191,36,0.5)]' : 'bg-stone-700'
+              }`}
+              style={{ width: isPlayingMusic ? '100%' : '0%' }}
+            />
           </div>
 
-          {/* Playlist Drawer */}
-          {showPlaylist && (
-            <div className="max-h-40 overflow-y-auto space-y-1 pt-1 pr-1 custom-scrollbar">
-              {playlist.map((track, idx) => (
-                <button
-                  key={track.id}
-                  onClick={() => {
-                    webAudioEngine.init();
-                    playTrack(idx);
-                  }}
-                  className={`w-full text-left px-2.5 py-1.5 rounded text-xs flex items-center justify-between transition-colors cursor-pointer ${
-                    currentTrack.id === track.id
-                      ? 'bg-amber-950/40 text-amber-200 font-semibold'
-                      : 'hover:bg-stone-800/80 text-stone-300'
-                  }`}
-                >
-                  <span className="truncate pr-2">{track.title}</span>
-                  <span className="text-xs text-stone-500 font-mono flex-shrink-0">
-                    {formatTime(track.duration)}
+          {/* Expanded Section: Categories, Volume, Station List */}
+          {(expanded || isMobileView) && (
+            <div className="mt-2.5 pt-2.5 border-t border-stone-800 space-y-2.5 text-xs">
+              {/* Volume slider & Toggles */}
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2 flex-1 max-w-[200px]">
+                  <Volume2 className="w-4 h-4 text-stone-400 shrink-0" />
+                  <input
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.05"
+                    value={musicVolume}
+                    onChange={(e) => setMusicVolume(parseFloat(e.target.value))}
+                    className="w-full h-1.5 bg-stone-700 rounded-lg appearance-none cursor-pointer accent-amber-400"
+                    title={t.player.volume}
+                  />
+                  <span className="text-[10px] font-mono text-stone-400 w-7">
+                    {Math.round(musicVolume * 100)}%
                   </span>
-                </button>
-              ))}
+                </div>
+
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => setShowPlaylist(!showPlaylist)}
+                    className={`p-1.5 rounded-lg transition-colors cursor-pointer flex items-center gap-1 text-[11px] font-bold ${
+                      showPlaylist ? 'bg-amber-500/20 text-amber-300' : 'text-stone-400 hover:text-stone-100 hover:bg-white/5'
+                    }`}
+                    title={isTr ? 'İstasyon Listesi' : 'Station List'}
+                  >
+                    <ListMusic className="w-4 h-4" />
+                    <span>{isTr ? 'İstasyonlar' : 'Stations'}</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Station Playlist List */}
+              <div className="max-h-48 overflow-y-auto space-y-1 pr-1 custom-scrollbar pt-1">
+                {playlist.map((track, idx) => {
+                  const isCurrent = track.id === currentTrack.id;
+                  return (
+                    <button
+                      key={track.id}
+                      onClick={() => playTrack(idx)}
+                      className={`w-full text-left p-2 rounded-xl text-xs flex items-center justify-between transition-colors cursor-pointer ${
+                        isCurrent
+                          ? 'bg-amber-500/20 text-amber-200 border border-amber-500/30'
+                          : 'hover:bg-stone-800/80 text-stone-300 border border-transparent'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 min-w-0 pr-2">
+                        <span className="w-4 text-center font-mono text-stone-500 text-[10px]">
+                          {isCurrent && isPlayingMusic ? '▶' : idx + 1}
+                        </span>
+                        <div className="truncate">
+                          <div className={`font-semibold truncate text-[11px] ${isCurrent ? 'text-amber-200 font-bold' : ''}`}>
+                            {track.title}
+                          </div>
+                          <div className="text-[10px] text-stone-400 truncate">
+                            {track.artist}
+                          </div>
+                        </div>
+                      </div>
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-stone-800 text-stone-400 font-mono shrink-0">
+                        24/7 Live
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           )}
+        </>
+      )}
+
+      {/* 3. TAB B: SPOTIFY EMBED & QUICK CONNECT */}
+      {mediaTab === 'spotify' && (
+        <div className="space-y-3 pt-1">
+          {/* Playlist selector chips */}
+          <div className="flex flex-wrap gap-1.5">
+            {SPOTIFY_PLAYLISTS.map((pl) => (
+              <button
+                key={pl.id}
+                onClick={() => setSelectedSpotify(pl)}
+                className={`px-2.5 py-1 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+                  selectedSpotify.id === pl.id
+                    ? 'bg-emerald-500/30 text-emerald-200 border border-emerald-500/60 shadow-sm'
+                    : 'bg-stone-800/60 text-stone-300 hover:bg-stone-700 hover:text-white border border-stone-700/50'
+                }`}
+              >
+                <span>{pl.icon}</span>
+                <span>{pl.title}</span>
+              </button>
+            ))}
+          </div>
+
+          {/* Official Spotify Embed Player */}
+          <div className="rounded-xl overflow-hidden bg-black/40 border border-stone-800 shadow-inner">
+            <iframe
+              src={selectedSpotify.embedUrl}
+              width="100%"
+              height="152"
+              frameBorder="0"
+              allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+              loading="lazy"
+              title={selectedSpotify.title}
+              className="w-full rounded-xl"
+            />
+          </div>
+
+          {/* Quick Connect & Launch in Spotify app */}
+          <div className="flex items-center justify-between text-xs pt-1">
+            <span className="text-[11px] text-stone-400">
+              {isTr ? 'Spotify hesabınızla doğrudan dinleyin' : 'Play directly with your Spotify account'}
+            </span>
+            <a
+              href={selectedSpotify.webUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-3 py-1.5 rounded-lg bg-[#1DB954] hover:bg-[#1aa34a] text-black font-bold text-xs flex items-center gap-1.5 transition-all shadow-md active:scale-95"
+            >
+              <Music2 className="w-3.5 h-3.5" />
+              <span>{isTr ? "Spotify'da Aç" : 'Open in Spotify'}</span>
+              <ExternalLink className="w-3 h-3" />
+            </a>
+          </div>
         </div>
       )}
-    </>
+
+      {/* 4. TAB C: YOUTUBE LO-FI LIVE STREAMS */}
+      {mediaTab === 'youtube' && (
+        <div className="space-y-3 pt-1">
+          {/* Stream selector chips */}
+          <div className="flex flex-wrap gap-1.5">
+            {YOUTUBE_STREAMS.map((yt) => (
+              <button
+                key={yt.id}
+                onClick={() => setSelectedYouTube(yt)}
+                className={`px-2.5 py-1 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+                  selectedYouTube.id === yt.id
+                    ? 'bg-red-500/30 text-red-200 border border-red-500/60 shadow-sm'
+                    : 'bg-stone-800/60 text-stone-300 hover:bg-stone-700 hover:text-white border border-stone-700/50'
+                }`}
+              >
+                <span>{yt.icon}</span>
+                <span>{yt.title}</span>
+              </button>
+            ))}
+          </div>
+
+          {/* Embedded YouTube Stream */}
+          <div className="rounded-xl overflow-hidden aspect-video bg-black/60 border border-stone-800 shadow-inner">
+            <iframe
+              src={selectedYouTube.embedUrl}
+              title={selectedYouTube.title}
+              className="w-full h-full"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowFullScreen
+            />
+          </div>
+
+          {/* Quick link to YouTube Music */}
+          <div className="flex items-center justify-between text-xs pt-1">
+            <span className="text-[11px] text-stone-400">
+              {isTr ? '24/7 Canlı Lo-Fi Odak Yayını' : '24/7 Live Lo-Fi Study Broadcast'}
+            </span>
+            <a
+              href={selectedYouTube.webUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-3 py-1.5 rounded-lg bg-red-600 hover:bg-red-500 text-white font-bold text-xs flex items-center gap-1.5 transition-all shadow-md active:scale-95"
+            >
+              <Tv className="w-3.5 h-3.5" />
+              <span>{isTr ? "YouTube'da Aç" : 'Watch on YouTube'}</span>
+              <ExternalLink className="w-3 h-3" />
+            </a>
+          </div>
+        </div>
+      )}
+    </div>
   );
 
   return (
     <>
-      {/* 1. MOBILE & TABLET PORTRAIT TRIGGER (Screens < 1024px): Sleek floating pill / button */}
+      {/* 1. MOBILE & TABLET TRIGGER (Screens < 1536px): Sleek floating pill / button */}
       <div 
-        className="lg:hidden absolute left-3 sm:left-4 z-30 transition-all duration-300 pointer-events-auto"
+        className="2xl:hidden absolute left-3 sm:left-4 z-30 transition-all duration-300 pointer-events-auto"
         style={{ bottom: 'max(1rem, env(safe-area-inset-bottom, 1rem))' }}
       >
         <button
@@ -307,24 +445,24 @@ export const MusicPlayerWidget: React.FC = () => {
         </button>
       </div>
 
-      {/* 2. MOBILE MODAL / BOTTOM SHEET (When mobile pill is tapped) */}
+      {/* 2. MOBILE & TABLET MODAL / BOTTOM SHEET (When mobile pill is tapped) */}
       {isMobileModalOpen && (
         <div 
           onClick={() => setIsMobileModalOpen(false)}
-          className="lg:hidden fixed inset-0 z-50 flex items-end sm:items-center justify-center p-3 sm:p-4 bg-black/65 backdrop-blur-sm pointer-events-auto"
+          className="2xl:hidden fixed inset-0 z-50 flex items-end sm:items-center justify-center p-3 sm:p-4 bg-black/75 backdrop-blur-sm pointer-events-auto"
         >
           <div 
             onClick={(e) => e.stopPropagation()}
-            className="bg-stone-900/98 text-stone-100 border border-stone-800 rounded-2xl shadow-2xl p-4 w-full max-w-md max-h-[85vh] flex flex-col animate-in fade-in slide-in-from-bottom-5 duration-200"
+            className="bg-stone-900/98 text-stone-100 border border-stone-800 rounded-2xl shadow-2xl p-4 w-full max-w-lg max-h-[88vh] flex flex-col animate-in fade-in slide-in-from-bottom-5 duration-200 overflow-y-auto"
           >
             {renderPlayerCardContent(true)}
           </div>
         </div>
       )}
 
-      {/* 3. DESKTOP / TABLET LANDSCAPE PERSISTENT CARD (Screens >= 1024px) */}
+      {/* 3. DESKTOP PERSISTENT CARD (Screens >= 1536px) */}
       <div 
-        className="hidden lg:block absolute left-4 z-30 transition-all duration-300 pointer-events-auto"
+        className="hidden 2xl:block absolute left-4 z-30 transition-all duration-300 pointer-events-auto"
         style={{ bottom: 'max(1rem, env(safe-area-inset-bottom, 1rem))' }}
       >
         <div className="glass-island text-stone-100 rounded-2xl shadow-2xl p-3 w-80 sm:w-96 border border-white/10">

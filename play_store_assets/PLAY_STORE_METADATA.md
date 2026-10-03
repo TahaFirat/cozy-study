@@ -126,7 +126,7 @@ No intrusive ads, lightweight, and fully functional offline.
 Google Play Console > **App Content (Uygulama İçeriği)** adımlarındaki soruların cevapları:
 
 1. **Gizlilik Politikası (Privacy Policy):**
-   * URL: `https://cozy-study.vercel.app/privacy-policy.html`
+   * URL: `https://cozypixel-125c7.web.app/privacy-policy.html`
 2. **Reklamlar (Ads):**
    * **"Hayır, uygulamam reklam içermiyor" (No, my app does not contain ads).**
 3. **Uygulama Erişimi (App Access):**

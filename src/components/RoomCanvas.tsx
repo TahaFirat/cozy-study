@@ -44,6 +44,8 @@ export const RoomCanvas: React.FC = () => {
   const isMouseDownRef = useRef(false);
   const dragDistanceRef = useRef(0);
   const lastTouchPosRef = useRef<{ x: number; y: number } | null>(null);
+  const lastTouchTimeRef = useRef(0);
+  const lastInteractionTimeRef = useRef(0);
   const lastScratchAudioRef = useRef(0);
 
   // Persistent SceneContext Ref to eliminate any canvas unmount/remount flickering
@@ -177,6 +179,11 @@ export const RoomCanvas: React.FC = () => {
 
   // Handle Interactive Clicks & Taps
   const handleInteractiveClick = (clicked: InteractiveObjectId) => {
+    const now = performance.now();
+    // Guard against rapid duplicate triggers (350ms cooldown)
+    if (now - lastInteractionTimeRef.current < 350) return;
+    lastInteractionTimeRef.current = now;
+
     webAudioEngine.init();
 
     switch (clicked) {
@@ -271,6 +278,10 @@ export const RoomCanvas: React.FC = () => {
   };
 
   const handleClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    // If this click is a synthetic event emitted by the browser right after a touch, ignore it!
+    if (performance.now() - lastTouchTimeRef.current < 500) {
+      return;
+    }
     if (!rendererRef.current) return;
     const clicked = rendererRef.current.getHoveredObject(e.clientX, e.clientY, activeRoom);
     if (clicked) {
@@ -337,6 +348,7 @@ export const RoomCanvas: React.FC = () => {
   const handleTouchEnd = (e: React.TouchEvent<HTMLCanvasElement>) => {
     isMouseDownRef.current = false;
     lastTouchPosRef.current = null;
+    lastTouchTimeRef.current = performance.now();
     if (dragDistanceRef.current < 15 && e.changedTouches[0] && canvasRef.current && rendererRef.current) {
       const touch = e.changedTouches[0];
       const clicked = rendererRef.current.getHoveredObject(touch.clientX, touch.clientY, activeRoom);

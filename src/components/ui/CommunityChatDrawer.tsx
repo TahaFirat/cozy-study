@@ -75,9 +75,15 @@ export const CommunityChatDrawer: React.FC = () => {
   if (!isChatOpen) return null;
 
   return (
-    <div className="fixed inset-y-2 sm:inset-y-4 right-2 sm:right-4 left-2 sm:left-auto w-auto sm:w-96 max-w-[calc(100vw-1rem)] sm:max-w-[calc(100vw-2rem)] flex flex-col bg-stone-900/95 text-stone-100 border border-stone-800/90 rounded-2xl shadow-2xl backdrop-blur-md overflow-hidden animate-in slide-in-from-right-10 duration-200 pointer-events-auto">
-      
-      {/* Top Header */}
+    <>
+      {/* Mobile/Tablet Dimmer Backdrop */}
+      <div 
+        onClick={() => setChatOpen(false)}
+        className="fixed inset-0 z-40 bg-black/60 backdrop-blur-xs lg:hidden pointer-events-auto animate-fade-in"
+      />
+
+      <div className="fixed inset-y-0 sm:inset-y-3 right-0 sm:right-3 w-full sm:w-96 max-w-full sm:max-w-md z-50 flex flex-col bg-stone-900/98 text-stone-100 border-l sm:border border-stone-800 rounded-none sm:rounded-2xl shadow-2xl backdrop-blur-md overflow-hidden animate-in slide-in-from-right-10 duration-200 pointer-events-auto">
+        {/* Top Header */}
       <div className="p-3.5 border-b border-stone-800/90 bg-stone-950/40 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <span className="relative flex h-2.5 w-2.5">
@@ -396,5 +402,6 @@ export const CommunityChatDrawer: React.FC = () => {
         </div>
       )}
     </div>
+    </>
   );
 };
