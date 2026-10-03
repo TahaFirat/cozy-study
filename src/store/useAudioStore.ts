@@ -90,7 +90,7 @@ export const useAudioStore = create<AudioState>()(
       isMuted: false,
 
       ambientVolumes: { ...DEFAULT_AMBIENT_VOLUMES },
-      activePresetId: 'rainy_study',
+      activePresetId: null,
       binauralMode: 'gamma_40hz',
 
       musicVolume: 0.6,

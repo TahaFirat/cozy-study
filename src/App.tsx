@@ -172,41 +172,10 @@ export const App: React.FC = () => {
     setImmersiveMode,
   ]);
 
-  // First interaction Audio Context unlock & ambient weather/hearth sync
+  // First interaction Audio Context unlock (no unprompted loud rain blast)
   useEffect(() => {
     const handleFirstInteraction = () => {
       webAudioEngine.init();
-      const appState = useAppStore.getState();
-      const weather = appState.weather;
-      const audio = useAudioStore.getState();
-      
-      // Auto-enable fireplace crackling if in a fireplace room and active
-      if (appState.fireplaceActive && (appState.activeRoom === 'cabin' || appState.activeRoom === 'bedroom')) {
-        if (audio.ambientVolumes.fireplace === 0) {
-          audio.setChannelVolume('fireplace', 0.65);
-        }
-      }
-
-      if (weather === 'storm') {
-        audio.setChannelVolume('rain', 0.85);
-        audio.setChannelVolume('wind', 0.45);
-        audio.setChannelVolume('thunder', 0.75);
-      } else if (weather === 'heavy_rain') {
-        audio.setChannelVolume('rain', 0.85);
-        audio.setChannelVolume('wind', 0.25);
-        audio.setChannelVolume('thunder', 0.15);
-      } else if (weather === 'rain') {
-        audio.setChannelVolume('rain', 0.55);
-        audio.setChannelVolume('wind', 0.05);
-        audio.setChannelVolume('thunder', 0);
-      } else if (weather === 'snow') {
-        audio.setChannelVolume('rain', 0);
-        audio.setChannelVolume('wind', 0.35);
-        audio.setChannelVolume('thunder', 0);
-      } else if (weather === 'clear') {
-        audio.setChannelVolume('rain', 0);
-        audio.setChannelVolume('thunder', 0);
-      }
       window.removeEventListener('click', handleFirstInteraction);
       window.removeEventListener('keydown', handleFirstInteraction);
       window.removeEventListener('touchstart', handleFirstInteraction);

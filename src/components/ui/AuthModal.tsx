@@ -4,7 +4,7 @@ import { useAppStore } from '../../store/useAppStore';
 import { useAuthStore } from '../../store/useAuthStore';
 import { useTaskStore } from '../../store/useTaskStore';
 import { useStatsStore } from '../../store/useStatsStore';
-import { signInWithGoogle, signInWithEmail, registerWithEmail, resetPassword, isFirebaseConfigured, loginAsDemoUser } from '../../firebase/auth';
+import { signInWithEmail, registerWithEmail, resetPassword, isFirebaseConfigured, loginAsDemoUser } from '../../firebase/auth';
 
 type AuthView = 'login' | 'register' | 'reset';
 
@@ -28,32 +28,6 @@ export const AuthModal: React.FC = () => {
   const clearForm = () => {
     setError(null);
     setSuccessMsg(null);
-  };
-
-  const handleGoogleSignIn = async () => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      const user = await signInWithGoogle();
-      if (user) {
-        setUser(user);
-        setActiveModal('none');
-      }
-    } catch (err: unknown) {
-      console.error('[Firebase Auth Google Error]', err);
-      const code = (err as { code?: string }).code;
-      if (code === 'auth/operation-not-allowed') {
-        setError(tr ? 'Firebase konsolunda Google girişi henüz etkinleştirilmemiş. Authentication menüsünden açınız.' : 'Google sign-in is not enabled in Firebase console.');
-      } else if (code === 'auth/unauthorized-domain') {
-        setError(tr ? 'Bu alan adı (localhost) Firebase yetkili alan adlarında ekli değil.' : 'Unauthorized domain in Firebase.');
-      } else if (code === 'auth/popup-blocked') {
-        setError(tr ? 'Tarayıcınız Google penceresini engelledi. Açılır pencerelere izin veriniz.' : 'Popup was blocked by browser.');
-      } else {
-        setError(tr ? `Google girişi başarısız oldu (${code || 'Bilinmeyen hata'})` : `Google sign-in failed (${code || 'Unknown error'})`);
-      }
-    } finally {
-      setIsLoading(false);
-    }
   };
 
   const handleDemoSignIn = () => {
@@ -205,39 +179,9 @@ export const AuthModal: React.FC = () => {
                 <span>{tr ? 'Demo & Apple Reviewer Girişi (1-Tık)' : 'Demo & Apple Reviewer Access (1-Tap)'}</span>
               </button>
 
-              <button
-                onClick={handleGoogleSignIn}
-                disabled={isLoading}
-                className="w-full flex items-center justify-center gap-3 py-2.5 px-4 bg-white/5 hover:bg-white/10 border border-stone-700 rounded-xl text-sm font-semibold transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed group"
-              >
-                {isLoading ? (
-                  <Loader2 className="w-4 h-4 animate-spin text-stone-400" />
-                ) : (
-                  <svg className="w-4 h-4" viewBox="0 0 24 24">
-                    <path
-                      fill="#4285F4"
-                      d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.66-5.17 3.66-9.17z"
-                    />
-                    <path
-                      fill="#34A853"
-                      d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.26v3.15C3.26 21.36 7.33 24 12 24z"
-                    />
-                    <path
-                      fill="#FBBC05"
-                      d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.26C.46 8.17 0 9.99 0 12s.46 3.83 1.26 5.42l4.02-3.15z"
-                    />
-                    <path
-                      fill="#EA4335"
-                      d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.26 2.64 1.26 6.58l4.02 3.15c.95-2.83 3.6-4.98 6.72-4.98z"
-                    />
-                  </svg>
-                )}
-                <span>{tr ? 'Google ile Giriş Yap' : 'Continue with Google'}</span>
-              </button>
-
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3 pt-1">
                 <div className="flex-1 h-px bg-stone-800" />
-                <span className="text-xs text-stone-500 font-medium">{tr ? 'veya e-posta ile' : 'or with email'}</span>
+                <span className="text-xs text-stone-500 font-medium">{tr ? 'veya e-posta ile giriş yap' : 'or sign in with email'}</span>
                 <div className="flex-1 h-px bg-stone-800" />
               </div>
             </>

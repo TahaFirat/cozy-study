@@ -305,116 +305,112 @@ export const MusicPlayerWidget: React.FC = () => {
         </>
       )}
 
-      {/* 3. TAB B: SPOTIFY EMBED & QUICK CONNECT */}
-      {mediaTab === 'spotify' && (
-        <div className="space-y-3 pt-1">
-          {/* Playlist selector chips */}
-          <div className="flex flex-wrap gap-1.5">
-            {SPOTIFY_PLAYLISTS.map((pl) => (
-              <button
-                key={pl.id}
-                onClick={() => setSelectedSpotify(pl)}
-                className={`px-2.5 py-1 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
-                  selectedSpotify.id === pl.id
-                    ? 'bg-emerald-500/30 text-emerald-200 border border-emerald-500/60 shadow-sm'
-                    : 'bg-stone-800/60 text-stone-300 hover:bg-stone-700 hover:text-white border border-stone-700/50'
-                }`}
-              >
-                <span>{pl.icon}</span>
-                <span>{pl.title}</span>
-              </button>
-            ))}
-          </div>
-
-          {/* Official Spotify Embed Player */}
-          <div className="rounded-xl overflow-hidden bg-black/40 border border-stone-800 shadow-inner">
-            <iframe
-              src={selectedSpotify.embedUrl}
-              width="100%"
-              height="152"
-              frameBorder="0"
-              allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
-              loading="lazy"
-              title={selectedSpotify.title}
-              className="w-full rounded-xl"
-            />
-          </div>
-
-          {/* Quick Connect & Launch in Spotify app */}
-          <div className="flex items-center justify-between text-xs pt-1">
-            <span className="text-[11px] text-stone-400">
-              {isTr ? 'Spotify hesabınızla doğrudan dinleyin' : 'Play directly with your Spotify account'}
-            </span>
-            <a
-              href={selectedSpotify.webUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="px-3 py-1.5 rounded-lg bg-[#1DB954] hover:bg-[#1aa34a] text-black font-bold text-xs flex items-center gap-1.5 transition-all shadow-md active:scale-95"
+      {/* 3. TAB B: SPOTIFY EMBED & QUICK CONNECT (Kept mounted off-screen when inactive so audio NEVER cuts off) */}
+      <div className={mediaTab === 'spotify' ? 'space-y-3 pt-1 block' : 'fixed -left-[9999px] -top-[9999px] w-1 h-1 opacity-0 pointer-events-none'}>
+        {/* Playlist selector chips */}
+        <div className="flex flex-wrap gap-1.5">
+          {SPOTIFY_PLAYLISTS.map((pl) => (
+            <button
+              key={pl.id}
+              onClick={() => setSelectedSpotify(pl)}
+              className={`px-2.5 py-1 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+                selectedSpotify.id === pl.id
+                  ? 'bg-emerald-500/30 text-emerald-200 border border-emerald-500/60 shadow-sm'
+                  : 'bg-stone-800/60 text-stone-300 hover:bg-stone-700 hover:text-white border border-stone-700/50'
+              }`}
             >
-              <Music2 className="w-3.5 h-3.5" />
-              <span>{isTr ? "Spotify'da Aç" : 'Open in Spotify'}</span>
-              <ExternalLink className="w-3 h-3" />
-            </a>
-          </div>
+              <span>{pl.icon}</span>
+              <span>{pl.title}</span>
+            </button>
+          ))}
         </div>
-      )}
 
-      {/* 4. TAB C: YOUTUBE LO-FI LIVE STREAMS */}
-      {mediaTab === 'youtube' && (
-        <div className="space-y-3 pt-1">
-          {/* Stream selector chips */}
-          <div className="flex flex-wrap gap-1.5">
-            {YOUTUBE_STREAMS.map((yt) => (
-              <button
-                key={yt.id}
-                onClick={() => setSelectedYouTube(yt)}
-                className={`px-2.5 py-1 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
-                  selectedYouTube.id === yt.id
-                    ? 'bg-red-500/30 text-red-200 border border-red-500/60 shadow-sm'
-                    : 'bg-stone-800/60 text-stone-300 hover:bg-stone-700 hover:text-white border border-stone-700/50'
-                }`}
-              >
-                <span>{yt.icon}</span>
-                <span>{yt.title}</span>
-              </button>
-            ))}
-          </div>
+        {/* Official Spotify Embed Player */}
+        <div className="rounded-xl overflow-hidden bg-black/40 border border-stone-800 shadow-inner">
+          <iframe
+            src={selectedSpotify.embedUrl}
+            width="100%"
+            height="152"
+            frameBorder="0"
+            allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+            loading="lazy"
+            title={selectedSpotify.title}
+            className="w-full rounded-xl"
+          />
+        </div>
 
-          {/* Embedded YouTube Stream */}
-          <div className="rounded-xl overflow-hidden aspect-video bg-black/60 border border-stone-800 shadow-inner">
-            <iframe
-              src={selectedYouTube.embedUrl}
-              title={selectedYouTube.title}
-              className="w-full h-full"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-              allowFullScreen
-            />
-          </div>
+        {/* Quick Connect & Launch in Spotify app */}
+        <div className="flex items-center justify-between text-xs pt-1">
+          <span className="text-[11px] text-stone-400">
+            {isTr ? 'Spotify hesabınızla doğrudan dinleyin' : 'Play directly with your Spotify account'}
+          </span>
+          <a
+            href={selectedSpotify.webUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="px-3 py-1.5 rounded-lg bg-[#1DB954] hover:bg-[#1aa34a] text-black font-bold text-xs flex items-center gap-1.5 transition-all shadow-md active:scale-95"
+          >
+            <Music2 className="w-3.5 h-3.5" />
+            <span>{isTr ? "Spotify'da Aç" : 'Open in Spotify'}</span>
+            <ExternalLink className="w-3 h-3" />
+          </a>
+        </div>
+      </div>
 
-          {/* Quick link to YouTube Music */}
-          <div className="flex items-center justify-between text-xs pt-1">
-            <span className="text-[11px] text-stone-400">
-              {isTr ? '24/7 Canlı Lo-Fi Odak Yayını' : '24/7 Live Lo-Fi Study Broadcast'}
-            </span>
-            <a
-              href={selectedYouTube.webUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="px-3 py-1.5 rounded-lg bg-red-600 hover:bg-red-500 text-white font-bold text-xs flex items-center gap-1.5 transition-all shadow-md active:scale-95"
+      {/* 4. TAB C: YOUTUBE LO-FI LIVE STREAMS (Kept mounted off-screen when inactive so audio continues) */}
+      <div className={mediaTab === 'youtube' ? 'space-y-3 pt-1 block' : 'fixed -left-[9999px] -top-[9999px] w-1 h-1 opacity-0 pointer-events-none'}>
+        {/* Stream selector chips */}
+        <div className="flex flex-wrap gap-1.5">
+          {YOUTUBE_STREAMS.map((yt) => (
+            <button
+              key={yt.id}
+              onClick={() => setSelectedYouTube(yt)}
+              className={`px-2.5 py-1 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+                selectedYouTube.id === yt.id
+                  ? 'bg-red-500/30 text-red-200 border border-red-500/60 shadow-sm'
+                  : 'bg-stone-800/60 text-stone-300 hover:bg-stone-700 hover:text-white border border-stone-700/50'
+              }`}
             >
-              <Tv className="w-3.5 h-3.5" />
-              <span>{isTr ? "YouTube'da Aç" : 'Watch on YouTube'}</span>
-              <ExternalLink className="w-3 h-3" />
-            </a>
-          </div>
+              <span>{yt.icon}</span>
+              <span>{yt.title}</span>
+            </button>
+          ))}
         </div>
-      )}
+
+        {/* Embedded YouTube Stream */}
+        <div className="rounded-xl overflow-hidden aspect-video bg-black/60 border border-stone-800 shadow-inner">
+          <iframe
+            src={selectedYouTube.embedUrl}
+            title={selectedYouTube.title}
+            className="w-full h-full"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allowFullScreen
+          />
+        </div>
+
+        {/* Quick link to YouTube Music */}
+        <div className="flex items-center justify-between text-xs pt-1">
+          <span className="text-[11px] text-stone-400">
+            {isTr ? '24/7 Canlı Lo-Fi Odak Yayını' : '24/7 Live Lo-Fi Study Broadcast'}
+          </span>
+          <a
+            href={selectedYouTube.webUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="px-3 py-1.5 rounded-lg bg-red-600 hover:bg-red-500 text-white font-bold text-xs flex items-center gap-1.5 transition-all shadow-md active:scale-95"
+          >
+            <Tv className="w-3.5 h-3.5" />
+            <span>{isTr ? "YouTube'da Aç" : 'Watch on YouTube'}</span>
+            <ExternalLink className="w-3 h-3" />
+          </a>
+        </div>
+      </div>
     </div>
   );
 
   return (
     <>
-      {/* 1. MOBILE & TABLET TRIGGER (Screens < 1536px): Sleek floating pill / button */}
+      {/* 1. MOBILE & TABLET TRIGGER: Floating pill button */}
       <div 
         className="2xl:hidden absolute left-3 sm:left-4 z-30 transition-all duration-300 pointer-events-auto"
         style={{ bottom: 'max(1rem, env(safe-area-inset-bottom, 1rem))' }}
@@ -422,43 +418,77 @@ export const MusicPlayerWidget: React.FC = () => {
         <button
           onClick={() => setIsMobileModalOpen(true)}
           className={`flex items-center gap-2 p-2.5 sm:px-3 sm:py-2.5 glass-island text-stone-100 rounded-2xl shadow-2xl transition-all cursor-pointer ${
-            isPlayingMusic 
+            mediaTab === 'spotify'
+              ? 'border-emerald-500/70 text-emerald-200 shadow-[0_0_20px_rgba(16,185,129,0.25)]'
+              : mediaTab === 'youtube'
+              ? 'border-red-500/70 text-red-200 shadow-[0_0_20px_rgba(239,68,68,0.25)]'
+              : isPlayingMusic 
               ? 'border-amber-500/70 text-amber-200 shadow-[0_0_20px_rgba(245,158,11,0.25)]' 
               : 'border-white/10 hover:border-white/20'
           }`}
-          title={isPlayingMusic ? `${t.player.pause} · ${currentTrack.title}` : t.player.play}
+          title={
+            mediaTab === 'spotify'
+              ? `Spotify · ${selectedSpotify.title}`
+              : mediaTab === 'youtube'
+              ? `YouTube · ${selectedYouTube.title}`
+              : isPlayingMusic ? `${t.player.pause} · ${currentTrack.title}` : t.player.play
+          }
         >
-          <Radio 
-            className={`w-4 h-4 shrink-0 ${isPlayingMusic ? 'animate-spin text-amber-400' : 'text-stone-400'}`} 
-            style={isPlayingMusic ? { animationDuration: '4s' } : undefined} 
-          />
-          <span className="text-xs font-bold text-amber-100 max-w-[120px] truncate hidden sm:inline">
-            {currentTrack.title}
-          </span>
-          {isPlayingMusic && (
-            <div className="flex items-end gap-[1.5px] h-2.5 shrink-0">
-              <span className="w-[2px] bg-amber-400 rounded-full animate-eq-1" />
-              <span className="w-[2px] bg-amber-300 rounded-full animate-eq-2" />
-              <span className="w-[2px] bg-amber-400 rounded-full animate-eq-3" />
-            </div>
+          {mediaTab === 'spotify' ? (
+            <>
+              <Music2 className="w-4 h-4 shrink-0 text-emerald-400" />
+              <span className="text-xs font-bold text-emerald-200 max-w-[130px] truncate">
+                {selectedSpotify.title}
+              </span>
+              <span className="text-[10px] bg-emerald-500/20 text-emerald-300 font-bold px-1.5 py-0.5 rounded-full border border-emerald-500/30 hidden xs:inline">
+                Spotify
+              </span>
+            </>
+          ) : mediaTab === 'youtube' ? (
+            <>
+              <Tv className="w-4 h-4 shrink-0 text-red-400" />
+              <span className="text-xs font-bold text-red-200 max-w-[130px] truncate">
+                {selectedYouTube.title}
+              </span>
+              <span className="text-[10px] bg-red-500/20 text-red-300 font-bold px-1.5 py-0.5 rounded-full border border-red-500/30 hidden xs:inline">
+                YouTube
+              </span>
+            </>
+          ) : (
+            <>
+              <Radio 
+                className={`w-4 h-4 shrink-0 ${isPlayingMusic ? 'animate-spin text-amber-400' : 'text-stone-400'}`} 
+                style={isPlayingMusic ? { animationDuration: '4s' } : undefined} 
+              />
+              <span className="text-xs font-bold text-amber-100 max-w-[120px] truncate hidden sm:inline">
+                {currentTrack.title}
+              </span>
+              {isPlayingMusic && (
+                <div className="flex items-end gap-[1.5px] h-2.5 shrink-0">
+                  <span className="w-[2px] bg-amber-400 rounded-full animate-eq-1" />
+                  <span className="w-[2px] bg-amber-300 rounded-full animate-eq-2" />
+                  <span className="w-[2px] bg-amber-400 rounded-full animate-eq-3" />
+                </div>
+              )}
+            </>
           )}
         </button>
       </div>
 
-      {/* 2. MOBILE & TABLET MODAL / BOTTOM SHEET (When mobile pill is tapped) */}
-      {isMobileModalOpen && (
+      {/* 2. MOBILE & TABLET MODAL / BOTTOM SHEET (Kept mounted in DOM so Spotify/YouTube audio keeps playing after closing) */}
+      <div 
+        onClick={() => setIsMobileModalOpen(false)}
+        className={`2xl:hidden fixed inset-0 z-50 flex items-end sm:items-center justify-center p-3 sm:p-4 bg-black/75 backdrop-blur-sm transition-all duration-200 pointer-events-auto ${
+          isMobileModalOpen ? 'opacity-100 visible' : 'opacity-0 invisible pointer-events-none'
+        }`}
+      >
         <div 
-          onClick={() => setIsMobileModalOpen(false)}
-          className="2xl:hidden fixed inset-0 z-50 flex items-end sm:items-center justify-center p-3 sm:p-4 bg-black/75 backdrop-blur-sm pointer-events-auto"
+          onClick={(e) => e.stopPropagation()}
+          className="bg-stone-900/98 text-stone-100 border border-stone-800 rounded-2xl shadow-2xl p-4 w-full max-w-lg max-h-[88vh] flex flex-col overflow-y-auto"
         >
-          <div 
-            onClick={(e) => e.stopPropagation()}
-            className="bg-stone-900/98 text-stone-100 border border-stone-800 rounded-2xl shadow-2xl p-4 w-full max-w-lg max-h-[88vh] flex flex-col animate-in fade-in slide-in-from-bottom-5 duration-200 overflow-y-auto"
-          >
-            {renderPlayerCardContent(true)}
-          </div>
+          {renderPlayerCardContent(true)}
         </div>
-      )}
+      </div>
 
       {/* 3. DESKTOP PERSISTENT CARD (Screens >= 1536px) */}
       <div 

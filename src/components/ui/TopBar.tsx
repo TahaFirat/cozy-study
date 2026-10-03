@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   BookOpen, 
   Settings, 
@@ -25,7 +25,8 @@ import {
   BarChart2,
   Trophy,
   Menu,
-  X
+  X,
+  Clock
 } from 'lucide-react';
 import { useAppStore } from '../../store/useAppStore';
 import { useStatsStore } from '../../store/useStatsStore';
@@ -80,13 +81,31 @@ export const TopBar: React.FC = () => {
     }
   };
 
+  const [currentDate, setCurrentDate] = useState(() => new Date());
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentDate(new Date());
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const hoursStr = String(currentDate.getHours()).padStart(2, '0');
+  const minutesStr = String(currentDate.getMinutes()).padStart(2, '0');
+  const secondsStr = String(currentDate.getSeconds()).padStart(2, '0');
+  const dateStr = currentDate.toLocaleDateString(language === 'tr' ? 'tr-TR' : 'en-US', {
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+  });
+
   const localizedTime = t.times[timeOfDay] || timeOfDay;
   const localizedWeather = t.weather[weather] || weather;
 
   return (
     <header 
       className="absolute left-2 right-2 sm:left-4 sm:right-4 z-30 flex items-center justify-between pointer-events-none transition-all duration-300 gap-2"
-      style={{ top: 'max(0.75rem, env(safe-area-inset-top, 0.75rem))' }}
+      style={{ top: 'max(1.2rem, calc(env(safe-area-inset-top, 0px) + 0.8rem))' }}
     >
       {/* 1. LEFT LUXURY ISLAND: Atmosphere, Room & Live Co-Study */}
       <div className="glass-island rounded-2xl p-1 sm:p-1.5 flex items-center gap-1 sm:gap-2 pointer-events-auto shadow-2xl shrink-0">
@@ -140,31 +159,53 @@ export const TopBar: React.FC = () => {
         </button>
       </div>
 
-      {/* 2. CENTER LUXURY ISLAND: Streak, Mastery & Level (Desktop 2xl+) */}
-      <div className="hidden 2xl:flex items-center gap-2 glass-island glass-island-gold rounded-2xl px-3 py-1.5 pointer-events-auto shadow-2xl shrink-0">
-        <button
-          onClick={() => setActiveModal('stats')}
-          className="flex items-center gap-1.5 text-xs font-bold text-amber-200 hover:text-amber-100 transition-colors cursor-pointer"
-          title={t.stats.title}
+      {/* 2. CENTER LUXURY ISLAND: Real-time Ambient Digital Clock & Streak */}
+      <div className="flex items-center gap-1.5 sm:gap-2 pointer-events-auto shrink-0">
+        {/* Real-time Digital Clock Island */}
+        <div 
+          className="glass-island px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-2xl flex items-center gap-1.5 sm:gap-2 shadow-2xl border border-white/10 select-none backdrop-blur-md"
+          title={language === 'tr' ? 'Gerçek Zamanlı Dijital Saat' : 'Real-Time Digital Clock'}
         >
-          <Flame className="w-4 h-4 text-orange-400 fill-current animate-pulse drop-shadow-[0_0_8px_rgba(251,146,60,0.5)]" />
-          <span>{streakDays} {t.streak}</span>
-        </button>
+          <Clock className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+          <div className="font-mono text-xs sm:text-sm font-extrabold tracking-widest text-amber-100 flex items-center">
+            <span>{hoursStr}</span>
+            <span className="animate-pulse mx-[1px] text-amber-400 font-black">:</span>
+            <span>{minutesStr}</span>
+            <span className="text-[10px] text-amber-300/80 font-mono ml-0.5 hidden xs:inline">
+              :{secondsStr}
+            </span>
+          </div>
+          <span className="hidden lg:inline text-[10px] uppercase font-bold text-stone-400 tracking-wider pl-1.5 border-l border-white/10">
+            {dateStr}
+          </span>
+        </div>
 
-        <div className="w-[1px] h-4 bg-amber-500/20" />
+        {/* Streak, Mastery & Level (Desktop 2xl+) */}
+        <div className="hidden 2xl:flex items-center gap-2 glass-island glass-island-gold rounded-2xl px-3 py-1.5 shadow-2xl shrink-0">
+          <button
+            onClick={() => setActiveModal('stats')}
+            className="flex items-center gap-1.5 text-xs font-bold text-amber-200 hover:text-amber-100 transition-colors cursor-pointer"
+            title={t.stats.title}
+          >
+            <Flame className="w-4 h-4 text-orange-400 fill-current animate-pulse drop-shadow-[0_0_8px_rgba(251,146,60,0.5)]" />
+            <span>{streakDays} {t.streak}</span>
+          </button>
 
-        <button
-          onClick={() => setActiveModal('gamification')}
-          className="flex items-center gap-1.5 text-xs font-mono font-bold text-amber-300 hover:text-amber-200 transition-colors cursor-pointer"
-          title={language === 'tr' ? 'Başarımlar & Seviye' : 'Achievements & Level'}
-        >
-          <span className="text-sm leading-none">⚡</span>
-          <span>{language === 'tr' ? 'Sv.' : 'Lv.'}{gamificationLevel}</span>
-        </button>
+          <div className="w-[1px] h-4 bg-amber-500/20" />
 
-        <div className="w-[1px] h-4 bg-amber-500/20" />
+          <button
+            onClick={() => setActiveModal('gamification')}
+            className="flex items-center gap-1.5 text-xs font-mono font-bold text-amber-300 hover:text-amber-200 transition-colors cursor-pointer"
+            title={language === 'tr' ? 'Başarımlar & Seviye' : 'Achievements & Level'}
+          >
+            <span className="text-sm leading-none">⚡</span>
+            <span>{language === 'tr' ? 'Sv.' : 'Lv.'}{gamificationLevel}</span>
+          </button>
 
-        <ProBadge onClick={() => setActiveModal('subscription')} />
+          <div className="w-[1px] h-4 bg-amber-500/20" />
+
+          <ProBadge onClick={() => setActiveModal('subscription')} />
+        </div>
       </div>
 
       {/* 3. RIGHT LUXURY ISLAND: Studio Command Toolbar & Profile */}
