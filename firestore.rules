@@ -59,7 +59,14 @@ service cloud.firestore {
     }
 
     // ──────────────────────────────────────────────────────────────────────────
-    // 3. VARSAYILAN KURAL: TANIMLANMAMIŞ TÜM DOKÜMANLAR İÇİN ERİŞİMİ ENGELLE
+    // 3. GERÇEK ZAMANLI ÇALIŞMA TOPLULUĞU & AKTİF KULLANICILAR (PRESENCE)
+    // ──────────────────────────────────────────────────────────────────────────
+    match /presence/{clientId} {
+      allow read, write: if true;
+    }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // 4. VARSAYILAN KURAL: TANIMLANMAMIŞ TÜM DOKÜMANLAR İÇİN ERİŞİMİ ENGELLE
     // ──────────────────────────────────────────────────────────────────────────
     match /{document=**} {
       allow read, write: if false;

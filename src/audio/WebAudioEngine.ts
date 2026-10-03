@@ -7,19 +7,28 @@ class WebAudioEngine {
   private isInitialized = false;
   private masterGain: GainNode | null = null;
   private ambientGains: Partial<Record<AmbientSoundChannel, GainNode>> = {};
-  private activeGenerators: Partial<Record<AmbientSoundChannel, () => void>> = {};
+  private runningChannels = new Set<AmbientSoundChannel>();
   private clockInterval: number | null = null;
-  private keyboardInterval: number | null = null;
   private keyboardTimeout: number | null = null;
-  private thunderInterval: number | null = null;
-  private thunderTimeout: number | null = null;
   private cafeClinkTimeout: number | null = null;
-  private forestBirdTimeout: number | null = null;
-  private generativeLofiInterval: number | null = null;
-  private windGustTimeout: number | null = null;
+  private insectsTimeout: number | null = null;
+  private trainTimeout: number | null = null;
+  private bookPagesTimeout: number | null = null;
+  private windChimesTimeout: number | null = null;
+  private typewriterTimeout: number | null = null;
   private binauralOscL: OscillatorNode | null = null;
   private binauralOscR: OscillatorNode | null = null;
   private currentBinauralMode: BinauralMode = 'gamma_40hz';
+
+  // Authentic high-fidelity recorded nature loops (hardware decoded, 0% CPU, true acoustic realism)
+  private naturalAudioElements: Partial<Record<string, HTMLAudioElement>> = {};
+  private readonly naturalAudioSources: Partial<Record<AmbientSoundChannel, string>> = {
+    rain: '/sounds/rain.ogg',
+    fireplace: '/sounds/fireplace.ogg',
+    forest: '/sounds/forest.ogg',
+    thunder: '/sounds/thunder.ogg',
+    wind: '/sounds/wind.ogg',
+  };
 
   public init() {
     if (this.isInitialized && this.ctx) {
@@ -53,7 +62,6 @@ class WebAudioEngine {
       });
 
       this.isInitialized = true;
-      this.startContinuousGenerators();
     } catch (e) {
       console.warn('Web Audio initialization error:', e);
     }
@@ -72,12 +80,40 @@ class WebAudioEngine {
   }
 
   public setChannelVolume(channel: AmbientSoundChannel, volume: number) {
+    // 1. Natural Recorded High-Fidelity Audio Streams (hardware decoded, 0% CPU, true realistic sound)
+    const naturalSrc = this.naturalAudioSources[channel];
+    if (naturalSrc) {
+      let audio = this.naturalAudioElements[channel];
+      if (!audio) {
+        audio = new Audio(naturalSrc);
+        audio.loop = true;
+        audio.preload = 'auto';
+        this.naturalAudioElements[channel] = audio;
+      }
+      if (volume > 0.01) {
+        audio.volume = Math.max(0, Math.min(1, volume));
+        if (audio.paused) {
+          audio.play().catch(() => {});
+        }
+      } else {
+        audio.volume = 0;
+        if (!audio.paused) {
+          audio.pause();
+          audio.currentTime = 0;
+        }
+      }
+      return;
+    }
+
     if (!this.isInitialized) {
       if (volume > 0) this.init();
       else return;
     }
-    if (volume > 0) {
+    if (volume > 0.01) {
       this.ensureRunning();
+      this.ensureChannelActive(channel);
+    } else {
+      this.deactivateChannel(channel);
     }
     const gainNode = this.ambientGains[channel];
     if (!gainNode || !this.ctx) return;
@@ -228,941 +264,554 @@ class WebAudioEngine {
     return buffer;
   }
 
-  private startContinuousGenerators() {
-    if (!this.ctx) return;
-
-    // 1. RAIN GENERATOR: Filtered noise + dynamic wind-gust modulation & organic droplet patter
-    try {
-      const rainBuf = this.createNoiseBuffer('pink');
-      const rainSource = this.ctx.createBufferSource();
-      rainSource.buffer = rainBuf;
-      rainSource.loop = true;
-
-      const rainFilter = this.ctx.createBiquadFilter();
-      rainFilter.type = 'lowpass';
-      rainFilter.frequency.setValueAtTime(1150, this.ctx.currentTime);
-
-      const rainHighpass = this.ctx.createBiquadFilter();
-      rainHighpass.type = 'highpass';
-      rainHighpass.frequency.setValueAtTime(280, this.ctx.currentTime);
-
-      const rainSwellGain = this.ctx.createGain();
-      rainSwellGain.gain.setValueAtTime(1.30, this.ctx.currentTime);
-
-      rainSource.connect(rainFilter);
-      rainFilter.connect(rainHighpass);
-      rainHighpass.connect(rainSwellGain);
-      if (this.ambientGains.rain) rainSwellGain.connect(this.ambientGains.rain);
-      rainSource.start();
-
-      // Dynamic organic wind gust swell & rain frequency breathing (wind blows rain sheets against glass)
-      const modulateRainWind = () => {
-        if (!this.ctx || !this.ambientGains.rain) return;
-        const now = this.ctx.currentTime;
-        const rampTime = 3.5 + Math.random() * 4.0; // 3.5-7.5s swell transition
-        const targetCutoff = 950 + Math.random() * 650;
-        const targetGain = 1.05 + Math.random() * 0.45;
-        rainFilter.frequency.exponentialRampToValueAtTime(Math.max(200, targetCutoff), now + rampTime);
-        rainSwellGain.gain.linearRampToValueAtTime(targetGain, now + rampTime);
-        setTimeout(modulateRainWind, rampTime * 1000);
-      };
-      modulateRainWind();
-    } catch (e) {
-      console.warn('Rain audio error', e);
-    }
-
-    // 2. FIREPLACE GENERATOR: Hearth roar + coal simmer + physical wood crackles ("çıt çıt, pıt, çatırtı")
-    try {
-      // A. Deep warm fireplace body (Brown noise roar)
-      const fireBuf = this.createNoiseBuffer('brown');
-      const fireSource = this.ctx.createBufferSource();
-      fireSource.buffer = fireBuf;
-      fireSource.loop = true;
-
-      const fireFilter = this.ctx.createBiquadFilter();
-      fireFilter.type = 'lowpass';
-      fireFilter.frequency.setValueAtTime(360, this.ctx.currentTime);
-
-      const fireGain = this.ctx.createGain();
-      fireGain.gain.setValueAtTime(0.80, this.ctx.currentTime);
-
-      fireSource.connect(fireFilter);
-      fireFilter.connect(fireGain);
-      if (this.ambientGains.fireplace) fireGain.connect(this.ambientGains.fireplace);
-      fireSource.start();
-
-      // B. Continuous glowing embers sizzle / hiss (Filtered pink noise with gentle modulation)
-      const sizzleBuf = this.createNoiseBuffer('pink');
-      const sizzleSource = this.ctx.createBufferSource();
-      sizzleSource.buffer = sizzleBuf;
-      sizzleSource.loop = true;
-
-      const sizzleFilter = this.ctx.createBiquadFilter();
-      sizzleFilter.type = 'bandpass';
-      sizzleFilter.frequency.setValueAtTime(2600, this.ctx.currentTime);
-      sizzleFilter.Q.setValueAtTime(1.8, this.ctx.currentTime);
-
-      const sizzleGain = this.ctx.createGain();
-      sizzleGain.gain.setValueAtTime(0.32, this.ctx.currentTime);
-
-      sizzleSource.connect(sizzleFilter);
-      sizzleFilter.connect(sizzleGain);
-      if (this.ambientGains.fireplace) sizzleGain.connect(this.ambientGains.fireplace);
-      sizzleSource.start();
-
-      // C. Authentic wood crackle & snap generator ("Çıt Çıt, Pıt, Çatırtı")
-      const whiteNoiseBuf = this.createNoiseBuffer('white', 1.0);
-
-      const playWoodPop = (volumeScale = 1.0, isSharpSnap = true) => {
-        if (!this.ctx || !this.ambientGains.fireplace) return;
-        const now = this.ctx.currentTime;
-
-        // 1. High-frequency sap snap click ("ÇIT!")
-        const snapSource = this.ctx.createBufferSource();
-        snapSource.buffer = whiteNoiseBuf;
-
-        const snapFilter = this.ctx.createBiquadFilter();
-        snapFilter.type = 'bandpass';
-        snapFilter.frequency.setValueAtTime(1800 + Math.random() * 2200, now);
-        snapFilter.Q.setValueAtTime(isSharpSnap ? 4.5 : 2.8, now);
-
-        const snapGain = this.ctx.createGain();
-        const peakVol = (isSharpSnap ? 0.42 + Math.random() * 0.35 : 0.25 + Math.random() * 0.25) * volumeScale;
-        snapGain.gain.setValueAtTime(peakVol, now);
-        // Instant micro-decay for that crisp, real wood "çıt" transient
-        const decayDuration = isSharpSnap ? (0.008 + Math.random() * 0.016) : (0.018 + Math.random() * 0.030);
-        snapGain.gain.exponentialRampToValueAtTime(0.0001, now + decayDuration);
-
-        snapSource.connect(snapFilter);
-        snapFilter.connect(snapGain);
-        snapGain.connect(this.ambientGains.fireplace);
-        snapSource.start(now);
-        snapSource.stop(now + decayDuration + 0.01);
-
-        // 2. Wood hollow resonance pop ("PIT") for bigger pops (65% of the time)
-        if (Math.random() < 0.65) {
-          const osc = this.ctx.createOscillator();
-          const oscGain = this.ctx.createGain();
-
-          osc.type = Math.random() > 0.5 ? 'triangle' : 'sine';
-          const startPitch = 360 + Math.random() * 480;
-          osc.frequency.setValueAtTime(startPitch, now);
-          osc.frequency.exponentialRampToValueAtTime(60, now + 0.04);
-
-          const oscVol = (0.18 + Math.random() * 0.20) * volumeScale;
-          oscGain.gain.setValueAtTime(oscVol, now);
-          oscGain.gain.exponentialRampToValueAtTime(0.001, now + 0.038);
-
-          osc.connect(oscGain);
-          oscGain.connect(this.ambientGains.fireplace);
-          osc.start(now);
-          osc.stop(now + 0.042);
-        }
-
-        // 3. Occasional deep log settle thump ("TOK")
-        if (Math.random() < 0.22) {
-          const thumpOsc = this.ctx.createOscillator();
-          const thumpGain = this.ctx.createGain();
-          thumpOsc.type = 'sine';
-          thumpOsc.frequency.setValueAtTime(105 + Math.random() * 35, now);
-          thumpOsc.frequency.exponentialRampToValueAtTime(45, now + 0.08);
-
-          thumpGain.gain.setValueAtTime(0.28 * volumeScale, now);
-          thumpGain.gain.exponentialRampToValueAtTime(0.001, now + 0.075);
-
-          thumpOsc.connect(thumpGain);
-          thumpGain.connect(this.ambientGains.fireplace);
-          thumpOsc.start(now);
-          thumpOsc.stop(now + 0.085);
-        }
-      };
-
-      // Authentic Poisson Cluster Distribution for Fireplace Wood Pops ("çıt-çıt, pıt, çatırtı"):
-      const triggerFireCrackle = () => {
-        if (!this.ctx || !this.ambientGains.fireplace) return;
-
-        // Primary wood pop
-        playWoodPop(1.0, Math.random() > 0.25);
-
-        // 60% chance of an immediate twin crackle 25-70ms later ("çıt-çıt!")
-        if (Math.random() < 0.60) {
-          setTimeout(() => {
-            playWoodPop(0.70 + Math.random() * 0.30, true);
-          }, 25 + Math.random() * 50);
-        }
-
-        // 35% chance of a 3rd trailing ember sizzle 90-180ms later ("çıt-çıt-pıt")
-        if (Math.random() < 0.35) {
-          setTimeout(() => {
-            playWoodPop(0.50 + Math.random() * 0.30, true);
-          }, 90 + Math.random() * 90);
-        }
-
-        // 18% chance of a 4th micro-spark pop 220-350ms later
-        if (Math.random() < 0.18) {
-          setTimeout(() => {
-            playWoodPop(0.35 + Math.random() * 0.25, true);
-          }, 220 + Math.random() * 130);
-        }
-
-        // Natural Poisson pause:
-        // 28% of the time, take a relaxing 1.5s - 3.8s quiet lull where only soft embers simmer;
-        // otherwise a natural 250ms - 850ms interval between crackle clusters.
-        const isQuietLull = Math.random() < 0.28;
-        const nextDelay = isQuietLull 
-          ? 1500 + Math.random() * 2300 
-          : 250 + Math.random() * 600;
-        setTimeout(triggerFireCrackle, nextDelay);
-      };
-      triggerFireCrackle();
-    } catch (e) {
-      console.warn('Fireplace audio error', e);
-    }
-
-    // 3. VINYL CRACKLE: Highpass noise clicks
-    try {
-      const vinylBuf = this.createNoiseBuffer('pink');
-      const vinylSource = this.ctx.createBufferSource();
-      vinylSource.buffer = vinylBuf;
-      vinylSource.loop = true;
-
-      const vinylFilter = this.ctx.createBiquadFilter();
-      vinylFilter.type = 'highpass';
-      vinylFilter.frequency.setValueAtTime(2500, this.ctx.currentTime);
-
-      const vinylGain = this.ctx.createGain();
-      vinylGain.gain.setValueAtTime(0.24, this.ctx.currentTime);
-
-      vinylSource.connect(vinylFilter);
-      vinylFilter.connect(vinylGain);
-      if (this.ambientGains.vinyl) vinylGain.connect(this.ambientGains.vinyl);
-      vinylSource.start();
-    } catch (e) {
-      console.warn('Vinyl audio error', e);
-    }
-
-    // 4. PROCEDURAL STOCHASTIC WIND GENERATOR
-    try {
-      const windBuf = this.createNoiseBuffer('pink');
-
-      // Layer 1: Ambient Breeze Floor (soft, soothing baseline)
-      const baseSource = this.ctx.createBufferSource();
-      baseSource.buffer = windBuf;
-      baseSource.loop = true;
-      const baseFilter = this.ctx.createBiquadFilter();
-      baseFilter.type = 'lowpass';
-      baseFilter.frequency.setValueAtTime(220, this.ctx.currentTime);
-      baseFilter.Q.setValueAtTime(0.7, this.ctx.currentTime);
-      const baseGain = this.ctx.createGain();
-      baseGain.gain.setValueAtTime(0.40, this.ctx.currentTime);
-      baseSource.connect(baseFilter);
-      baseFilter.connect(baseGain);
-
-      // Layer 2: Dynamic Stochastic Wind Gusts (warm pink air, zero repetitive whistle)
-      const gustSource = this.ctx.createBufferSource();
-      gustSource.buffer = windBuf;
-      gustSource.loop = true;
-      const gustFilter = this.ctx.createBiquadFilter();
-      gustFilter.type = 'lowpass';
-      gustFilter.type = 'lowpass';
-      gustFilter.frequency.setValueAtTime(280, this.ctx.currentTime);
-      gustFilter.Q.setValueAtTime(0.85, this.ctx.currentTime);
-      const gustGain = this.ctx.createGain();
-      gustGain.gain.setValueAtTime(0.01, this.ctx.currentTime);
-      gustSource.connect(gustFilter);
-      gustFilter.connect(gustGain);
-
-      if (this.ambientGains.wind) {
-        baseGain.connect(this.ambientGains.wind);
-        gustGain.connect(this.ambientGains.wind);
-      }
-      baseSource.start();
-      gustSource.start();
-
-      // Organic Random Gust Scheduler (High entropy, zero robotic repeating loops)
-      const triggerOrganicGust = () => {
-        if (!this.ctx || !this.ambientGains.wind) return;
-        const now = this.ctx.currentTime;
-
-        // Randomized gust archetype:
-        // 45% subtle gentle breeze swell, 35% slow sweeping wind wave, 20% distant mountain gust
-        const roll = Math.random();
-        let peakGain: number;
-        let peakFreq: number;
-        let attackSec: number;
-        let sustainSec: number;
-        let decaySec: number;
-
-        if (roll < 0.45) {
-          // Subtle gentle breeze swell
-          peakGain = 0.18 + Math.random() * 0.16;
-          peakFreq = 220 + Math.random() * 100;
-          attackSec = 2.0 + Math.random() * 2.5;
-          sustainSec = 1.0 + Math.random() * 2.0;
-          decaySec = 3.0 + Math.random() * 3.5;
-        } else if (roll < 0.80) {
-          // Slow sweeping wind wave
-          peakGain = 0.38 + Math.random() * 0.28;
-          peakFreq = 300 + Math.random() * 160;
-          attackSec = 3.0 + Math.random() * 3.0;
-          sustainSec = 1.5 + Math.random() * 3.0;
-          decaySec = 4.0 + Math.random() * 4.0;
-        } else {
-          // Deeper mountain gust
-          peakGain = 0.55 + Math.random() * 0.30;
-          peakFreq = 380 + Math.random() * 200;
-          attackSec = 2.5 + Math.random() * 2.5;
-          sustainSec = 2.0 + Math.random() * 3.5;
-          decaySec = 5.0 + Math.random() * 5.0;
-        }
-
-        // Cancel previous transitions smoothly
-        gustGain.gain.cancelScheduledValues(now);
-        gustFilter.frequency.cancelScheduledValues(now);
-
-        const currentG = Math.max(0.005, gustGain.gain.value);
-        gustGain.gain.setValueAtTime(currentG, now);
-        gustGain.gain.linearRampToValueAtTime(peakGain, now + attackSec);
-
-        const currentF = Math.max(160, gustFilter.frequency.value);
-        gustFilter.frequency.setValueAtTime(currentF, now);
-        gustFilter.frequency.exponentialRampToValueAtTime(Math.max(180, peakFreq), now + attackSec);
-
-        // Extended organic release / gentle tail
-        const sustainEnd = now + attackSec + sustainSec;
-        gustGain.gain.setValueAtTime(peakGain, sustainEnd);
-        gustGain.gain.exponentialRampToValueAtTime(0.005, sustainEnd + decaySec);
-        gustFilter.frequency.exponentialRampToValueAtTime(200, sustainEnd + decaySec);
-
-        // Organic lull interval: 7s to 24s randomized delay to prevent rapid-fire repeating
-        const totalDurationMs = (attackSec + sustainSec + decaySec) * 1000;
-        const lullMs = 6000 + Math.random() * 16000;
-        const nextTriggerMs = totalDurationMs + lullMs;
-        this.windGustTimeout = window.setTimeout(triggerOrganicGust, nextTriggerMs);
-      };
-
-      // Initial organic delay before first gust (4s to 10s)
-      this.windGustTimeout = window.setTimeout(triggerOrganicGust, 4000 + Math.random() * 6000);
-    } catch (e) {
-      console.warn('Wind audio error', e);
-    }
-
-    // 5. ROOM TONE GENERATOR: Warm low-frequency presence
-    try {
-      const toneBuf = this.createNoiseBuffer('brown');
-      const toneSource = this.ctx.createBufferSource();
-      toneSource.buffer = toneBuf;
-      toneSource.loop = true;
-
-      const toneFilter = this.ctx.createBiquadFilter();
-      toneFilter.type = 'lowpass';
-      toneFilter.frequency.setValueAtTime(200, this.ctx.currentTime);
-
-      toneSource.connect(toneFilter);
-      if (this.ambientGains.roomTone) toneFilter.connect(this.ambientGains.roomTone);
-      toneSource.start();
-    } catch (e) {
-      console.warn('Room tone error', e);
-    }
-
-    // 6. CAFE GENERATOR: Multi-formant vocal murmur + ceramic cup clinks + espresso hiss
-    try {
-      const cafeBuf = this.createNoiseBuffer('pink');
-      const cafeSource = this.ctx.createBufferSource();
-      cafeSource.buffer = cafeBuf;
-      cafeSource.loop = true;
-
-      // Multi-band formant filter: speech frequencies (360Hz chest, 880Hz throat)
-      const formant1 = this.ctx.createBiquadFilter();
-      formant1.type = 'bandpass';
-      formant1.frequency.setValueAtTime(360, this.ctx.currentTime);
-      formant1.Q.setValueAtTime(1.8, this.ctx.currentTime);
-
-      const formant2 = this.ctx.createBiquadFilter();
-      formant2.type = 'bandpass';
-      formant2.frequency.setValueAtTime(880, this.ctx.currentTime);
-      formant2.Q.setValueAtTime(2.2, this.ctx.currentTime);
-
-      const cafeGain1 = this.ctx.createGain();
-      cafeGain1.gain.setValueAtTime(0.40, this.ctx.currentTime);
-      const cafeGain2 = this.ctx.createGain();
-      cafeGain2.gain.setValueAtTime(0.30, this.ctx.currentTime);
-
-      cafeSource.connect(formant1);
-      cafeSource.connect(formant2);
-      formant1.connect(cafeGain1);
-      formant2.connect(cafeGain2);
-
-      if (this.ambientGains.cafe) {
-        cafeGain1.connect(this.ambientGains.cafe);
-        cafeGain2.connect(this.ambientGains.cafe);
-      }
-      cafeSource.start();
-
-      // Intermittent subtle coffee shop ceramic cup/saucer clinks
-      const scheduleCupClink = () => {
-        if (!this.ctx || !this.ambientGains.cafe) return;
-        const now = this.ctx.currentTime;
-        const osc = this.ctx.createOscillator();
-        const gain = this.ctx.createGain();
-        osc.type = 'sine';
-        const clinkFreq = 2100 + Math.random() * 600;
-        osc.frequency.setValueAtTime(clinkFreq, now);
-        gain.gain.setValueAtTime(0.12 + Math.random() * 0.05, now);
-        gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.38);
-
-        osc.connect(gain);
-        gain.connect(this.ambientGains.cafe);
-        osc.start(now);
-        osc.stop(now + 0.40);
-
-        const next = 4500 + Math.random() * 8000;
-        this.cafeClinkTimeout = window.setTimeout(scheduleCupClink, next);
-      };
-      scheduleCupClink();
-    } catch (e) {
-      console.warn('Cafe audio error', e);
-    }
-
-    // 7. FOREST GENERATOR: Rustling foliage + occasional gentle distant songbirds
-    try {
-      const forestBuf = this.createNoiseBuffer('pink');
-      const forestSource = this.ctx.createBufferSource();
-      forestSource.buffer = forestBuf;
-      forestSource.loop = true;
-
-      // Canopy wind through leaves (warm bandpass, not harsh hiss)
-      const forestFilter = this.ctx.createBiquadFilter();
-      forestFilter.type = 'bandpass';
-      forestFilter.frequency.setValueAtTime(850, this.ctx.currentTime);
-      forestFilter.Q.setValueAtTime(1.2, this.ctx.currentTime);
-
-      const forestGain = this.ctx.createGain();
-      forestGain.gain.setValueAtTime(0.50, this.ctx.currentTime);
-
-      forestSource.connect(forestFilter);
-      forestFilter.connect(forestGain);
-      if (this.ambientGains.forest) forestGain.connect(this.ambientGains.forest);
-      forestSource.start();
-
-      // Intermittent gentle distant songbird trills
-      const scheduleBirdSong = () => {
-        if (!this.ctx || !this.ambientGains.forest) return;
-        const now = this.ctx.currentTime;
-        const notes = 2 + Math.floor(Math.random() * 3);
-        for (let i = 0; i < notes; i++) {
-          const t = now + i * 0.12;
-          const osc = this.ctx.createOscillator();
-          const gain = this.ctx.createGain();
-          osc.type = 'sine';
-          const baseF = 2800 + Math.random() * 700;
-          osc.frequency.setValueAtTime(baseF, t);
-          osc.frequency.linearRampToValueAtTime(baseF + 380, t + 0.05);
-          osc.frequency.linearRampToValueAtTime(baseF - 120, t + 0.10);
-          gain.gain.setValueAtTime(0.001, t);
-          gain.gain.linearRampToValueAtTime(0.15, t + 0.025);
-          gain.gain.exponentialRampToValueAtTime(0.0005, t + 0.11);
-          osc.connect(gain);
-          gain.connect(this.ambientGains.forest);
-          osc.start(t);
-          osc.stop(t + 0.12);
-        }
-        const next = 6000 + Math.random() * 11000;
-        this.forestBirdTimeout = window.setTimeout(scheduleBirdSong, next);
-      };
-      scheduleBirdSong();
-    } catch (e) {
-      console.warn('Forest audio error', e);
-    }
-
-    // 8. NIGHT INSECTS / CRICKETS: High frequency harmonic chirping rhythm
-    try {
-      const cricketTrigger = () => {
-        if (!this.ctx || !this.ambientGains.insects) return;
-        const now = this.ctx.currentTime;
-        
-        // 4 mini chirps in rapid succession
-        for (let i = 0; i < 4; i++) {
-          const chirpTime = now + i * 0.055;
-          const osc1 = this.ctx.createOscillator();
-          const oscGain = this.ctx.createGain();
-
-          osc1.type = 'sine';
-          osc1.frequency.setValueAtTime(4400 + Math.random() * 150, chirpTime);
-
-          oscGain.gain.setValueAtTime(0, chirpTime);
-          oscGain.gain.linearRampToValueAtTime(0.14, chirpTime + 0.015);
-          oscGain.gain.linearRampToValueAtTime(0, chirpTime + 0.045);
-
-          osc1.connect(oscGain);
-          oscGain.connect(this.ambientGains.insects);
-
-          osc1.start(chirpTime);
-          osc1.stop(chirpTime + 0.05);
-        }
-
-        const next = 650 + Math.random() * 950;
-        setTimeout(cricketTrigger, next);
-      };
-      cricketTrigger();
-    } catch (e) {
-      console.warn('Insects audio error', e);
-    }
-
-    // 9. CLOCK: Warm wooden pendulum tick-tock (Alternating tick/tock resonance)
-    try {
-      let isTick = true;
-      this.clockInterval = window.setInterval(() => {
-        if (!this.ctx || !this.ambientGains.clock) return;
-        const now = this.ctx.currentTime;
-        const osc = this.ctx.createOscillator();
-        const gain = this.ctx.createGain();
-        const filter = this.ctx.createBiquadFilter();
-
-        osc.type = 'triangle';
-        const startFreq = isTick ? 760 : 520;
-        isTick = !isTick;
-
-        osc.frequency.setValueAtTime(startFreq, now);
-        osc.frequency.exponentialRampToValueAtTime(90, now + 0.032);
-
-        filter.type = 'lowpass';
-        filter.frequency.setValueAtTime(1200, now);
-
-        gain.gain.setValueAtTime(isTick ? 0.22 : 0.26, now);
-        gain.gain.exponentialRampToValueAtTime(0.0008, now + 0.030);
-
-        osc.connect(filter);
-        filter.connect(gain);
-        gain.connect(this.ambientGains.clock);
-
-        osc.start(now);
-        osc.stop(now + 0.035);
-      }, 1000);
-    } catch (e) {
-      console.warn('Clock audio error', e);
-    }
-
-    // 10. AUTHENTIC MECHANICAL KEYBOARD: "Thocky" switches with contact clicks and human typing cadence
-    try {
-      const whiteNoiseBuf = this.createNoiseBuffer('white', 0.5);
-
-      const playKeystroke = (t: number, isSpace = false) => {
-        if (!this.ctx || !this.ambientGains.keyboard) return;
-
-        // A. Tactile Leaf Snap / Crisp Contact Transient
-        const clickSource = this.ctx.createBufferSource();
-        clickSource.buffer = whiteNoiseBuf;
-        const clickFilter = this.ctx.createBiquadFilter();
-        clickFilter.type = 'bandpass';
-        clickFilter.frequency.setValueAtTime(isSpace ? 2800 : (3400 + Math.random() * 900), t);
-        clickFilter.Q.setValueAtTime(4.2, t);
-
-        const clickGain = this.ctx.createGain();
-        clickGain.gain.setValueAtTime(0.18 + Math.random() * 0.06, t);
-        clickGain.gain.exponentialRampToValueAtTime(0.0005, t + 0.008);
-
-        clickSource.connect(clickFilter);
-        clickFilter.connect(clickGain);
-        clickGain.connect(this.ambientGains.keyboard);
-        clickSource.start(t);
-        clickSource.stop(t + 0.012);
-
-        // B. Switch Housing & Stem Bottom-Out ("Thock" - Resonant Low-Mid Acoustic Body)
-        const thockOsc = this.ctx.createOscillator();
-        const thockFilter = this.ctx.createBiquadFilter();
-        const thockGain = this.ctx.createGain();
-
-        thockOsc.type = 'triangle';
-        const startPitch = isSpace 
-          ? (165 + Math.random() * 30) 
-          : (280 + Math.random() * 80);
-        thockOsc.frequency.setValueAtTime(startPitch, t);
-        thockOsc.frequency.exponentialRampToValueAtTime(Math.max(40, startPitch * 0.38), t + 0.030);
-
-        thockFilter.type = 'lowpass';
-        thockFilter.frequency.setValueAtTime(isSpace ? 480 : 720, t);
-
-        thockGain.gain.setValueAtTime((isSpace ? 0.48 : 0.38) + Math.random() * 0.10, t);
-        thockGain.gain.exponentialRampToValueAtTime(0.001, t + (isSpace ? 0.040 : 0.028));
-
-        thockOsc.connect(thockFilter);
-        thockFilter.connect(thockGain);
-        thockGain.connect(this.ambientGains.keyboard);
-        thockOsc.start(t);
-        thockOsc.stop(t + 0.045);
-      };
-
-      const scheduleTypingBurst = () => {
-        if (!this.ctx || !this.ambientGains.keyboard) return;
-        const numKeys = 3 + Math.floor(Math.random() * 7);
-        let t = this.ctx.currentTime + 0.05;
-
-        for (let i = 0; i < numKeys; i++) {
-          const isSpace = i === numKeys - 1 || Math.random() < 0.16;
-          playKeystroke(t, isSpace);
-          t += isSpace ? (0.16 + Math.random() * 0.12) : (0.085 + Math.random() * 0.065);
-        }
-
-        // Natural pause between words / sentences (1.0s to 3.2s)
-        const nextBurst = 1000 + Math.random() * 2200;
-        this.keyboardTimeout = window.setTimeout(scheduleTypingBurst, nextBurst);
-      };
-      scheduleTypingBurst();
-    } catch (e) {
-      console.warn('Keyboard audio error', e);
-    }
-
-    // 11. CINEMATIC ROLLING THUNDER: Multi-stage acoustic shockwave & deep resonant rumble
-    try {
-      const brownNoiseBuf = this.createNoiseBuffer('brown', 4.0);
-      const pinkNoiseBuf = this.createNoiseBuffer('pink', 2.0);
-
-      const triggerThunderRoll = () => {
-        if (!this.ctx || !this.ambientGains.thunder) return;
-        const now = this.ctx.currentTime + 0.05;
-
-        const isDistant = Math.random() < 0.45;
-        const rollDuration = isDistant ? (4.5 + Math.random() * 1.5) : (6.0 + Math.random() * 2.0);
-
-        // 1. Initial Shockwave / Rolling Crack
-        const crackSource = this.ctx.createBufferSource();
-        crackSource.buffer = pinkNoiseBuf;
-        const crackFilter = this.ctx.createBiquadFilter();
-        crackFilter.type = 'bandpass';
-        crackFilter.frequency.setValueAtTime(isDistant ? 320 : 520, now);
-        crackFilter.Q.setValueAtTime(1.8, now);
-        const crackGain = this.ctx.createGain();
-        const crackVol = isDistant ? 0.25 : 0.45;
-        crackGain.gain.setValueAtTime(0.001, now);
-        crackGain.gain.linearRampToValueAtTime(crackVol, now + 0.12);
-        crackGain.gain.exponentialRampToValueAtTime(0.001, now + (isDistant ? 1.2 : 2.0));
-
-        crackSource.connect(crackFilter);
-        crackFilter.connect(crackGain);
-        crackGain.connect(this.ambientGains.thunder);
-        crackSource.start(now);
-        crackSource.stop(now + 2.2);
-
-        // 2. Sub-bass physical vibration body
-        const subOsc = this.ctx.createOscillator();
-        subOsc.type = 'sine';
-        subOsc.frequency.setValueAtTime(52, now);
-        subOsc.frequency.exponentialRampToValueAtTime(26, now + rollDuration * 0.7);
-
-        const subGain = this.ctx.createGain();
-        subGain.gain.setValueAtTime(0.001, now);
-        subGain.gain.linearRampToValueAtTime(isDistant ? 0.35 : 0.65, now + 0.45);
-        subGain.gain.exponentialRampToValueAtTime(0.0001, now + rollDuration * 0.85);
-
-        subOsc.connect(subGain);
-        subGain.connect(this.ambientGains.thunder);
-        subOsc.start(now);
-        subOsc.stop(now + rollDuration);
-
-        // 3. Sweeping Resonant Lowpass Brown Noise Rumble with Echo Swells
-        const rumbleSource = this.ctx.createBufferSource();
-        rumbleSource.buffer = brownNoiseBuf;
-        rumbleSource.loop = true;
-
-        const rumbleFilter = this.ctx.createBiquadFilter();
-        rumbleFilter.type = 'lowpass';
-        rumbleFilter.frequency.setValueAtTime(isDistant ? 95 : 140, now);
-        rumbleFilter.Q.setValueAtTime(2.2, now);
-        rumbleFilter.frequency.exponentialRampToValueAtTime(isDistant ? 145 : 200, now + 0.6);
-        rumbleFilter.frequency.exponentialRampToValueAtTime(55, now + rollDuration);
-
-        const rumbleGain = this.ctx.createGain();
-        rumbleGain.gain.setValueAtTime(0.001, now);
-        rumbleGain.gain.linearRampToValueAtTime(isDistant ? 0.38 : 0.62, now + 0.4);
-        // Echo 1
-        rumbleGain.gain.linearRampToValueAtTime(isDistant ? 0.25 : 0.42, now + 1.2);
-        rumbleGain.gain.linearRampToValueAtTime(isDistant ? 0.30 : 0.48, now + 1.8);
-        // Echo 2
-        rumbleGain.gain.linearRampToValueAtTime(isDistant ? 0.16 : 0.30, now + 3.0);
-        rumbleGain.gain.exponentialRampToValueAtTime(0.001, now + rollDuration);
-
-        rumbleSource.connect(rumbleFilter);
-        rumbleFilter.connect(rumbleGain);
-        rumbleGain.connect(this.ambientGains.thunder);
-        rumbleSource.start(now);
-        rumbleSource.stop(now + rollDuration + 0.2);
-
-        // Natural thunder intervals (every 14 to 26 seconds)
-        const next = 14000 + Math.random() * 12000;
-        this.thunderTimeout = window.setTimeout(triggerThunderRoll, next);
-      };
-
-      // Initial thunder roll triggers early (1.2s) so user immediately hears it
-      this.thunderTimeout = window.setTimeout(triggerThunderRoll, 1200);
-    } catch (e) {
-      console.warn('Thunder audio error', e);
-    }
-
-    // 12. BINAURAL BEATS: Dual-Ear Frequency Offset (Gamma, Beta, Alpha, Theta)
-    try {
-      if (this.ctx && this.ambientGains.binaural) {
-        const merger = this.ctx.createChannelMerger(2);
-
-        // Left Ear
-        const oscL = this.ctx.createOscillator();
-        oscL.type = 'sine';
-        const gainL = this.ctx.createGain();
-        gainL.gain.setValueAtTime(0.22, this.ctx.currentTime);
-        oscL.connect(gainL);
-        gainL.connect(merger, 0, 0);
-
-        // Right Ear
-        const oscR = this.ctx.createOscillator();
-        oscR.type = 'sine';
-        const gainR = this.ctx.createGain();
-        gainR.gain.setValueAtTime(0.22, this.ctx.currentTime);
-        oscR.connect(gainR);
-        gainR.connect(merger, 0, 1);
-
-        merger.connect(this.ambientGains.binaural);
-        this.binauralOscL = oscL;
-        this.binauralOscR = oscR;
-
-        this.applyBinauralFrequencies(this.currentBinauralMode);
-
-        oscL.start();
-        oscR.start();
-      }
-    } catch (e) {
-      console.warn('Binaural beats error', e);
-    }
-
-    // 13. AUDIBLE ORGANIC ACOUSTIC CAT PURR (Procedural Bio-Acoustic Buffer Loop)
-    try {
-      if (this.ctx && this.ambientGains.catPurr) {
-        const purrBuf = this.createCatPurrBuffer(4.0);
-        const purrSource = this.ctx.createBufferSource();
-        purrSource.buffer = purrBuf;
-        purrSource.loop = true;
-
-        const purrFilter = this.ctx.createBiquadFilter();
-        purrFilter.type = 'lowpass';
-        purrFilter.frequency.setValueAtTime(420, this.ctx.currentTime);
-        purrFilter.Q.setValueAtTime(1.0, this.ctx.currentTime);
-
-        const purrGain = this.ctx.createGain();
-        purrGain.gain.setValueAtTime(0.85, this.ctx.currentTime);
-
-        purrSource.connect(purrFilter);
-        purrFilter.connect(purrGain);
-        purrGain.connect(this.ambientGains.catPurr);
-
-        purrSource.start();
-      }
-    } catch (e) {
-      console.warn('Cat purr audio error', e);
-    }
-
-    // 14. DISTANT TRAIN: Rhythmic steel wheel rail clatter (820ms loop)
-    try {
-      if (this.ctx && this.ambientGains.train) {
-        const trainRumbleBuf = this.createNoiseBuffer('brown');
-        const trainSource = this.ctx.createBufferSource();
-        trainSource.buffer = trainRumbleBuf;
-        trainSource.loop = true;
-
-        const trainFilter = this.ctx.createBiquadFilter();
-        trainFilter.type = 'lowpass';
-        trainFilter.frequency.setValueAtTime(120, this.ctx.currentTime);
-
-        const trainGain = this.ctx.createGain();
-        trainGain.gain.setValueAtTime(0.55, this.ctx.currentTime);
-
-        trainSource.connect(trainFilter);
-        trainFilter.connect(trainGain);
-        trainGain.connect(this.ambientGains.train);
-        trainSource.start();
-
-        // Clack-clack intervals (Warm acoustic joint impulses, NO square buzzers)
-        const scheduleTrainClick = () => {
-          if (!this.ctx || !this.ambientGains.train) return;
-          const now = this.ctx.currentTime;
-
-          for (let i = 0; i < 2; i++) {
-            const clickTime = now + i * 0.09;
-            const clickOsc = this.ctx.createOscillator();
-            const clickFilter = this.ctx.createBiquadFilter();
-            const clickGain = this.ctx.createGain();
-
-            clickOsc.type = 'triangle';
-            clickOsc.frequency.setValueAtTime(320 + Math.random() * 60, clickTime);
-            clickOsc.frequency.exponentialRampToValueAtTime(70, clickTime + 0.04);
-
-            clickFilter.type = 'lowpass';
-            clickFilter.frequency.setValueAtTime(600, clickTime);
-
-            clickGain.gain.setValueAtTime(0.24, clickTime);
-            clickGain.gain.exponentialRampToValueAtTime(0.001, clickTime + 0.038);
-
-            clickOsc.connect(clickFilter);
-            clickFilter.connect(clickGain);
-            clickGain.connect(this.ambientGains.train);
-            clickOsc.start(clickTime);
-            clickOsc.stop(clickTime + 0.045);
+  private ensureChannelActive(channel: AmbientSoundChannel) {
+    if (this.runningChannels.has(channel) || !this.ctx) return;
+    this.runningChannels.add(channel);
+
+    switch (channel) {
+      case 'catPurr':
+        try {
+          if (this.ambientGains.catPurr) {
+            const purrBuf = this.createCatPurrBuffer(4.0);
+            const purrSource = this.ctx.createBufferSource();
+            purrSource.buffer = purrBuf;
+            purrSource.loop = true;
+
+            const purrFilter = this.ctx.createBiquadFilter();
+            purrFilter.type = 'lowpass';
+            purrFilter.frequency.setValueAtTime(420, this.ctx.currentTime);
+            purrFilter.Q.setValueAtTime(1.0, this.ctx.currentTime);
+
+            const purrGain = this.ctx.createGain();
+            purrGain.gain.setValueAtTime(0.85, this.ctx.currentTime);
+
+            purrSource.connect(purrFilter);
+            purrFilter.connect(purrGain);
+            purrGain.connect(this.ambientGains.catPurr);
+            purrSource.start();
           }
-
-          setTimeout(scheduleTrainClick, 820 + Math.random() * 60);
-        };
-        scheduleTrainClick();
-      }
-    } catch (e) {
-      console.warn('Train audio error', e);
-    }
-
-    // 15. BOOK PAGES: Soft organic paper leaf turn every ~8-16s
-    try {
-      const schedulePageTurn = () => {
-        if (!this.ctx || !this.ambientGains.bookPages) return;
-        const now = this.ctx.currentTime;
-        const noiseBuf = this.createNoiseBuffer('white', 0.6);
-        const noiseSource = this.ctx.createBufferSource();
-        noiseSource.buffer = noiseBuf;
-
-        const filter = this.ctx.createBiquadFilter();
-        filter.type = 'bandpass';
-        filter.frequency.setValueAtTime(1300, now);
-        filter.frequency.linearRampToValueAtTime(2400, now + 0.25);
-        filter.frequency.linearRampToValueAtTime(900, now + 0.5);
-        filter.Q.setValueAtTime(2.5, now);
-
-        const gain = this.ctx.createGain();
-        gain.gain.setValueAtTime(0.001, now);
-        gain.gain.linearRampToValueAtTime(0.35, now + 0.15);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.55);
-
-        noiseSource.connect(filter);
-        filter.connect(gain);
-        gain.connect(this.ambientGains.bookPages);
-
-        noiseSource.start(now);
-        noiseSource.stop(now + 0.6);
-
-        const next = 7000 + Math.random() * 9000;
-        setTimeout(schedulePageTurn, next);
-      };
-      schedulePageTurn();
-    } catch (e) {
-      console.warn('Book pages audio error', e);
-    }
-
-    // 16. WHITE NOISE: Pure flat spectrum calming focus noise
-    try {
-      if (this.ctx && this.ambientGains.whiteNoise) {
-        const whiteSource = this.ctx.createBufferSource();
-        whiteSource.buffer = this.createNoiseBuffer('white', 3.0);
-        whiteSource.loop = true;
-        const filter = this.ctx.createBiquadFilter();
-        filter.type = 'lowpass';
-        filter.frequency.setValueAtTime(6500, this.ctx.currentTime);
-        const gain = this.ctx.createGain();
-        gain.gain.setValueAtTime(0.55, this.ctx.currentTime);
-        whiteSource.connect(filter);
-        filter.connect(gain);
-        gain.connect(this.ambientGains.whiteNoise);
-        whiteSource.start();
-      }
-    } catch (e) {
-      console.warn('White noise error', e);
-    }
-
-    // 17. PINK NOISE: 1/f acoustic balance for deep reading
-    try {
-      if (this.ctx && this.ambientGains.pinkNoise) {
-        const pinkSource = this.ctx.createBufferSource();
-        pinkSource.buffer = this.createNoiseBuffer('pink', 3.0);
-        pinkSource.loop = true;
-        const filter = this.ctx.createBiquadFilter();
-        filter.type = 'lowpass';
-        filter.frequency.setValueAtTime(4200, this.ctx.currentTime);
-        const gain = this.ctx.createGain();
-        gain.gain.setValueAtTime(0.60, this.ctx.currentTime);
-        pinkSource.connect(filter);
-        filter.connect(gain);
-        gain.connect(this.ambientGains.pinkNoise);
-        pinkSource.start();
-      }
-    } catch (e) {
-      console.warn('Pink noise error', e);
-    }
-
-    // 18. BROWN NOISE: 6dB/octave deep warmth for ADHD & high focus
-    try {
-      if (this.ctx && this.ambientGains.brownNoise) {
-        const brownSource = this.ctx.createBufferSource();
-        brownSource.buffer = this.createNoiseBuffer('brown', 3.0);
-        brownSource.loop = true;
-        const filter = this.ctx.createBiquadFilter();
-        filter.type = 'lowpass';
-        filter.frequency.setValueAtTime(1000, this.ctx.currentTime);
-        const gain = this.ctx.createGain();
-        gain.gain.setValueAtTime(0.70, this.ctx.currentTime);
-        brownSource.connect(filter);
-        filter.connect(gain);
-        gain.connect(this.ambientGains.brownNoise);
-        brownSource.start();
-      }
-    } catch (e) {
-      console.warn('Brown noise error', e);
-    }
-
-    // 19. WIND CHIMES: High resonant metallic pentatonic impulses
-    try {
-      const scheduleChimes = () => {
-        if (!this.ctx || !this.ambientGains.windChimes) return;
-        const now = this.ctx.currentTime;
-        const freqs = [1046.5, 1174.7, 1318.5, 1568.0, 1760.0, 2093.0];
-        const count = 2 + Math.floor(Math.random() * 3);
-        for (let i = 0; i < count; i++) {
-          const t = now + i * (0.08 + Math.random() * 0.15);
-          const osc = this.ctx.createOscillator();
-          const gain = this.ctx.createGain();
-          osc.type = 'sine';
-          osc.frequency.setValueAtTime(freqs[Math.floor(Math.random() * freqs.length)], t);
-          gain.gain.setValueAtTime(0.16, t);
-          gain.gain.exponentialRampToValueAtTime(0.0001, t + 2.0);
-          osc.connect(gain);
-          gain.connect(this.ambientGains.windChimes);
-          osc.start(t);
-          osc.stop(t + 2.1);
+        } catch (e) {
+          console.warn('Cat purr audio error', e);
         }
-        setTimeout(scheduleChimes, 5500 + Math.random() * 8500);
-      };
-      scheduleChimes();
-    } catch (e) {
-      console.warn('Wind chimes error', e);
-    }
+        break;
 
-    // 20. TYPEWRITER: Vintage mechanical key striking with return carriage
-    try {
-      const scheduleTypewriter = () => {
-        if (!this.ctx || !this.ambientGains.typewriter) return;
-        const strikes = 3 + Math.floor(Math.random() * 7);
-        let t = this.ctx.currentTime;
-        for (let i = 0; i < strikes; i++) {
-          const osc = this.ctx.createOscillator();
-          const gain = this.ctx.createGain();
-          osc.type = 'triangle';
-          osc.frequency.setValueAtTime(650 + Math.random() * 450, t);
-          osc.frequency.exponentialRampToValueAtTime(100, t + 0.035);
-          gain.gain.setValueAtTime(0.28, t);
-          gain.gain.exponentialRampToValueAtTime(0.001, t + 0.03);
-          osc.connect(gain);
-          gain.connect(this.ambientGains.typewriter);
-          osc.start(t);
-          osc.stop(t + 0.04);
-          t += 0.11 + Math.random() * 0.16;
+      case 'vinyl':
+        try {
+          if (this.ambientGains.vinyl) {
+            const vinylBuf = this.createNoiseBuffer('pink');
+            const vinylSource = this.ctx.createBufferSource();
+            vinylSource.buffer = vinylBuf;
+            vinylSource.loop = true;
+
+            const vinylFilter = this.ctx.createBiquadFilter();
+            vinylFilter.type = 'highpass';
+            vinylFilter.frequency.setValueAtTime(2500, this.ctx.currentTime);
+
+            const vinylGain = this.ctx.createGain();
+            vinylGain.gain.setValueAtTime(0.24, this.ctx.currentTime);
+
+            vinylSource.connect(vinylFilter);
+            vinylFilter.connect(vinylGain);
+            vinylGain.connect(this.ambientGains.vinyl);
+            vinylSource.start();
+          }
+        } catch (e) {
+          console.warn('Vinyl audio error', e);
         }
-        setTimeout(scheduleTypewriter, 3000 + Math.random() * 5000);
-      };
-      scheduleTypewriter();
-    } catch (e) {
-      console.warn('Typewriter error', e);
+        break;
+
+      case 'roomTone':
+        try {
+          if (this.ambientGains.roomTone) {
+            const toneBuf = this.createNoiseBuffer('brown');
+            const toneSource = this.ctx.createBufferSource();
+            toneSource.buffer = toneBuf;
+            toneSource.loop = true;
+
+            const toneFilter = this.ctx.createBiquadFilter();
+            toneFilter.type = 'lowpass';
+            toneFilter.frequency.setValueAtTime(200, this.ctx.currentTime);
+
+            toneSource.connect(toneFilter);
+            toneFilter.connect(this.ambientGains.roomTone);
+            toneSource.start();
+          }
+        } catch (e) {
+          console.warn('Room tone error', e);
+        }
+        break;
+
+      case 'binaural':
+        try {
+          if (this.ambientGains.binaural) {
+            const merger = this.ctx.createChannelMerger(2);
+
+            const oscL = this.ctx.createOscillator();
+            oscL.type = 'sine';
+            const gainL = this.ctx.createGain();
+            gainL.gain.setValueAtTime(0.22, this.ctx.currentTime);
+            oscL.connect(gainL);
+            gainL.connect(merger, 0, 0);
+
+            const oscR = this.ctx.createOscillator();
+            oscR.type = 'sine';
+            const gainR = this.ctx.createGain();
+            gainR.gain.setValueAtTime(0.22, this.ctx.currentTime);
+            oscR.connect(gainR);
+            gainR.connect(merger, 0, 1);
+
+            merger.connect(this.ambientGains.binaural);
+            this.binauralOscL = oscL;
+            this.binauralOscR = oscR;
+
+            this.applyBinauralFrequencies(this.currentBinauralMode);
+
+            oscL.start();
+            oscR.start();
+          }
+        } catch (e) {
+          console.warn('Binaural beats error', e);
+        }
+        break;
+
+      case 'whiteNoise':
+        try {
+          if (this.ambientGains.whiteNoise) {
+            const whiteSource = this.ctx.createBufferSource();
+            whiteSource.buffer = this.createNoiseBuffer('white', 3.0);
+            whiteSource.loop = true;
+            const filter = this.ctx.createBiquadFilter();
+            filter.type = 'lowpass';
+            filter.frequency.setValueAtTime(6500, this.ctx.currentTime);
+            const gain = this.ctx.createGain();
+            gain.gain.setValueAtTime(0.55, this.ctx.currentTime);
+            whiteSource.connect(filter);
+            filter.connect(gain);
+            gain.connect(this.ambientGains.whiteNoise);
+            whiteSource.start();
+          }
+        } catch (e) {
+          console.warn('White noise error', e);
+        }
+        break;
+
+      case 'pinkNoise':
+        try {
+          if (this.ambientGains.pinkNoise) {
+            const pinkSource = this.ctx.createBufferSource();
+            pinkSource.buffer = this.createNoiseBuffer('pink', 3.0);
+            pinkSource.loop = true;
+            const filter = this.ctx.createBiquadFilter();
+            filter.type = 'lowpass';
+            filter.frequency.setValueAtTime(4200, this.ctx.currentTime);
+            const gain = this.ctx.createGain();
+            gain.gain.setValueAtTime(0.60, this.ctx.currentTime);
+            pinkSource.connect(filter);
+            filter.connect(gain);
+            gain.connect(this.ambientGains.pinkNoise);
+            pinkSource.start();
+          }
+        } catch (e) {
+          console.warn('Pink noise error', e);
+        }
+        break;
+
+      case 'brownNoise':
+        try {
+          if (this.ambientGains.brownNoise) {
+            const brownSource = this.ctx.createBufferSource();
+            brownSource.buffer = this.createNoiseBuffer('brown', 3.0);
+            brownSource.loop = true;
+            const filter = this.ctx.createBiquadFilter();
+            filter.type = 'lowpass';
+            filter.frequency.setValueAtTime(1000, this.ctx.currentTime);
+            const gain = this.ctx.createGain();
+            gain.gain.setValueAtTime(0.70, this.ctx.currentTime);
+            brownSource.connect(filter);
+            filter.connect(gain);
+            gain.connect(this.ambientGains.brownNoise);
+            brownSource.start();
+          }
+        } catch (e) {
+          console.warn('Brown noise error', e);
+        }
+        break;
+
+      case 'clock':
+        try {
+          if (this.clockInterval) clearInterval(this.clockInterval);
+          let isTick = true;
+          this.clockInterval = window.setInterval(() => {
+            if (!this.runningChannels.has('clock') || !this.ctx || !this.ambientGains.clock) return;
+            const now = this.ctx.currentTime;
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            const filter = this.ctx.createBiquadFilter();
+
+            osc.type = 'triangle';
+            const startFreq = isTick ? 760 : 520;
+            isTick = !isTick;
+
+            osc.frequency.setValueAtTime(startFreq, now);
+            osc.frequency.exponentialRampToValueAtTime(90, now + 0.032);
+
+            filter.type = 'lowpass';
+            filter.frequency.setValueAtTime(1200, now);
+
+            gain.gain.setValueAtTime(isTick ? 0.22 : 0.26, now);
+            gain.gain.exponentialRampToValueAtTime(0.0008, now + 0.030);
+
+            osc.connect(filter);
+            filter.connect(gain);
+            gain.connect(this.ambientGains.clock);
+
+            osc.start(now);
+            osc.stop(now + 0.035);
+          }, 1000);
+        } catch (e) {
+          console.warn('Clock audio error', e);
+        }
+        break;
+
+      case 'keyboard':
+        try {
+          const whiteNoiseBuf = this.createNoiseBuffer('white', 0.5);
+
+          const playKeystroke = (t: number, isSpace = false) => {
+            if (!this.runningChannels.has('keyboard') || !this.ctx || !this.ambientGains.keyboard) return;
+            const clickSource = this.ctx.createBufferSource();
+            clickSource.buffer = whiteNoiseBuf;
+            const clickFilter = this.ctx.createBiquadFilter();
+            clickFilter.type = 'bandpass';
+            clickFilter.frequency.setValueAtTime(isSpace ? 2800 : (3400 + Math.random() * 900), t);
+            clickFilter.Q.setValueAtTime(4.2, t);
+
+            const clickGain = this.ctx.createGain();
+            clickGain.gain.setValueAtTime(0.18 + Math.random() * 0.06, t);
+            clickGain.gain.exponentialRampToValueAtTime(0.0005, t + 0.008);
+
+            clickSource.connect(clickFilter);
+            clickFilter.connect(clickGain);
+            clickGain.connect(this.ambientGains.keyboard);
+            clickSource.start(t);
+            clickSource.stop(t + 0.012);
+
+            const thockOsc = this.ctx.createOscillator();
+            const thockFilter = this.ctx.createBiquadFilter();
+            const thockGain = this.ctx.createGain();
+
+            thockOsc.type = 'triangle';
+            const startPitch = isSpace 
+              ? (165 + Math.random() * 30) 
+              : (280 + Math.random() * 80);
+            thockOsc.frequency.setValueAtTime(startPitch, t);
+            thockOsc.frequency.exponentialRampToValueAtTime(Math.max(40, startPitch * 0.38), t + 0.030);
+
+            thockFilter.type = 'lowpass';
+            thockFilter.frequency.setValueAtTime(isSpace ? 480 : 720, t);
+
+            thockGain.gain.setValueAtTime((isSpace ? 0.48 : 0.38) + Math.random() * 0.10, t);
+            thockGain.gain.exponentialRampToValueAtTime(0.001, t + (isSpace ? 0.040 : 0.028));
+
+            thockOsc.connect(thockFilter);
+            thockFilter.connect(thockGain);
+            thockGain.connect(this.ambientGains.keyboard);
+            thockOsc.start(t);
+            thockOsc.stop(t + 0.045);
+          };
+
+          const scheduleTypingBurst = () => {
+            if (!this.runningChannels.has('keyboard') || !this.ctx || !this.ambientGains.keyboard) return;
+            const numKeys = 3 + Math.floor(Math.random() * 7);
+            let t = this.ctx.currentTime + 0.05;
+
+            for (let i = 0; i < numKeys; i++) {
+              const isSpace = i === numKeys - 1 || Math.random() < 0.16;
+              playKeystroke(t, isSpace);
+              t += isSpace ? (0.16 + Math.random() * 0.12) : (0.085 + Math.random() * 0.065);
+            }
+
+            const nextBurst = 1000 + Math.random() * 2200;
+            this.keyboardTimeout = window.setTimeout(scheduleTypingBurst, nextBurst);
+          };
+          scheduleTypingBurst();
+        } catch (e) {
+          console.warn('Keyboard audio error', e);
+        }
+        break;
+
+      case 'cafe':
+        try {
+          const cafeBuf = this.createNoiseBuffer('pink');
+          const cafeSource = this.ctx.createBufferSource();
+          cafeSource.buffer = cafeBuf;
+          cafeSource.loop = true;
+
+          const formant1 = this.ctx.createBiquadFilter();
+          formant1.type = 'bandpass';
+          formant1.frequency.setValueAtTime(360, this.ctx.currentTime);
+          formant1.Q.setValueAtTime(1.8, this.ctx.currentTime);
+
+          const formant2 = this.ctx.createBiquadFilter();
+          formant2.type = 'bandpass';
+          formant2.frequency.setValueAtTime(880, this.ctx.currentTime);
+          formant2.Q.setValueAtTime(2.2, this.ctx.currentTime);
+
+          const cafeGain1 = this.ctx.createGain();
+          cafeGain1.gain.setValueAtTime(0.40, this.ctx.currentTime);
+          const cafeGain2 = this.ctx.createGain();
+          cafeGain2.gain.setValueAtTime(0.30, this.ctx.currentTime);
+
+          cafeSource.connect(formant1);
+          cafeSource.connect(formant2);
+          formant1.connect(cafeGain1);
+          formant2.connect(cafeGain2);
+
+          if (this.ambientGains.cafe) {
+            cafeGain1.connect(this.ambientGains.cafe);
+            cafeGain2.connect(this.ambientGains.cafe);
+          }
+          cafeSource.start();
+
+          const scheduleCupClink = () => {
+            if (!this.runningChannels.has('cafe') || !this.ctx || !this.ambientGains.cafe) return;
+            const now = this.ctx.currentTime;
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = 'sine';
+            const clinkFreq = 2100 + Math.random() * 600;
+            osc.frequency.setValueAtTime(clinkFreq, now);
+            gain.gain.setValueAtTime(0.12 + Math.random() * 0.05, now);
+            gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.38);
+
+            osc.connect(gain);
+            gain.connect(this.ambientGains.cafe);
+            osc.start(now);
+            osc.stop(now + 0.40);
+
+            const next = 4500 + Math.random() * 8000;
+            this.cafeClinkTimeout = window.setTimeout(scheduleCupClink, next);
+          };
+          scheduleCupClink();
+        } catch (e) {
+          console.warn('Cafe audio error', e);
+        }
+        break;
+
+      case 'insects':
+        try {
+          const cricketTrigger = () => {
+            if (!this.runningChannels.has('insects') || !this.ctx || !this.ambientGains.insects) return;
+            const now = this.ctx.currentTime;
+            
+            for (let i = 0; i < 4; i++) {
+              const chirpTime = now + i * 0.055;
+              const osc1 = this.ctx.createOscillator();
+              const oscGain = this.ctx.createGain();
+
+              osc1.type = 'sine';
+              osc1.frequency.setValueAtTime(4400 + Math.random() * 150, chirpTime);
+
+              oscGain.gain.setValueAtTime(0, chirpTime);
+              oscGain.gain.linearRampToValueAtTime(0.14, chirpTime + 0.015);
+              oscGain.gain.linearRampToValueAtTime(0, chirpTime + 0.045);
+
+              osc1.connect(oscGain);
+              oscGain.connect(this.ambientGains.insects);
+
+              osc1.start(chirpTime);
+              osc1.stop(chirpTime + 0.05);
+            }
+
+            const next = 650 + Math.random() * 950;
+            this.insectsTimeout = window.setTimeout(cricketTrigger, next);
+          };
+          cricketTrigger();
+        } catch (e) {
+          console.warn('Insects audio error', e);
+        }
+        break;
+
+      case 'train':
+        try {
+          if (this.ambientGains.train) {
+            const trainRumbleBuf = this.createNoiseBuffer('brown');
+            const trainSource = this.ctx.createBufferSource();
+            trainSource.buffer = trainRumbleBuf;
+            trainSource.loop = true;
+
+            const trainFilter = this.ctx.createBiquadFilter();
+            trainFilter.type = 'lowpass';
+            trainFilter.frequency.setValueAtTime(120, this.ctx.currentTime);
+
+            const trainGain = this.ctx.createGain();
+            trainGain.gain.setValueAtTime(0.55, this.ctx.currentTime);
+
+            trainSource.connect(trainFilter);
+            trainFilter.connect(trainGain);
+            trainGain.connect(this.ambientGains.train);
+            trainSource.start();
+
+            const scheduleTrainClick = () => {
+              if (!this.runningChannels.has('train') || !this.ctx || !this.ambientGains.train) return;
+              const now = this.ctx.currentTime;
+
+              for (let i = 0; i < 2; i++) {
+                const clickTime = now + i * 0.09;
+                const clickOsc = this.ctx.createOscillator();
+                const clickFilter = this.ctx.createBiquadFilter();
+                const clickGain = this.ctx.createGain();
+
+                clickOsc.type = 'triangle';
+                clickOsc.frequency.setValueAtTime(320 + Math.random() * 60, clickTime);
+                clickOsc.frequency.exponentialRampToValueAtTime(70, clickTime + 0.04);
+
+                clickFilter.type = 'lowpass';
+                clickFilter.frequency.setValueAtTime(600, clickTime);
+
+                clickGain.gain.setValueAtTime(0.24, clickTime);
+                clickGain.gain.exponentialRampToValueAtTime(0.001, clickTime + 0.038);
+
+                clickOsc.connect(clickFilter);
+                clickFilter.connect(clickGain);
+                clickGain.connect(this.ambientGains.train);
+                clickOsc.start(clickTime);
+                clickOsc.stop(clickTime + 0.045);
+              }
+
+              this.trainTimeout = window.setTimeout(scheduleTrainClick, 820 + Math.random() * 60);
+            };
+            scheduleTrainClick();
+          }
+        } catch (e) {
+          console.warn('Train audio error', e);
+        }
+        break;
+
+      case 'bookPages':
+        try {
+          const schedulePageTurn = () => {
+            if (!this.runningChannels.has('bookPages') || !this.ctx || !this.ambientGains.bookPages) return;
+            const now = this.ctx.currentTime;
+            const noiseBuf = this.createNoiseBuffer('white', 0.6);
+            const noiseSource = this.ctx.createBufferSource();
+            noiseSource.buffer = noiseBuf;
+
+            const filter = this.ctx.createBiquadFilter();
+            filter.type = 'bandpass';
+            filter.frequency.setValueAtTime(1300, now);
+            filter.frequency.linearRampToValueAtTime(2400, now + 0.25);
+            filter.frequency.linearRampToValueAtTime(900, now + 0.5);
+            filter.Q.setValueAtTime(2.5, now);
+
+            const gain = this.ctx.createGain();
+            gain.gain.setValueAtTime(0.001, now);
+            gain.gain.linearRampToValueAtTime(0.35, now + 0.15);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.55);
+
+            noiseSource.connect(filter);
+            filter.connect(gain);
+            gain.connect(this.ambientGains.bookPages);
+
+            noiseSource.start(now);
+            noiseSource.stop(now + 0.6);
+
+            const next = 7000 + Math.random() * 9000;
+            this.bookPagesTimeout = window.setTimeout(schedulePageTurn, next);
+          };
+          schedulePageTurn();
+        } catch (e) {
+          console.warn('Book pages audio error', e);
+        }
+        break;
+
+      case 'windChimes':
+        try {
+          const scheduleChimes = () => {
+            if (!this.runningChannels.has('windChimes') || !this.ctx || !this.ambientGains.windChimes) return;
+            const now = this.ctx.currentTime;
+            const freqs = [1046.5, 1174.7, 1318.5, 1568.0, 1760.0, 2093.0];
+            const count = 2 + Math.floor(Math.random() * 3);
+            for (let i = 0; i < count; i++) {
+              const t = now + i * (0.08 + Math.random() * 0.15);
+              const osc = this.ctx.createOscillator();
+              const gain = this.ctx.createGain();
+              osc.type = 'sine';
+              osc.frequency.setValueAtTime(freqs[Math.floor(Math.random() * freqs.length)], t);
+              gain.gain.setValueAtTime(0.16, t);
+              gain.gain.exponentialRampToValueAtTime(0.0001, t + 2.0);
+              osc.connect(gain);
+              gain.connect(this.ambientGains.windChimes);
+              osc.start(t);
+              osc.stop(t + 2.1);
+            }
+            this.windChimesTimeout = window.setTimeout(scheduleChimes, 5500 + Math.random() * 8500);
+          };
+          scheduleChimes();
+        } catch (e) {
+          console.warn('Wind chimes error', e);
+        }
+        break;
+
+      case 'typewriter':
+        try {
+          const scheduleTypewriter = () => {
+            if (!this.runningChannels.has('typewriter') || !this.ctx || !this.ambientGains.typewriter) return;
+            const strikes = 3 + Math.floor(Math.random() * 7);
+            let t = this.ctx.currentTime;
+            for (let i = 0; i < strikes; i++) {
+              const osc = this.ctx.createOscillator();
+              const gain = this.ctx.createGain();
+              osc.type = 'triangle';
+              osc.frequency.setValueAtTime(650 + Math.random() * 450, t);
+              osc.frequency.exponentialRampToValueAtTime(100, t + 0.035);
+              gain.gain.setValueAtTime(0.28, t);
+              gain.gain.exponentialRampToValueAtTime(0.001, t + 0.03);
+              osc.connect(gain);
+              gain.connect(this.ambientGains.typewriter);
+              osc.start(t);
+              osc.stop(t + 0.04);
+              t += 0.11 + Math.random() * 0.16;
+            }
+            this.typewriterTimeout = window.setTimeout(scheduleTypewriter, 3000 + Math.random() * 5000);
+          };
+          scheduleTypewriter();
+        } catch (e) {
+          console.warn('Typewriter error', e);
+        }
+        break;
+
+      default:
+        break;
+    }
+  }
+
+  private deactivateChannel(channel: AmbientSoundChannel) {
+    this.runningChannels.delete(channel);
+    if (channel === 'clock' && this.clockInterval) {
+      clearInterval(this.clockInterval);
+      this.clockInterval = null;
+    } else if (channel === 'keyboard' && this.keyboardTimeout) {
+      clearTimeout(this.keyboardTimeout);
+      this.keyboardTimeout = null;
+    } else if (channel === 'cafe' && this.cafeClinkTimeout) {
+      clearTimeout(this.cafeClinkTimeout);
+      this.cafeClinkTimeout = null;
+    } else if (channel === 'insects' && this.insectsTimeout) {
+      clearTimeout(this.insectsTimeout);
+      this.insectsTimeout = null;
+    } else if (channel === 'train' && this.trainTimeout) {
+      clearTimeout(this.trainTimeout);
+      this.trainTimeout = null;
+    } else if (channel === 'bookPages' && this.bookPagesTimeout) {
+      clearTimeout(this.bookPagesTimeout);
+      this.bookPagesTimeout = null;
+    } else if (channel === 'windChimes' && this.windChimesTimeout) {
+      clearTimeout(this.windChimesTimeout);
+      this.windChimesTimeout = null;
+    } else if (channel === 'typewriter' && this.typewriterTimeout) {
+      clearTimeout(this.typewriterTimeout);
+      this.typewriterTimeout = null;
     }
   }
 
@@ -1727,6 +1376,15 @@ class WebAudioEngine {
       hasCrack = false;
       rumbleDuration = 6.0;
     }
+
+    // Play authentic acoustic thunder recording along with sub-bass roll
+    try {
+      const thunderAudio = new Audio('/sounds/thunder.ogg');
+      thunderAudio.volume = Math.max(0.1, Math.min(1.0, clamped * 0.85));
+      setTimeout(() => {
+        thunderAudio.play().catch(() => {});
+      }, delaySec * 1000);
+    } catch {}
 
     const startTime = now + delaySec;
 

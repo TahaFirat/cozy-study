@@ -90,7 +90,20 @@ export class PixelRenderer {
     if (this.isRunning) return;
     this.isRunning = true;
 
+    // Detect touch / mobile / tablet environment for thermal & battery optimization
+    const isMobileOrTablet = typeof navigator !== 'undefined' && (
+      /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
+      (navigator.maxTouchPoints && navigator.maxTouchPoints > 1)
+    );
+
+    // 30 FPS for mobile/tablet provides silky smooth pixel art animations while keeping the device completely cool
+    // 36 FPS for desktop provides optimal balance of low power and fluid motion
+    const targetFPS = isMobileOrTablet ? 30 : 36;
+    const frameInterval = 1000 / targetFPS;
+
     let lastTime = performance.now();
+    let lastRenderTime = 0;
+
     const loop = (time: number) => {
       if (!this.isRunning) return;
 
@@ -99,6 +112,14 @@ export class PixelRenderer {
         this.animationFrameId = requestAnimationFrame(loop);
         return;
       }
+
+      // Throttle render rate: skips unnecessary frames on 90Hz/120Hz tablet screens
+      const elapsedSinceLastRender = time - lastRenderTime;
+      if (elapsedSinceLastRender < frameInterval) {
+        this.animationFrameId = requestAnimationFrame(loop);
+        return;
+      }
+      lastRenderTime = time - (elapsedSinceLastRender % frameInterval);
 
       const delta = Math.min(100, Math.max(1, time - lastTime));
       lastTime = time;
@@ -240,8 +261,8 @@ export class PixelRenderer {
     // 1. SEAMLESS HORIZONTAL SCANLINE FLAME UNDULATION:
     // Slices HORIZONTALLY along Y from logs up to flame tips.
     // Every row spans the FULL flame width (no vertical comb cuts!).
-    // Row height = 2px (matching pixel art resolution).
-    const rowStep = 2;
+    // Row height = 4px (matching pixel art resolution and reducing draw calls by 50%).
+    const rowStep = 4;
     const logsY = flameY + flameH;
     const tFast = now * 0.011;
     const tMid = now * 0.0055;

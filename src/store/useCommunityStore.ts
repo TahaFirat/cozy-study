@@ -7,6 +7,7 @@ import { useTimerStore } from './useTimerStore';
 import { useStatsStore } from './useStatsStore';
 import { TRANSLATIONS } from '../i18n/translations';
 import { sendFirebaseMessage, subscribeToFirebaseChat } from '../firebase/chat';
+import { sendFirebasePresencePing, removeFirebasePresence, subscribeToFirebasePresence } from '../firebase/presence';
 import { Unsubscribe } from 'firebase/firestore';
 import { useBossRaidStore } from './useBossRaidStore';
 
@@ -599,23 +600,54 @@ if (typeof window !== 'undefined') {
 
   connectLiveStream();
 
-  // Clear previous HTTP presence interval if present (prevents HMR timer leak)
+  // 1. Real-time Firebase Presence across all mobile, tablet, and web devices worldwide
+  let firestorePresenceUnsub: Unsubscribe | null = null;
+  try {
+    firestorePresenceUnsub = subscribeToFirebasePresence(clientSessionId, (remoteBuddies, totalCount) => {
+      const selfBuddy = getLocalBuddyInfo();
+      const mappedBuddies: StudyBuddy[] = remoteBuddies.map((rb) => ({
+        id: rb.id,
+        sessionId: rb.sessionId || rb.id,
+        name: rb.name || 'Çalışma Arkadaşı',
+        avatar: rb.avatar || '🧑‍💻',
+        country: rb.country || 'Türkiye',
+        flag: rb.flag || '🇹🇷',
+        task: rb.task || 'Derin Odak Seansı',
+        roomName: rb.roomName || 'Sıcak Yatak Odası',
+        minutesFocused: rb.minutesFocused || 0,
+        streakDays: rb.streakDays || 1,
+        status: rb.status || 'focusing',
+        isSelf: false,
+      }));
+
+      useCommunityStore.setState({
+        onlineCount: totalCount,
+        studyBuddies: [selfBuddy, ...mappedBuddies],
+      });
+    });
+  } catch (err) {
+    console.warn('[CommunityStore] Firestore presence sync init note:', err);
+  }
+
+  // Clear previous presence interval if present
   if ((window as any).__cozy_presence_interval) {
     clearInterval((window as any).__cozy_presence_interval);
   }
 
-  // Send periodic HTTP heartbeat to the live relay (every 6s)
-  (window as any).__cozy_presence_interval = setInterval(() => {
+  const sendRealPresence = () => {
     sendPresencePingHttp();
-  }, 6000);
+    const buddy = getLocalBuddyInfo();
+    sendFirebasePresencePing(clientSessionId, buddy);
+  };
 
-  // Send initial presence ping immediately
-  setTimeout(() => {
-    sendPresencePingHttp();
-  }, 300);
+  // Send periodic cloud heartbeat every 14s (lightweight & saves battery)
+  (window as any).__cozy_presence_interval = setInterval(sendRealPresence, 14000);
+  setTimeout(sendRealPresence, 400);
 
   const handlePresenceLeave = () => {
     try {
+      removeFirebasePresence(clientSessionId);
+      if (firestorePresenceUnsub) firestorePresenceUnsub();
       if (eventSource) eventSource.close();
       chatChannel?.postMessage({
         type: 'PRESENCE_LEAVE',
