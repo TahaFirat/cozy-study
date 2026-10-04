@@ -27,6 +27,7 @@ class WebAudioEngine {
   private naturalChannelVolumes: Partial<Record<AmbientSoundChannel, number>> = {};
   private naturalBuffers: Partial<Record<AmbientSoundChannel, AudioBuffer>> = {};
   private naturalSources: Partial<Record<AmbientSoundChannel, AudioBufferSourceNode>> = {};
+  private naturalStopTimers: Partial<Record<AmbientSoundChannel, number>> = {};
   private loadingNaturalChannels = new Set<AmbientSoundChannel>();
   private readonly naturalAudioSources: Partial<Record<AmbientSoundChannel, string>> = {
     rain: '/sounds/rain.ogg',
@@ -139,6 +140,11 @@ class WebAudioEngine {
     if (naturalSrc) {
       this.naturalChannelVolumes[channel] = volume;
       if (volume > 0.005) {
+        if (this.naturalStopTimers[channel]) {
+          clearTimeout(this.naturalStopTimers[channel]);
+          delete this.naturalStopTimers[channel];
+        }
+
         if (!this.isInitialized) this.init();
         this.ensureRunning();
 
@@ -178,9 +184,13 @@ class WebAudioEngine {
         if (gainNode && this.ctx) {
           gainNode.gain.setTargetAtTime(0, this.ctx.currentTime, 0.06);
         }
+        if (this.naturalStopTimers[channel]) {
+          clearTimeout(this.naturalStopTimers[channel]);
+        }
         const source = this.naturalSources[channel];
         if (source) {
-          setTimeout(() => {
+          this.naturalStopTimers[channel] = window.setTimeout(() => {
+            delete this.naturalStopTimers[channel];
             if ((this.naturalChannelVolumes[channel] || 0) <= 0.005) {
               try {
                 source.stop();
@@ -188,7 +198,7 @@ class WebAudioEngine {
               } catch {}
               delete this.naturalSources[channel];
             }
-          }, 120);
+          }, 140);
         }
       }
       return;

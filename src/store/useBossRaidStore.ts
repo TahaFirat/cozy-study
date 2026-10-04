@@ -4,6 +4,7 @@ import { webAudioEngine } from '../audio/WebAudioEngine';
 import { useAppStore } from './useAppStore';
 import { useGamificationStore } from './useGamificationStore';
 import { useAuthStore } from './useAuthStore';
+import { useStatsStore } from './useStatsStore';
 import { 
   syncBossAttackToFirestore, 
   resetBossInFirestore 
@@ -229,33 +230,10 @@ export const DEFAULT_BOSSES: Record<BossId, BossData> = {
 };
 
 export const DEFAULT_LEADERBOARDS: Record<BossId, LeaderboardEntry[]> = {
-  horologium: [
-    { id: 'lb-h1', rank: 1, name: 'Aoi Takahashi', city: 'Kyoto', flag: '🇯🇵', damage: 8450, contributionPct: 8.45, focusHours: 35.2, badge: '⚔️ Elit Şampiyon' },
-    { id: 'lb-h2', rank: 2, name: 'Lucas Petit', city: 'Paris', flag: '🇫🇷', damage: 6200, contributionPct: 6.20, focusHours: 25.8, badge: '🛡️ Kıdemli Savaşçı' },
-    { id: 'lb-h3', rank: 3, name: 'Defne Kaya', city: 'Istanbul', flag: '🇹🇷', damage: 5800, contributionPct: 5.80, focusHours: 24.1, badge: '🛡️ Kıdemli Savaşçı' },
-    { id: 'lb-h4', rank: 4, name: 'David Miller', city: 'London', flag: '🇬🇧', damage: 4100, contributionPct: 4.10, focusHours: 17.0, badge: '🛡️ Kıdemli Savaşçı' },
-    { id: 'lb-h5', rank: 5, name: 'Hana Song', city: 'Seoul', flag: '🇰🇷', damage: 3450, contributionPct: 3.45, focusHours: 14.3, badge: '🌱 Çaylak Savaşçı' },
-    { id: 'lb-h6', rank: 6, name: 'Mateo Rossi', city: 'Milan', flag: '🇮🇹', damage: 2900, contributionPct: 2.90, focusHours: 12.0, badge: '🌱 Çaylak Savaşçı' },
-  ],
-  acedia: [
-    { id: 'lb-a1', rank: 1, name: 'Elena Voronina', city: 'Berlin', flag: '🇩🇪', damage: 14200, contributionPct: 5.68, focusHours: 59.1, badge: '⚔️ Elit Şampiyon' },
-    { id: 'lb-a2', rank: 2, name: 'Kenji Sato', city: 'Tokyo', flag: '🇯🇵', damage: 11800, contributionPct: 4.72, focusHours: 49.1, badge: '⚔️ Elit Şampiyon' },
-    { id: 'lb-a3', rank: 3, name: 'Emre Demir', city: 'Ankara', flag: '🇹🇷', damage: 9400, contributionPct: 3.76, focusHours: 39.1, badge: '🛡️ Kıdemli Savaşçı' },
-    { id: 'lb-a4', rank: 4, name: 'Sarah Jenkins', city: 'Boston', flag: '🇺🇸', damage: 7600, contributionPct: 3.04, focusHours: 31.6, badge: '🛡️ Kıdemli Savaşçı' },
-    { id: 'lb-a5', rank: 5, name: 'Lars Lindqvist', city: 'Stockholm', flag: '🇸🇪', damage: 5200, contributionPct: 2.08, focusHours: 21.6, badge: '🌱 Çaylak Savaşçı' },
-  ],
-  cacophony: [
-    { id: 'lb-c1', rank: 1, name: 'Sophie Bernard', city: 'Lyon', flag: '🇫🇷', damage: 22500, contributionPct: 4.50, focusHours: 93.7, badge: '⚔️ Elit Şampiyon' },
-    { id: 'lb-c2', rank: 2, name: 'Burak Yılmaz', city: 'Izmir', flag: '🇹🇷', damage: 18400, contributionPct: 3.68, focusHours: 76.6, badge: '⚔️ Elit Şampiyon' },
-    { id: 'lb-c3', rank: 3, name: 'Oliver Schmidt', city: 'Munich', flag: '🇩🇪', damage: 14900, contributionPct: 2.98, focusHours: 62.0, badge: '🛡️ Kıdemli Savaşçı' },
-    { id: 'lb-c4', rank: 4, name: 'Yuki Tanaka', city: 'Osaka', flag: '🇯🇵', damage: 11200, contributionPct: 2.24, focusHours: 46.6, badge: '🛡️ Kıdemli Savaşçı' },
-  ],
-  oblivion: [
-    { id: 'lb-o1', rank: 1, name: 'Alexander Wright', city: 'Oxford', flag: '🇬🇧', damage: 38000, contributionPct: 3.80, focusHours: 158.3, badge: '⚔️ Elit Şampiyon' },
-    { id: 'lb-o2', rank: 2, name: 'Zeynep Öztürk', city: 'Istanbul', flag: '🇹🇷', damage: 31500, contributionPct: 3.15, focusHours: 131.2, badge: '⚔️ Elit Şampiyon' },
-    { id: 'lb-o3', rank: 3, name: 'Liam Keller', city: 'Toronto', flag: '🇨🇦', damage: 26800, contributionPct: 2.68, focusHours: 111.6, badge: '🛡️ Kıdemli Savaşçı' },
-    { id: 'lb-o4', rank: 4, name: 'Min-jun Park', city: 'Busan', flag: '🇰🇷', damage: 21400, contributionPct: 2.14, focusHours: 89.1, badge: '🛡️ Kıdemli Savaşçı' },
-  ],
+  horologium: [],
+  acedia: [],
+  cacophony: [],
+  oblivion: [],
 };
 
 interface BossRaidState {
@@ -921,17 +899,25 @@ export const useBossRaidStore = create<BossRaidState>()(
       getLeaderboard: (bossId: BossId) => {
         const state = get();
         const baseEntries = (state.leaderboards?.[bossId] && state.leaderboards[bossId].length > 0)
-          ? state.leaderboards[bossId]
-          : (DEFAULT_LEADERBOARDS[bossId] || []);
+          ? state.leaderboards[bossId].filter((e) => !e.id?.startsWith('lb-'))
+          : [];
         const myDmg = state.personalDamagePerBoss[bossId] || 0;
         const boss = state.bosses[bossId] || DEFAULT_BOSSES[bossId];
         const myPct = boss.maxHp > 0 ? Number(((myDmg / boss.maxHp) * 100).toFixed(2)) : 0;
-        const myHours = Number((myDmg / 240).toFixed(1));
+        
+        let myHours = 0;
+        try {
+          const stats = useStatsStore.getState();
+          const totalMins = typeof stats.getTotalFocusMinutes === 'function' ? stats.getTotalFocusMinutes() : 0;
+          myHours = Number((totalMins / 60).toFixed(1));
+        } catch {
+          myHours = Number((myDmg / 240).toFixed(1));
+        }
 
         const entries: LeaderboardEntry[] = [];
         if (myDmg > 0) {
           const user = useAuthStore.getState().user;
-          const myName = user?.displayName || 'Sen';
+          const myName = user?.displayName || (useAppStore.getState().language === 'tr' ? 'Sen' : 'You');
           entries.push({
             id: 'self-entry',
             rank: 1,
@@ -946,13 +932,13 @@ export const useBossRaidStore = create<BossRaidState>()(
           });
         }
 
-        const all = [...entries, ...baseEntries.filter((e) => !e.isSelf)].sort((a, b) => b.damage - a.damage);
+        const all = [...entries, ...baseEntries.filter((e) => !e.isSelf && !e.id?.startsWith('lb-'))].sort((a, b) => b.damage - a.damage);
         return all.map((entry, idx) => ({ ...entry, rank: idx + 1 }));
       },
     }),
     {
       name: 'cozy_chronos_boss_raids',
-      version: 7,
+      version: 8,
       migrate: (persistedState: any) => {
         if (!persistedState) return persistedState;
         persistedState.globalRaidersCount = 1;
@@ -961,13 +947,21 @@ export const useBossRaidStore = create<BossRaidState>()(
         persistedState.claimedMilestones = persistedState.claimedMilestones || {};
         persistedState.hasWellRestedBuff = Boolean(persistedState.hasWellRestedBuff);
         persistedState.catMoraleBuffUntil = persistedState.catMoraleBuffUntil || 0;
-        persistedState.leaderboards = persistedState.leaderboards || { ...DEFAULT_LEADERBOARDS };
-        persistedState.hasWellRestedBuff = Boolean(persistedState.hasWellRestedBuff);
 
+        // Eradicate any old fake dummy accounts from persisted leaderboards
         const botNames = [
           'Elena V.', 'Mert Y.', 'Liam K.', 'Elena Voronina', 'Liam Keller',
-          'Aoi Takahashi', 'David Miller', 'Selin Aydın', 'Lucas Petit', 'Hana Song'
+          'Aoi Takahashi', 'David Miller', 'Selin Aydın', 'Lucas Petit', 'Hana Song',
+          'Defne Kaya', 'Mateo Rossi', 'Kenji Sato', 'Emre Demir', 'Sarah Jenkins',
+          'Lars Lindqvist', 'Sophie Bernard', 'Burak Yılmaz', 'Oliver Schmidt', 'Yuki Tanaka',
+          'Alexander Wright', 'Zeynep Öztürk', 'Min-jun Park'
         ];
+        persistedState.leaderboards = {
+          horologium: (persistedState.leaderboards?.horologium || []).filter((e: any) => e.isSelf || (!e.id?.startsWith('lb-') && !botNames.includes(e.name))),
+          acedia: (persistedState.leaderboards?.acedia || []).filter((e: any) => e.isSelf || (!e.id?.startsWith('lb-') && !botNames.includes(e.name))),
+          cacophony: (persistedState.leaderboards?.cacophony || []).filter((e: any) => e.isSelf || (!e.id?.startsWith('lb-') && !botNames.includes(e.name))),
+          oblivion: (persistedState.leaderboards?.oblivion || []).filter((e: any) => e.isSelf || (!e.id?.startsWith('lb-') && !botNames.includes(e.name))),
+        };
         if (Array.isArray(persistedState.combatLogs)) {
           persistedState.combatLogs = persistedState.combatLogs.filter(
             (log: any) => !log.userName || log.userName === 'Sen' || !botNames.includes(log.userName)

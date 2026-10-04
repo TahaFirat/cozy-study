@@ -179,8 +179,25 @@ export const BossRaidModal: React.FC = () => {
 
     let animId: number;
     lastTimeRef.current = performance.now();
+    let lastRenderTime = 0;
+    const batterySaver = useAppStore.getState().batterySaverMode;
+    const targetFps = batterySaver ? 14 : 30;
+    const frameInterval = 1000 / targetFps;
 
     const loop = (time: number) => {
+      // Completely pause GPU render when app/tab is backgrounded to eliminate battery drain & heat
+      if (typeof document !== 'undefined' && document.hidden) {
+        animId = requestAnimationFrame(loop);
+        return;
+      }
+
+      const elapsed = time - lastRenderTime;
+      if (elapsed < frameInterval) {
+        animId = requestAnimationFrame(loop);
+        return;
+      }
+      lastRenderTime = time - (elapsed % frameInterval);
+
       const dt = Math.min(0.1, (time - lastTimeRef.current) / 1000);
       lastTimeRef.current = time;
 

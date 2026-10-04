@@ -240,11 +240,12 @@ export const useCommunityStore = create<CommunityState>()(
               unreadCount: get().isChatOpen ? 0 : (isFirstLoad ? 0 : Math.max(0, mapped.length - prevMsgs.length)),
             });
 
-            // Yeni başkasından mesaj geldiyse bildirim sesi çal (etkileşim ayarına uygun olarak)
+            // Yeni başkasından mesaj geldiyse bildirim sesi çal (etkileşim ayarına ve son 30 saniyeye uygun olarak)
             if (!isFirstLoad && mapped.length > prevMsgs.length) {
               const lastMsg = mapped[mapped.length - 1];
               const reactionsAllowed = useAppStore.getState().communityReactionsEnabled;
-              if (lastMsg && !lastMsg.isUser && useAppStore.getState().soundFxEnabled) {
+              const isRecent = lastMsg && (Date.now() - lastMsg.timestamp < 30000);
+              if (isRecent && !lastMsg.isUser && useAppStore.getState().soundFxEnabled) {
                 if (!lastMsg.isReaction || reactionsAllowed) {
                   webAudioEngine.playChatPing();
                 }
@@ -503,24 +504,33 @@ if (typeof window !== 'undefined') {
   try {
     firestorePresenceUnsub = subscribeToFirebasePresence(clientSessionId, (remoteBuddies, totalCount) => {
       const selfBuddy = getLocalBuddyInfo();
-      const mappedBuddies: StudyBuddy[] = remoteBuddies.map((rb) => ({
-        id: rb.id,
-        sessionId: rb.sessionId || rb.id,
-        name: rb.name || 'Çalışma Arkadaşı',
-        avatar: rb.avatar || '🧑‍💻',
-        country: rb.country || 'Türkiye',
-        flag: rb.flag || '🇹🇷',
-        task: rb.task || 'Derin Odak Seansı',
-        roomName: rb.roomName || 'Sıcak Yatak Odası',
-        minutesFocused: rb.minutesFocused || 0,
-        streakDays: rb.streakDays || 1,
-        status: rb.status || 'focusing',
-        isSelf: false,
-      }));
+      const mappedBuddies: StudyBuddy[] = remoteBuddies
+        .filter((rb) => {
+          // Filter out idle anonymous visitors (only show registered users or active studiers)
+          const isGuest = rb.name === 'Misafir Çalışmacı' || rb.name === 'Guest Studier' || !rb.userId;
+          if (isGuest && rb.status !== 'focusing' && (rb.minutesFocused || 0) === 0) {
+            return false;
+          }
+          return true;
+        })
+        .map((rb) => ({
+          id: rb.id,
+          sessionId: rb.sessionId || rb.id,
+          name: rb.name || 'Çalışma Arkadaşı',
+          avatar: rb.avatar || '🧑‍💻',
+          country: rb.country || 'Türkiye',
+          flag: rb.flag || '🇹🇷',
+          task: rb.task || 'Derin Odak Seansı',
+          roomName: rb.roomName || 'Sıcak Yatak Odası',
+          minutesFocused: rb.minutesFocused || 0,
+          streakDays: rb.streakDays || 1,
+          status: rb.status || 'focusing',
+          isSelf: false,
+        }));
 
       hasReceivedFirestorePresence = true;
       useCommunityStore.setState({
-        onlineCount: totalCount,
+        onlineCount: Math.max(1, mappedBuddies.length + 1),
         studyBuddies: [selfBuddy, ...mappedBuddies],
       });
     });
@@ -538,8 +548,8 @@ if (typeof window !== 'undefined') {
     sendFirebasePresencePing(clientSessionId, buddy);
   };
 
-  // Send periodic cloud heartbeat every 14s (lightweight & saves battery)
-  (window as any).__cozy_presence_interval = setInterval(sendRealPresence, 14000);
+  // Send periodic cloud heartbeat every 10s (synchronized with 26s active window)
+  (window as any).__cozy_presence_interval = setInterval(sendRealPresence, 10000);
   setTimeout(sendRealPresence, 400);
 
   const handlePresenceLeave = () => {
