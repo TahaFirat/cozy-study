@@ -52,7 +52,7 @@ export const AmbientMixerWidget: React.FC = () => {
     toggleMute,
   } = useAudioStore();
 
-  const { activeModal, setActiveModal, language, showToast, isFullscreen, toggleFullscreen } = useAppStore();
+  const { activeModal, setActiveModal, language, showToast, isFullscreen, toggleFullscreen, immersiveMode } = useAppStore();
   const { isPro } = useSubscriptionStore();
   const t = TRANSLATIONS[language];
   const isOpen = activeModal === 'mixer';
@@ -93,10 +93,14 @@ export const AmbientMixerWidget: React.FC = () => {
       >
         <button
           onClick={toggleFullscreen}
-          className="p-2.5 glass-island text-stone-300 hover:text-stone-100 rounded-2xl shadow-2xl transition-all duration-300 border border-white/10 hover:border-white/20 cursor-pointer"
-          title={isFullscreen ? (isTr ? 'Tam Ekrandan Çık' : 'Exit Fullscreen') : (isTr ? 'Tam Ekran' : 'Fullscreen')}
+          className={`p-2.5 glass-island rounded-2xl shadow-2xl transition-all duration-300 border cursor-pointer ${
+            immersiveMode || isFullscreen
+              ? 'border-amber-500/70 text-amber-300 bg-amber-950/40 shadow-[0_0_15px_rgba(245,158,11,0.3)]'
+              : 'border-white/10 hover:border-white/20 text-stone-300 hover:text-stone-100'
+          }`}
+          title={(immersiveMode || isFullscreen) ? (isTr ? 'Odak Modundan Çık (ESC)' : 'Exit Zen Focus (ESC)') : (isTr ? 'Zen Odak Modu / Tam Ekran (I)' : 'Zen Focus / Fullscreen (I)')}
         >
-          {isFullscreen ? <Minimize2 className="w-4 h-4 text-amber-400" /> : <Maximize2 className="w-4 h-4" />}
+          {(immersiveMode || isFullscreen) ? <Minimize2 className="w-4 h-4 text-amber-400" /> : <Maximize2 className="w-4 h-4" />}
         </button>
 
         <button

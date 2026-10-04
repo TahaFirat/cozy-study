@@ -177,6 +177,7 @@ export class ParticleSystem {
   private lightningDuration = 0.52;
   private nextLightningTime = 0;
   private currentBolt: LightningBolt | null = null;
+  private thunderTimer: number | null = null;
   private lastWindowKey = '';
 
   // Rain rhythm: natural gusts and lulls
@@ -383,6 +384,36 @@ export class ParticleSystem {
     }
 
     this.currentBolt = { points: mainPoints, branches };
+  }
+
+  public resetWeather(newWeather: WeatherType) {
+    if (this.thunderTimer) {
+      clearTimeout(this.thunderTimer);
+      this.thunderTimer = null;
+    }
+    webAudioEngine.stopThunder();
+    if (newWeather === 'snow' || newWeather === 'clear') {
+      this.bgRain = [];
+      this.fgRain = [];
+      this.splashes = [];
+      this.puddleRipples = [];
+      this.eavesDrips = [];
+      this.glassDroplets = [];
+      this.lastWindowKey = '';
+      this.lightningAlpha = 0;
+      this.lightningStartTime = 0;
+      this.nextLightningTime = 0;
+      this.windowScratches = [];
+      if (this.mistCanvas && this.mistCtx) {
+        this.mistCtx.clearRect(0, 0, this.mistCanvas.width, this.mistCanvas.height);
+      }
+    } else if (newWeather === 'rain' || newWeather === 'heavy_rain') {
+      this.snow = [];
+      this.lightningAlpha = 0;
+      this.lightningStartTime = 0;
+      this.nextLightningTime = 0;
+      this.currentBolt = null;
+    }
   }
 
   public update(
@@ -763,6 +794,13 @@ export class ParticleSystem {
       this.bgRain = [];
       this.fgRain = [];
       this.splashes = [];
+      this.puddleRipples = [];
+      this.eavesDrips = [];
+      this.glassDroplets = [];
+      if (this.thunderTimer) {
+        clearTimeout(this.thunderTimer);
+        this.thunderTimer = null;
+      }
     }
 
     // 2. 3-LAYER CINEMATIC PARALLAX SNOW (Strictly outside window glass panes)
@@ -845,7 +883,9 @@ export class ParticleSystem {
 
         // Realistic distance delay for thunder audio: 350ms - 800ms (speed of sound)
         const thunderDelay = 350 + Math.random() * 450;
-        setTimeout(() => {
+        if (this.thunderTimer) clearTimeout(this.thunderTimer);
+        this.thunderTimer = window.setTimeout(() => {
+          this.thunderTimer = null;
           webAudioEngine.playThunderStrike(0.70 + Math.random() * 0.25, 'medium');
         }, thunderDelay);
       }
@@ -880,6 +920,10 @@ export class ParticleSystem {
       this.lightningStartTime = 0;
       this.nextLightningTime = 0;
       this.currentBolt = null;
+      if (this.thunderTimer) {
+        clearTimeout(this.thunderTimer);
+        this.thunderTimer = null;
+      }
     }
 
     // 4. FIREPLACE EMBERS

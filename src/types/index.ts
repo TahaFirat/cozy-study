@@ -39,7 +39,9 @@ export type InteractiveObjectId =
   | 'chair'
   | 'globe'
   | 'sticky_note'
-  | 'boss_trophy';
+  | 'boss_trophy'
+  | 'desk'
+  | 'bed';
 
 export interface InteractiveHitbox {
   id: InteractiveObjectId;

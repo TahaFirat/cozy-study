@@ -12,6 +12,35 @@ import { InteractiveObjectId } from '../types';
 import { ROOM_CONFIGS } from '../engine/roomConfigs';
 import { TRANSLATIONS } from '../i18n/translations';
 
+function getLetterboxedCanvasCoords(
+  canvas: HTMLCanvasElement,
+  clientX: number,
+  clientY: number
+): { x: number; y: number } {
+  const rect = canvas.getBoundingClientRect();
+  if (!rect || rect.width <= 0 || rect.height <= 0) return { x: 0, y: 0 };
+  const contentRatio = 960 / 540;
+  const elemRatio = rect.width / rect.height;
+  let drawW = rect.width;
+  let drawH = rect.height;
+  let offsetX = 0;
+  let offsetY = 0;
+
+  if (elemRatio > contentRatio) {
+    drawW = rect.height * contentRatio;
+    offsetX = (rect.width - drawW) / 2;
+  } else {
+    drawH = rect.width / contentRatio;
+    offsetY = (rect.height - drawH) / 2;
+  }
+
+  const relX = clientX - rect.left - offsetX;
+  const relY = clientY - rect.top - offsetY;
+  const x = Math.max(0, Math.min(960, (relX / drawW) * 960));
+  const y = Math.max(0, Math.min(540, (relY / drawH) * 540));
+  return { x, y };
+}
+
 export const RoomCanvas: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const rendererRef = useRef<PixelRenderer | null>(null);
@@ -139,13 +168,9 @@ export const RoomCanvas: React.FC = () => {
     }
 
     // Interactive Window Condensation Scratching (Rain / Snow)
-    if (isMouseDownRef.current) {
+    if (isMouseDownRef.current && canvasRef.current) {
       dragDistanceRef.current += Math.hypot(e.movementX, e.movementY);
-      const rect = canvasRef.current.getBoundingClientRect();
-      const scaleX = 960 / rect.width;
-      const scaleY = 540 / rect.height;
-      const canvasX = (e.clientX - rect.left) * scaleX;
-      const canvasY = (e.clientY - rect.top) * scaleY;
+      const { x: canvasX, y: canvasY } = getLetterboxedCanvasCoords(canvasRef.current, e.clientX, e.clientY);
 
       const cfg = ROOM_CONFIGS[activeRoom];
       let insideWindow = false;
@@ -259,6 +284,14 @@ export const RoomCanvas: React.FC = () => {
         setActiveModal('settings');
         break;
 
+      case 'desk':
+        setActiveModal('tasks');
+        break;
+
+      case 'bed':
+        setActiveModal('break_guide');
+        break;
+
       case 'plant':
       case 'chair':
         setActiveModal('progression');
@@ -321,11 +354,7 @@ export const RoomCanvas: React.FC = () => {
       lastTouchPosRef.current = { x: touch.clientX, y: touch.clientY };
     }
 
-    const rect = canvasRef.current.getBoundingClientRect();
-    const scaleX = 960 / rect.width;
-    const scaleY = 540 / rect.height;
-    const canvasX = (touch.clientX - rect.left) * scaleX;
-    const canvasY = (touch.clientY - rect.top) * scaleY;
+    const { x: canvasX, y: canvasY } = getLetterboxedCanvasCoords(canvasRef.current, touch.clientX, touch.clientY);
 
     const cfg = ROOM_CONFIGS[activeRoom];
     let insideWindow = false;
@@ -366,8 +395,8 @@ export const RoomCanvas: React.FC = () => {
         ? Math.hypot(touch.clientX - startPos.x, touch.clientY - startPos.y) 
         : dragDistanceRef.current;
 
-      // Reliable mobile tap: movement < 32px and tap duration < 500ms
-      if (totalMoved < 32 && duration < 500) {
+      // Reliable mobile tap: movement < 36px and tap duration < 600ms
+      if (totalMoved < 36 && duration < 600) {
         const clicked = rendererRef.current.getHoveredObject(touch.clientX, touch.clientY, activeRoom);
         if (clicked) {
           handleInteractiveClick(clicked);

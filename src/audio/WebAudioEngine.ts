@@ -29,6 +29,8 @@ class WebAudioEngine {
   private naturalSources: Partial<Record<AmbientSoundChannel, AudioBufferSourceNode>> = {};
   private naturalStopTimers: Partial<Record<AmbientSoundChannel, number>> = {};
   private loadingNaturalChannels = new Set<AmbientSoundChannel>();
+  private thunderTimeouts: number[] = [];
+  private activeThunderAudios: HTMLAudioElement[] = [];
   private readonly naturalAudioSources: Partial<Record<AmbientSoundChannel, string>> = {
     rain: '/sounds/rain.ogg',
     fireplace: '/sounds/fireplace.ogg',
@@ -179,27 +181,7 @@ class WebAudioEngine {
           });
         }
       } else {
-        // Fade out and stop source
-        const gainNode = this.ambientGains[channel];
-        if (gainNode && this.ctx) {
-          gainNode.gain.setTargetAtTime(0, this.ctx.currentTime, 0.06);
-        }
-        if (this.naturalStopTimers[channel]) {
-          clearTimeout(this.naturalStopTimers[channel]);
-        }
-        const source = this.naturalSources[channel];
-        if (source) {
-          this.naturalStopTimers[channel] = window.setTimeout(() => {
-            delete this.naturalStopTimers[channel];
-            if ((this.naturalChannelVolumes[channel] || 0) <= 0.005) {
-              try {
-                source.stop();
-                source.disconnect();
-              } catch {}
-              delete this.naturalSources[channel];
-            }
-          }, 140);
-        }
+        this.stopChannelImmediately(channel);
       }
       return;
     }
@@ -218,6 +200,47 @@ class WebAudioEngine {
     if (!gainNode || !this.ctx) return;
     const target = Math.max(0, Math.min(1, volume));
     gainNode.gain.setTargetAtTime(target, this.ctx.currentTime, 0.08);
+  }
+
+  public stopChannelImmediately(channel: AmbientSoundChannel) {
+    if (this.naturalStopTimers[channel]) {
+      clearTimeout(this.naturalStopTimers[channel]);
+      delete this.naturalStopTimers[channel];
+    }
+    this.naturalChannelVolumes[channel] = 0;
+
+    const source = this.naturalSources[channel];
+    if (source) {
+      try {
+        source.stop();
+        source.disconnect();
+      } catch {}
+      delete this.naturalSources[channel];
+    }
+
+    const gainNode = this.ambientGains[channel];
+    if (gainNode && this.ctx) {
+      try {
+        gainNode.gain.cancelScheduledValues(this.ctx.currentTime);
+        gainNode.gain.setValueAtTime(0, this.ctx.currentTime);
+      } catch {}
+    }
+
+    this.deactivateChannel(channel);
+  }
+
+  public stopThunder() {
+    for (const t of this.thunderTimeouts) {
+      clearTimeout(t);
+    }
+    this.thunderTimeouts = [];
+    for (const a of this.activeThunderAudios) {
+      try {
+        a.pause();
+        a.currentTime = 0;
+      } catch {}
+    }
+    this.activeThunderAudios = [];
   }
 
   public setAllChannelVolumes(volumes: Record<AmbientSoundChannel, number>) {
@@ -1509,9 +1532,18 @@ class WebAudioEngine {
     try {
       const thunderAudio = new Audio('/sounds/thunder.ogg');
       thunderAudio.volume = Math.max(0.1, Math.min(1.0, clamped * 0.85));
-      setTimeout(() => {
+      this.activeThunderAudios.push(thunderAudio);
+      const onDone = () => {
+        const idx = this.activeThunderAudios.indexOf(thunderAudio);
+        if (idx !== -1) this.activeThunderAudios.splice(idx, 1);
+      };
+      thunderAudio.addEventListener('ended', onDone);
+      thunderAudio.addEventListener('error', onDone);
+
+      const tId = window.setTimeout(() => {
         thunderAudio.play().catch(() => {});
       }, delaySec * 1000);
+      this.thunderTimeouts.push(tId);
     } catch {}
 
     const startTime = now + delaySec;
@@ -1629,9 +1661,10 @@ class WebAudioEngine {
       // Secondary Rolling Thunder Echo (35% chance of realistic double thunderclap rolling across horizon)
       if (Math.random() < 0.35 && distance !== 'distant') {
         const echoDelay = 1200 + Math.random() * 1100;
-        setTimeout(() => {
+        const echoId = window.setTimeout(() => {
           this.playThunderStrike(clamped * 0.65, 'distant');
         }, echoDelay);
+        this.thunderTimeouts.push(echoId);
       }
     } catch (e) {
       console.warn('Thunder rumble error', e);

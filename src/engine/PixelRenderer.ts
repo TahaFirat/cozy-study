@@ -65,16 +65,42 @@ export class PixelRenderer {
   }
 
   public getHoveredObject(clientX: number, clientY: number, roomId: RoomId): InteractiveObjectId | null {
-    const rect = this.cachedRect ?? this.canvas.getBoundingClientRect();
-    const scaleX = this.width / rect.width;
-    const scaleY = this.height / rect.height;
-    const canvasX = (clientX - rect.left) * scaleX;
-    const canvasY = (clientY - rect.top) * scaleY;
+    const rect = this.canvas.getBoundingClientRect();
+    if (!rect || rect.width <= 0 || rect.height <= 0) return null;
+
+    // Strict aspect-ratio letterboxing calculation (960x540 canvas inside element)
+    const contentRatio = this.width / this.height; // 960 / 540 = 16:9
+    const elemRatio = rect.width / rect.height;
+    let drawW = rect.width;
+    let drawH = rect.height;
+    let offsetX = 0;
+    let offsetY = 0;
+
+    if (elemRatio > contentRatio) {
+      // Element is wider than 16:9 - black bars on left/right
+      drawW = rect.height * contentRatio;
+      offsetX = (rect.width - drawW) / 2;
+    } else {
+      // Element is taller than 16:9 - black bars on top/bottom
+      drawH = rect.width / contentRatio;
+      offsetY = (rect.height - drawH) / 2;
+    }
+
+    const relX = clientX - rect.left - offsetX;
+    const relY = clientY - rect.top - offsetY;
+
+    // If tap/click is in letterbox bars, ignore
+    if (relX < -15 || relX > drawW + 15 || relY < -15 || relY > drawH + 15) {
+      return null;
+    }
+
+    const canvasX = Math.max(0, Math.min(this.width, (relX / drawW) * this.width));
+    const canvasY = Math.max(0, Math.min(this.height, (relY / drawH) * this.height));
 
     const cfg = this.getRoomConfig(roomId);
 
-    // Check hotspots with comfortable 12px touch padding for mobile/tablet screens
-    const touchPad = 12;
+    // Check hotspots with comfortable generous touch padding for mobile/tablet screens
+    const touchPad = 20;
     for (let i = cfg.hotspots.length - 1; i >= 0; i--) {
       const h = cfg.hotspots[i];
       if (

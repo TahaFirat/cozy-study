@@ -16,6 +16,7 @@ import { ToastNotification } from './components/ui/ToastNotification';
 import { AchievementPopup } from './components/ui/AchievementPopup';
 import { CommunityChatDrawer } from './components/ui/CommunityChatDrawer';
 import { AuthModal } from './components/ui/AuthModal';
+import { ErrorBoundary } from './components/ui/ErrorBoundary';
 
 import { useAppStore, getSystemTimeOfDay } from './store/useAppStore';
 import { useAudioStore } from './store/useAudioStore';
@@ -281,26 +282,32 @@ export const App: React.FC = () => {
       )}
 
       {/* 5. Modals, Drawers & Dialogs */}
-      <CommunityChatDrawer />
-      <TaskDrawer />
-      <CommandPalette />
-      <BreakGuideModal />
-      <GlobeExplorerModal />
-      <SubscriptionModal />
-      <StatsModal />
-      <JournalModal />
-      <ProgressionModal />
-      <RoomSwitcherModal />
-      <SettingsModal />
-      <CustomTimerModal />
-      <SessionNotePromptModal />
-      <BossRaidModal />
-      <SessionShareModal />
-      <NorthStarGoalModal />
-      <ShortcutsModal />
-      <GamificationModal />
-      <UserProfileModal />
-      <AuthModal />
+      <ErrorBoundary>
+        <CommunityChatDrawer />
+      </ErrorBoundary>
+      <ErrorBoundary>
+        <TaskDrawer />
+      </ErrorBoundary>
+      <ErrorBoundary>
+        <CommandPalette />
+        <BreakGuideModal />
+        <GlobeExplorerModal />
+        <SubscriptionModal />
+        <StatsModal />
+        <JournalModal />
+        <ProgressionModal />
+        <RoomSwitcherModal />
+        <SettingsModal />
+        <CustomTimerModal />
+        <SessionNotePromptModal />
+        <BossRaidModal />
+        <SessionShareModal />
+        <NorthStarGoalModal />
+        <ShortcutsModal />
+        <GamificationModal />
+        <UserProfileModal />
+        <AuthModal />
+      </ErrorBoundary>
     </div>
   );
 };

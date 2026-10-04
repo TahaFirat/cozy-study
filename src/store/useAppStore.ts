@@ -132,24 +132,39 @@ export const useAppStore = create<AppState>()(
         try {
           webAudioEngine.init();
           const audio = useAudioStore.getState();
+
+          // Purge visual weather particles on canvas immediately
+          const pr = (window as unknown as { __pixelRenderer?: { particleSystem?: { resetWeather?: (w: WeatherType) => void } } }).__pixelRenderer;
+          if (pr?.particleSystem?.resetWeather) {
+            pr.particleSystem.resetWeather(weather);
+          }
+
           if (weather === 'storm') {
             audio.setChannelVolume('rain', 0.85);
             audio.setChannelVolume('wind', 0.45);
             audio.setChannelVolume('thunder', 0.75);
             webAudioEngine.playThunderStrike(0.9);
           } else if (weather === 'heavy_rain') {
+            webAudioEngine.stopThunder();
             audio.setChannelVolume('rain', 0.85);
             audio.setChannelVolume('wind', 0.25);
             audio.setChannelVolume('thunder', 0.15);
           } else if (weather === 'rain') {
+            webAudioEngine.stopThunder();
             audio.setChannelVolume('rain', 0.55);
             audio.setChannelVolume('wind', 0.05);
             audio.setChannelVolume('thunder', 0);
           } else if (weather === 'snow') {
+            webAudioEngine.stopThunder();
+            webAudioEngine.stopChannelImmediately('rain');
+            webAudioEngine.stopChannelImmediately('thunder');
             audio.setChannelVolume('rain', 0);
             audio.setChannelVolume('wind', 0.35);
             audio.setChannelVolume('thunder', 0);
           } else if (weather === 'clear') {
+            webAudioEngine.stopThunder();
+            webAudioEngine.stopChannelImmediately('rain');
+            webAudioEngine.stopChannelImmediately('thunder');
             audio.setChannelVolume('rain', 0);
             audio.setChannelVolume('thunder', 0);
           }
@@ -208,14 +223,35 @@ export const useAppStore = create<AppState>()(
       setDailyGoalMinutes: (dailyGoalMinutes) => set({ dailyGoalMinutes }),
       setBreakMode: (breakMode) => set({ breakMode }),
       toggleFullscreen: () => {
-        if (!document.fullscreenElement) {
-          document.documentElement.requestFullscreen().catch(() => {});
-          set({ isFullscreen: true });
-        } else {
-          if (document.exitFullscreen) {
-            document.exitFullscreen().catch(() => {});
+        const isMobileOrNative = 
+          typeof window !== 'undefined' && (
+            (window as unknown as { Capacitor?: { isNativePlatform?: () => boolean } }).Capacitor?.isNativePlatform?.() ||
+            /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
+            (window.matchMedia && window.matchMedia('(max-width: 1024px) and (hover: none)').matches)
+          );
+
+        if (isMobileOrNative) {
+          // On mobile & tablets, toggling DOM requestFullscreen destroys WebView hardware surfaces and causes black screen flickering.
+          // Instead, toggle Zen / Immersive Focus mode which cleanly hides floating widgets, leaving the pure cozy room!
+          get().toggleImmersiveMode();
+          return;
+        }
+
+        // On desktop browsers:
+        try {
+          if (!document.fullscreenElement) {
+            document.documentElement.requestFullscreen?.().then(() => {
+              set({ isFullscreen: true });
+            }).catch(() => {
+              get().toggleImmersiveMode();
+            });
+          } else {
+            document.exitFullscreen?.().then(() => {
+              set({ isFullscreen: false });
+            }).catch(() => {});
           }
-          set({ isFullscreen: false });
+        } catch {
+          get().toggleImmersiveMode();
         }
       },
       toggleBatterySaverMode: () => {
