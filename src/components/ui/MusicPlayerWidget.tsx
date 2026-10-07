@@ -239,7 +239,7 @@ export const MusicPlayerWidget: React.FC = () => {
     <>
       {/* 1. MOBILE & TABLET TRIGGER: Floating pill button */}
       <div 
-        className="2xl:hidden absolute left-3 sm:left-4 z-30 transition-all duration-300 pointer-events-auto"
+        className="mobile-music-trigger 2xl:hidden absolute left-3 sm:left-4 z-30 transition-all duration-300 pointer-events-auto"
         style={{ bottom: 'max(1.75rem, calc(env(safe-area-inset-bottom, 0px) + 1.25rem))' }}
       >
         <button
@@ -258,7 +258,7 @@ export const MusicPlayerWidget: React.FC = () => {
           {mediaTab === 'spotify' ? (
             <>
               <Music2 className="w-4 h-4 shrink-0 text-emerald-400" />
-              <span className="text-xs font-bold text-emerald-200 max-w-[130px] truncate">
+              <span className="hidden sm:inline text-xs font-bold text-emerald-200 max-w-[130px] truncate">
                 {selectedSpotify.title}
               </span>
               <span className="text-[10px] bg-emerald-500/20 text-emerald-300 font-bold px-1.5 py-0.5 rounded-full border border-emerald-500/30 hidden xs:inline">
@@ -268,7 +268,7 @@ export const MusicPlayerWidget: React.FC = () => {
           ) : (
             <>
               <Tv className="w-4 h-4 shrink-0 text-red-400" />
-              <span className="text-xs font-bold text-red-200 max-w-[130px] truncate">
+              <span className="hidden sm:inline text-xs font-bold text-red-200 max-w-[130px] truncate">
                 {selectedYouTube.title}
               </span>
               <span className="text-[10px] bg-red-500/20 text-red-300 font-bold px-1.5 py-0.5 rounded-full border border-red-500/30 hidden xs:inline">
@@ -288,7 +288,7 @@ export const MusicPlayerWidget: React.FC = () => {
       >
         <div 
           onClick={(e) => e.stopPropagation()}
-          className="bg-stone-900/98 text-stone-100 border border-stone-800 rounded-2xl shadow-2xl p-4 w-full max-w-lg max-h-[88vh] flex flex-col overflow-y-auto"
+          className="bg-stone-900/98 text-stone-100 border border-stone-800 rounded-2xl shadow-2xl p-4 w-full max-w-lg max-h-[88dvh] flex flex-col overflow-y-auto"
         >
           {renderPlayerCardContent(true)}
         </div>

@@ -427,8 +427,8 @@ export const RoomCanvas: React.FC = () => {
     <div 
       className="relative w-full h-full flex items-center justify-center overflow-hidden bg-black select-none"
       style={{
-        paddingTop: 'max(0.5rem, env(safe-area-inset-top, 0.5rem))',
-        paddingBottom: 'max(0.5rem, env(safe-area-inset-bottom, 0.5rem))',
+        paddingTop: 'max(1rem, env(safe-area-inset-top, 0px))',
+        paddingBottom: 'max(1.25rem, env(safe-area-inset-bottom, 0px))',
       }}
     >
       {/* Dynamic Living Ambilight Aura (Radiates room ambiance outwards) */}
@@ -454,11 +454,12 @@ export const RoomCanvas: React.FC = () => {
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
-        className={`relative z-10 pixel-canvas object-contain w-full h-full max-w-[177.78vh] max-h-[calc(100vh-env(safe-area-inset-top,0px)-5rem)] xs:max-h-[56.25vw] cursor-${
+        className={`relative z-10 pixel-canvas w-auto max-w-full aspect-video cursor-${
           hoveredObject ? 'pointer' : 'default'
         } transition-all duration-700`}
         style={{
           boxShadow: '0 0 70px rgba(0,0,0,0.92), 0 0 20px rgba(0,0,0,0.8)',
+          height: 'min(56.25vw, calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 5rem))',
           touchAction: 'none',
           imageRendering: 'pixelated',
         }}

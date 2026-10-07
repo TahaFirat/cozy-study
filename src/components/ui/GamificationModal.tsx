@@ -47,7 +47,7 @@ export const GamificationModal: React.FC = () => {
     >
       <div 
         onClick={(e) => e.stopPropagation()}
-        className="bg-stone-900/95 text-stone-100 border border-stone-800 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[88vh] flex flex-col animate-in fade-in zoom-in-95 duration-150"
+        className="bg-stone-900/95 text-stone-100 border border-stone-800 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[88dvh] flex flex-col animate-in fade-in zoom-in-95 duration-150"
       >
 
         {/* ── Header ─────────────────────────────────────────────────────── */}

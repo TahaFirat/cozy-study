@@ -116,7 +116,7 @@ export const ShortcutsModal: React.FC = () => {
     >
       <div 
         onClick={(e) => e.stopPropagation()}
-        className="bg-stone-900/98 text-stone-100 border border-stone-800 rounded-3xl shadow-2xl p-4 sm:p-6 w-full max-w-2xl max-h-[92vh] flex flex-col animate-in fade-in zoom-in-95 duration-150"
+        className="bg-stone-900/98 text-stone-100 border border-stone-800 rounded-3xl shadow-2xl p-4 sm:p-6 w-full max-w-2xl max-h-[92dvh] flex flex-col animate-in fade-in zoom-in-95 duration-150"
       >
         
         {/* Header */}

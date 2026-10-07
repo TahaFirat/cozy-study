@@ -429,7 +429,7 @@ export const TopBar: React.FC = () => {
           onClick={() => setIsMobileMenuOpen(false)}
         >
           <div 
-            className="bg-stone-900/98 text-stone-100 border border-stone-800 rounded-2xl shadow-2xl p-4 w-full max-w-sm sm:max-w-md ml-auto flex flex-col gap-3 animate-in fade-in zoom-in-95 duration-150 max-h-[85vh] overflow-y-auto"
+            className="bg-stone-900/98 text-stone-100 border border-stone-800 rounded-2xl shadow-2xl p-4 w-full max-w-sm sm:max-w-md ml-auto flex flex-col gap-3 animate-in fade-in zoom-in-95 duration-150 max-h-[85dvh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header */}

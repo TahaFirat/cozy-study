@@ -100,7 +100,8 @@ export class PixelRenderer {
     const cfg = this.getRoomConfig(roomId);
 
     // Check hotspots with comfortable generous touch padding for mobile/tablet screens
-    const touchPad = 20;
+    const isTouchInput = typeof navigator !== 'undefined' && navigator.maxTouchPoints > 0;
+    const touchPad = isTouchInput ? 36 : 20;
     for (let i = cfg.hotspots.length - 1; i >= 0; i--) {
       const h = cfg.hotspots[i];
       if (

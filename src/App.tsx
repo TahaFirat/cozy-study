@@ -237,7 +237,7 @@ export const App: React.FC = () => {
   return (
     <div
       onMouseMove={handleMouseMove}
-      className={`relative w-screen h-screen overflow-hidden bg-stone-950 font-sans select-none ${
+      className={`relative w-screen h-screen h-[100dvh] overflow-hidden bg-stone-950 font-sans select-none ${
         crtOverlay ? `crt-overlay crt-theme-${selectedCrtTheme}` : ''
       }`}
     >
@@ -258,6 +258,7 @@ export const App: React.FC = () => {
         }`}
       >
         <TopBar />
+        <div className="mobile-bottom-dock" aria-hidden="true" />
         <MusicPlayerWidget />
         <FocusTimerWidget />
         <AmbientMixerWidget />

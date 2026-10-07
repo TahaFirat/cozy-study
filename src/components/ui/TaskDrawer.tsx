@@ -419,7 +419,7 @@ export const TaskDrawer: React.FC = () => {
     >
       <div 
         onClick={(e) => e.stopPropagation()}
-        className="relative w-full max-w-xl h-full bg-stone-900/98 border-l border-stone-800 shadow-2xl flex flex-col text-stone-100"
+        className="relative w-full max-w-xl h-full h-[100dvh] bg-stone-900/98 border-l border-stone-800 shadow-2xl flex flex-col text-stone-100"
       >
         {/* Drawer Header */}
         <div className="p-3.5 sm:p-5 border-b border-stone-800 flex items-center justify-between bg-stone-950/50">
@@ -1155,7 +1155,7 @@ export const TaskDrawer: React.FC = () => {
         >
           <div 
             onClick={(e) => e.stopPropagation()}
-            className="bg-stone-900 border border-stone-700/80 rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto p-5 sm:p-6 relative flex flex-col gap-4 text-stone-100 animate-scale-up"
+            className="bg-stone-900 border border-stone-700/80 rounded-2xl shadow-2xl w-full max-w-md max-h-[90dvh] overflow-y-auto p-5 sm:p-6 relative flex flex-col gap-4 text-stone-100 animate-scale-up"
             role="dialog"
             aria-modal="true"
           >

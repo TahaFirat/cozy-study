@@ -21,6 +21,69 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
+
+  @supports (height: 100dvh) {
+    html, body, #root {
+      height: 100dvh;
+    }
+  }
+}
+
+/* iPhone portrait controls share one safe-area-aware dock instead of competing
+   for the same three absolute positions. */
+.mobile-bottom-dock {
+  display: none;
+}
+
+@media (max-width: 639px) {
+  .mobile-bottom-dock {
+    position: fixed;
+    display: block;
+    z-index: 29;
+    left: max(0.5rem, env(safe-area-inset-left, 0px));
+    right: max(0.5rem, env(safe-area-inset-right, 0px));
+    bottom: max(0.5rem, env(safe-area-inset-bottom, 0px));
+    height: 3.5rem;
+    border-radius: 1.125rem;
+    pointer-events: none;
+    background: rgba(18, 16, 23, 0.72);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.55);
+    backdrop-filter: blur(24px) saturate(160%);
+    -webkit-backdrop-filter: blur(24px) saturate(160%);
+  }
+
+  .mobile-music-trigger,
+  .mobile-focus-timer,
+  .mobile-ambient-trigger {
+    position: fixed;
+    bottom: max(0.75rem, calc(env(safe-area-inset-bottom, 0px) + 0.25rem)) !important;
+  }
+
+  .mobile-music-trigger {
+    left: max(0.75rem, calc(env(safe-area-inset-left, 0px) + 0.25rem));
+  }
+
+  .mobile-ambient-trigger {
+    right: max(0.75rem, calc(env(safe-area-inset-right, 0px) + 0.25rem));
+  }
+
+  .focus-timer-panel {
+    gap: 0.375rem;
+    padding: 0.5rem;
+  }
+
+  .focus-timer-presets-trigger,
+  .focus-timer-reset {
+    display: none;
+  }
+
+  .focus-timer-countdown {
+    min-width: 4.5rem;
+    font-size: 1.25rem;
+    line-height: 2rem;
+    letter-spacing: 0.075em;
+  }
 }
 
 .font-pixel {

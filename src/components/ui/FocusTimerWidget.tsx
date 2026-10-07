@@ -55,7 +55,7 @@ export const FocusTimerWidget: React.FC = () => {
 
   return (
     <div 
-      className="absolute left-1/2 -translate-x-1/2 z-30 pointer-events-auto transition-all duration-300 flex flex-col items-center"
+      className="mobile-focus-timer absolute left-1/2 -translate-x-1/2 z-30 pointer-events-auto transition-all duration-300 flex flex-col items-center"
       style={{ bottom: 'max(1.75rem, calc(env(safe-area-inset-bottom, 0px) + 1.25rem))' }}
     >
       {/* Current Goal / Focus Pledge Pill */}
@@ -80,7 +80,7 @@ export const FocusTimerWidget: React.FC = () => {
       )}
 
       <div
-        className={`flex items-center gap-2.5 sm:gap-3.5 px-3.5 sm:px-5 py-2 sm:py-2.5 glass-island text-stone-100 rounded-2xl shadow-2xl transition-all duration-300 ${
+        className={`focus-timer-panel flex items-center gap-2.5 sm:gap-3.5 px-3.5 sm:px-5 py-2 sm:py-2.5 glass-island text-stone-100 rounded-2xl shadow-2xl transition-all duration-300 ${
           isRunning
             ? breakMode !== 'none'
               ? 'border-emerald-500/70 shadow-[0_0_24px_rgba(16,185,129,0.25)] ring-1 ring-emerald-500/30'
@@ -91,7 +91,7 @@ export const FocusTimerWidget: React.FC = () => {
         {/* Status Indicator / Focus Icon */}
         <button
           onClick={() => setShowPresets(!showPresets)}
-          className={`p-1.5 sm:p-2 rounded-lg transition-colors cursor-pointer ${
+          className={`focus-timer-presets-trigger p-1.5 sm:p-2 rounded-lg transition-colors cursor-pointer ${
             isRunning
               ? breakMode !== 'none'
                 ? 'text-emerald-400 animate-pulse bg-emerald-500/10'
@@ -112,7 +112,7 @@ export const FocusTimerWidget: React.FC = () => {
         {/* Large, Clear Digital Countdown */}
         <div 
           onClick={() => setShowPresets(!showPresets)}
-          className="font-mono text-2xl sm:text-3xl font-bold tracking-widest text-amber-100 min-w-[76px] sm:min-w-[95px] text-center cursor-pointer select-none"
+          className="focus-timer-countdown font-mono text-2xl sm:text-3xl font-bold tracking-widest text-amber-100 min-w-[76px] sm:min-w-[95px] text-center cursor-pointer select-none"
           title={t.timer.customDuration}
         >
           {formatTime(secondsRemaining)}
@@ -143,7 +143,7 @@ export const FocusTimerWidget: React.FC = () => {
               resetTimer();
               setBreakMode('none');
             }}
-            className="p-1.5 sm:p-2 text-stone-400 hover:text-stone-200 transition-colors cursor-pointer rounded-lg hover:bg-stone-800/80"
+            className="focus-timer-reset p-1.5 sm:p-2 text-stone-400 hover:text-stone-200 transition-colors cursor-pointer rounded-lg hover:bg-stone-800/80"
             title={t.timer.reset}
           >
             <RotateCcw className="w-3.5 h-3.5 sm:w-4 sm:h-4" />

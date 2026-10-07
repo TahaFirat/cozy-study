@@ -199,7 +199,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, s
     >
       <div 
         onClick={(e) => e.stopPropagation()}
-        className="relative w-full max-w-lg bg-stone-900 border border-stone-700/80 rounded-2xl shadow-2xl overflow-hidden text-stone-100 flex flex-col max-h-[94vh]"
+        className="relative w-full max-w-lg bg-stone-900 border border-stone-700/80 rounded-2xl shadow-2xl overflow-hidden text-stone-100 flex flex-col max-h-[94dvh]"
       >
 
         {/* Header */}

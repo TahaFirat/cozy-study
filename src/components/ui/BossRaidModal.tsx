@@ -294,7 +294,7 @@ export const BossRaidModal: React.FC = () => {
     >
       <div 
         onClick={(e) => e.stopPropagation()}
-        className="bg-stone-900/98 text-stone-100 border border-stone-800 rounded-3xl shadow-2xl p-3.5 sm:p-5 w-full max-w-5xl max-h-[96vh] flex flex-col animate-in fade-in zoom-in-95 duration-200"
+        className="bg-stone-900/98 text-stone-100 border border-stone-800 rounded-3xl shadow-2xl p-3.5 sm:p-5 w-full max-w-5xl max-h-[96dvh] flex flex-col animate-in fade-in zoom-in-95 duration-200"
       >
         
         {/* Header with Global Community Raid Indicator */}

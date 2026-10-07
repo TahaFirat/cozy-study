@@ -210,7 +210,7 @@ export const SessionShareModal: React.FC = () => {
     >
       <div 
         onClick={(e) => e.stopPropagation()}
-        className="bg-stone-900/95 text-stone-100 border border-stone-800 rounded-3xl shadow-2xl p-6 w-full max-w-md max-h-[95vh] flex flex-col animate-in fade-in zoom-in-95 duration-200"
+        className="bg-stone-900/95 text-stone-100 border border-stone-800 rounded-3xl shadow-2xl p-6 w-full max-w-md max-h-[95dvh] flex flex-col animate-in fade-in zoom-in-95 duration-200"
       >
         
         {/* Header */}
@@ -236,7 +236,7 @@ export const SessionShareModal: React.FC = () => {
 
         {/* Story Card Canvas Preview */}
         <div className="flex-1 overflow-y-auto py-3 flex items-center justify-center">
-          <div className="relative rounded-2xl overflow-hidden shadow-2xl border border-stone-800 max-h-[62vh] aspect-[9/16]">
+          <div className="relative rounded-2xl overflow-hidden shadow-2xl border border-stone-800 max-h-[62dvh] aspect-[9/16]">
             <canvas
               ref={canvasRef}
               className="w-full h-full object-contain"

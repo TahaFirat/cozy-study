@@ -88,7 +88,7 @@ export const AmbientMixerWidget: React.FC = () => {
     <>
       {/* Bottom-right Floating Mixer Trigger & Fullscreen Buttons */}
       <div 
-        className="absolute right-3 sm:right-4 z-30 pointer-events-auto flex items-center gap-2"
+        className="mobile-ambient-trigger absolute right-3 sm:right-4 z-30 pointer-events-auto flex items-center gap-2"
         style={{ bottom: 'max(1.75rem, calc(env(safe-area-inset-bottom, 0px) + 1.25rem))' }}
       >
         <button
@@ -130,7 +130,7 @@ export const AmbientMixerWidget: React.FC = () => {
         >
           <div 
             onClick={(e) => e.stopPropagation()}
-            className="bg-stone-900/95 text-stone-100 border border-stone-800 rounded-2xl shadow-2xl p-4 sm:p-6 w-full max-w-lg max-h-[88vh] flex flex-col animate-in fade-in zoom-in-95 duration-150"
+            className="bg-stone-900/95 text-stone-100 border border-stone-800 rounded-2xl shadow-2xl p-4 sm:p-6 w-full max-w-lg max-h-[88dvh] flex flex-col animate-in fade-in zoom-in-95 duration-150"
           >
             {/* Header */}
             <div className="flex items-center justify-between pb-3.5 border-b border-stone-800">

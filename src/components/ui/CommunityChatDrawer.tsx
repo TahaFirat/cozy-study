@@ -25,6 +25,7 @@ export const CommunityChatDrawer: React.FC = () => {
   const { user } = useAuthStore();
   const { timerState, currentGoal } = useTimerStore();
   const { streakDays, getTodayMinutes } = useStatsStore();
+  const [lastReactionTime, setLastReactionTime] = React.useState<number>(0);
 
   if (!isChatOpen) return null;
 
@@ -32,8 +33,6 @@ export const CommunityChatDrawer: React.FC = () => {
   const t = TRANSLATIONS[language];
   const roomName = t?.rooms?.[activeRoom]?.name || (isTr ? 'Sıcak Yatak Odası' : 'Cozy Bedroom');
   const todayMinutes = typeof getTodayMinutes === 'function' ? getTodayMinutes() : 0;
-
-  const [lastReactionTime, setLastReactionTime] = React.useState<number>(0);
 
   const handleSendReaction = (type: 'coffee' | 'cheer' | 'fire') => {
     const now = Date.now();
@@ -59,7 +58,7 @@ export const CommunityChatDrawer: React.FC = () => {
       {/* Floating Co-Study Island (Keeps the cozy room visible, zero blackouts!) */}
       <div 
         onClick={(e) => e.stopPropagation()}
-        className="fixed top-14 sm:top-16 left-2 right-2 sm:left-auto sm:right-4 w-auto sm:w-96 max-w-[96vw] sm:max-w-md max-h-[80vh] z-50 flex flex-col bg-stone-900/95 text-stone-100 border border-stone-700/80 rounded-2xl shadow-[0_12px_45px_rgba(0,0,0,0.7)] backdrop-blur-xl overflow-hidden animate-in fade-in zoom-in-95 duration-200 pointer-events-auto"
+        className="fixed top-14 sm:top-16 left-2 right-2 sm:left-auto sm:right-4 w-auto sm:w-96 max-w-[96vw] sm:max-w-md max-h-[80dvh] z-50 flex flex-col bg-stone-900/95 text-stone-100 border border-stone-700/80 rounded-2xl shadow-[0_12px_45px_rgba(0,0,0,0.7)] backdrop-blur-xl overflow-hidden animate-in fade-in zoom-in-95 duration-200 pointer-events-auto"
       >
         {/* Top Header */}
         <div className="p-3.5 sm:p-4 border-b border-stone-800/90 bg-stone-950/60 flex items-center justify-between shrink-0">

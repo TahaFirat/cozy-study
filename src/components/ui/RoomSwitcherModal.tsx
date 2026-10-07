@@ -70,7 +70,7 @@ export const RoomSwitcherModal: React.FC = () => {
     >
       <div 
         onClick={(e) => e.stopPropagation()}
-        className="bg-stone-900/95 text-stone-100 border border-stone-800 rounded-2xl shadow-2xl p-6 w-full max-w-lg max-h-[85vh] flex flex-col animate-in fade-in zoom-in-95 duration-150"
+        className="bg-stone-900/95 text-stone-100 border border-stone-800 rounded-2xl shadow-2xl p-6 w-full max-w-lg max-h-[85dvh] flex flex-col animate-in fade-in zoom-in-95 duration-150"
       >
         
         {/* Header */}
