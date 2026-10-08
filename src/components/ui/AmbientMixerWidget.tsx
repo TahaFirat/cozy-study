@@ -19,9 +19,7 @@ import {
   Zap,
   Heart,
   BookOpen,
-  Crown,
   Compass,
-  Timer,
   Radio,
   Headphones,
   Bell,
@@ -31,7 +29,6 @@ import {
 } from 'lucide-react';
 import { useAudioStore } from '../../store/useAudioStore';
 import { useAppStore } from '../../store/useAppStore';
-import { useSubscriptionStore } from '../../store/useSubscriptionStore';
 import { AMBIENT_PRESETS } from '../../audio/soundPresets';
 import { AmbientSoundChannel } from '../../types';
 import { TRANSLATIONS } from '../../i18n/translations';
@@ -52,8 +49,7 @@ export const AmbientMixerWidget: React.FC = () => {
     toggleMute,
   } = useAudioStore();
 
-  const { activeModal, setActiveModal, language, showToast, isFullscreen, toggleFullscreen, immersiveMode } = useAppStore();
-  const { isPro } = useSubscriptionStore();
+  const { activeModal, setActiveModal, language, isFullscreen, toggleFullscreen, immersiveMode } = useAppStore();
   const t = TRANSLATIONS[language];
   const isOpen = activeModal === 'mixer';
 
@@ -93,7 +89,7 @@ export const AmbientMixerWidget: React.FC = () => {
       >
         <button
           onClick={toggleFullscreen}
-          className={`p-2.5 glass-island rounded-2xl shadow-2xl transition-all duration-300 border cursor-pointer ${
+          className={`mobile-fullscreen-trigger p-2.5 glass-island rounded-2xl shadow-2xl transition-all duration-300 border cursor-pointer ${
             immersiveMode || isFullscreen
               ? 'border-amber-500/70 text-amber-300 bg-amber-950/40 shadow-[0_0_15px_rgba(245,158,11,0.3)]'
               : 'border-white/10 hover:border-white/20 text-stone-300 hover:text-stone-100'
@@ -113,7 +109,7 @@ export const AmbientMixerWidget: React.FC = () => {
           title={t.mixer.title}
         >
           <Sliders className="w-4 h-4" />
-          <span className="text-sm font-bold tracking-wide hidden sm:inline">{t.mixer.title}</span>
+          <span className="mobile-widget-label text-sm font-bold tracking-wide hidden lg:inline">{t.mixer.title}</span>
           {activeChannelsCount > 0 && (
             <span className="w-5 h-5 rounded-full bg-amber-500/30 text-amber-300 text-xs font-bold flex items-center justify-center border border-amber-500/50 shadow-[0_0_8px_rgba(245,158,11,0.4)]">
               {activeChannelsCount}
@@ -126,7 +122,7 @@ export const AmbientMixerWidget: React.FC = () => {
       {isOpen && (
         <div 
           onClick={() => setActiveModal('none')}
-          className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/65 backdrop-blur-sm pointer-events-auto"
+          className="app-modal-overlay fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/65 backdrop-blur-sm pointer-events-auto"
         >
           <div 
             onClick={(e) => e.stopPropagation()}

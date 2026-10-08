@@ -34,8 +34,18 @@ export const UserMenu: React.FC = () => {
     return (
       <div ref={menuRef} className="relative">
         <button
+          onClick={() => setActiveModal('auth')}
+          className="mobile-login-button sm:hidden min-h-9 flex items-center gap-1.5 px-2.5 py-1.5 bg-amber-500 text-stone-950 border border-amber-300 rounded-xl text-[11px] font-black transition-all cursor-pointer shadow-sm active:scale-95"
+          title={tr ? 'Giriş yap veya hesap oluştur' : 'Sign in or create an account'}
+          aria-label={tr ? 'Giriş yap veya hesap oluştur' : 'Sign in or create an account'}
+        >
+          <User className="w-3.5 h-3.5" />
+          <span>{tr ? 'Giriş' : 'Sign in'}</span>
+        </button>
+
+        <button
           onClick={() => setIsOpen(!isOpen)}
-          className="flex items-center gap-1.5 px-2.5 py-1.5 bg-stone-900/85 hover:bg-stone-800 text-amber-200 border border-amber-800/60 hover:border-amber-500 rounded-xl backdrop-blur-md text-xs font-bold transition-all cursor-pointer shadow-sm"
+          className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 bg-stone-900/85 hover:bg-stone-800 text-amber-200 border border-amber-800/60 hover:border-amber-500 rounded-xl backdrop-blur-md text-xs font-bold transition-all cursor-pointer shadow-sm"
           title={tr ? 'Profil & Hesap Menüsü' : 'Profile & Account Menu'}
         >
           <div className="w-5 h-5 rounded-full bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-[10px] text-amber-300">

@@ -1,14 +1,5 @@
 import React, { useState } from 'react';
 import { 
-  Play, 
-  Pause, 
-  SkipForward, 
-  SkipBack, 
-  Volume2, 
-  Shuffle, 
-  Repeat, 
-  Radio, 
-  ListMusic, 
   ChevronDown, 
   ChevronUp,
   X,
@@ -16,46 +7,21 @@ import {
   Music2,
   Tv
 } from 'lucide-react';
-import { useAudioStore } from '../../store/useAudioStore';
 import { useAppStore } from '../../store/useAppStore';
 import { 
-  MUSIC_CATEGORIES, 
   SPOTIFY_PLAYLISTS, 
   YOUTUBE_STREAMS,
   SpotifyPlaylist,
   YouTubeStream 
 } from '../../audio/musicTracks';
-import { MusicCategory } from '../../types';
 import { TRANSLATIONS } from '../../i18n/translations';
-import { webAudioEngine } from '../../audio/WebAudioEngine';
 
 export const MusicPlayerWidget: React.FC = () => {
-  const {
-    isPlayingMusic,
-    togglePlayMusic,
-    nextTrack,
-    prevTrack,
-    getCurrentTrack,
-    musicVolume,
-    setMusicVolume,
-    currentTime,
-    duration,
-    isShuffle,
-    toggleShuffle,
-    isRepeat,
-    toggleRepeat,
-    selectedCategory,
-    setCategory,
-    getFilteredTracks,
-    playTrack,
-  } = useAudioStore();
-
   const { language } = useAppStore();
   const t = TRANSLATIONS[language];
   const isTr = language === 'tr';
 
   const [expanded, setExpanded] = useState(false);
-  const [showPlaylist, setShowPlaylist] = useState(false);
   const [isMobileModalOpen, setIsMobileModalOpen] = useState(false);
   
   // Media Tabs: 'spotify' | 'youtube' (High-fidelity, reliable mobile-compatible audio)
@@ -63,22 +29,6 @@ export const MusicPlayerWidget: React.FC = () => {
   const [selectedSpotify, setSelectedSpotify] = useState<SpotifyPlaylist>(SPOTIFY_PLAYLISTS[0]);
   const [selectedYouTube, setSelectedYouTube] = useState<YouTubeStream>(YOUTUBE_STREAMS[0]);
 
-  const currentTrack = getCurrentTrack();
-  const playlist = getFilteredTracks();
-
-  const formatTime = (secs: number) => {
-    if (isNaN(secs) || secs < 0) return '0:00';
-    const m = Math.floor(secs / 60);
-    const s = Math.floor(secs % 60);
-    return `${m}:${s < 10 ? '0' : ''}${s}`;
-  };
-
-  const progressPercent = duration > 0 ? (currentTime / duration) * 100 : 0;
-
-  const handleTogglePlay = () => {
-    webAudioEngine.init();
-    togglePlayMusic();
-  };
 
   // Content for the complete player card (reusable for desktop & mobile modal)
   const renderPlayerCardContent = (isMobileView = false) => (
@@ -258,7 +208,7 @@ export const MusicPlayerWidget: React.FC = () => {
           {mediaTab === 'spotify' ? (
             <>
               <Music2 className="w-4 h-4 shrink-0 text-emerald-400" />
-              <span className="hidden sm:inline text-xs font-bold text-emerald-200 max-w-[130px] truncate">
+              <span className="mobile-widget-label hidden lg:inline text-xs font-bold text-emerald-200 max-w-[130px] truncate">
                 {selectedSpotify.title}
               </span>
               <span className="text-[10px] bg-emerald-500/20 text-emerald-300 font-bold px-1.5 py-0.5 rounded-full border border-emerald-500/30 hidden xs:inline">
@@ -268,7 +218,7 @@ export const MusicPlayerWidget: React.FC = () => {
           ) : (
             <>
               <Tv className="w-4 h-4 shrink-0 text-red-400" />
-              <span className="hidden sm:inline text-xs font-bold text-red-200 max-w-[130px] truncate">
+              <span className="mobile-widget-label hidden lg:inline text-xs font-bold text-red-200 max-w-[130px] truncate">
                 {selectedYouTube.title}
               </span>
               <span className="text-[10px] bg-red-500/20 text-red-300 font-bold px-1.5 py-0.5 rounded-full border border-red-500/30 hidden xs:inline">
@@ -282,7 +232,7 @@ export const MusicPlayerWidget: React.FC = () => {
       {/* 2. MOBILE & TABLET MODAL / BOTTOM SHEET (Kept mounted in DOM so Spotify/YouTube audio keeps playing after closing) */}
       <div 
         onClick={() => setIsMobileModalOpen(false)}
-        className={`2xl:hidden fixed inset-0 z-50 flex items-end sm:items-center justify-center p-3 sm:p-4 bg-black/75 backdrop-blur-sm transition-all duration-300 pointer-events-auto ${
+        className={`app-modal-overlay 2xl:hidden fixed inset-0 z-50 flex items-end sm:items-center justify-center p-3 sm:p-4 bg-black/75 backdrop-blur-sm transition-all duration-300 pointer-events-auto ${
           isMobileModalOpen ? 'opacity-100' : 'opacity-0 pointer-events-none translate-y-full'
         }`}
       >

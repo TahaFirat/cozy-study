@@ -15,7 +15,9 @@ const config: CapacitorConfig = {
     captureInput: true,
   },
   ios: {
-    contentInset: 'automatic',
+    // CSS env(safe-area-inset-*) owns the insets. Automatic WKWebView
+    // insetting would apply the notch/home-indicator spacing twice.
+    contentInset: 'never',
     allowsLinkPreview: false,
     scrollEnabled: false,
     preferredContentMode: 'mobile',

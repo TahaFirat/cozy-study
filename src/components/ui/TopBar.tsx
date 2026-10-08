@@ -19,11 +19,9 @@ import {
   CheckSquare,
   Search,
   Activity,
-  Crown,
   Swords,
   Share2,
   BarChart2,
-  Trophy,
   Menu,
   X,
   Clock,
@@ -57,7 +55,7 @@ export const TopBar: React.FC = () => {
     setActiveModal,
   } = useAppStore();
 
-  const { streakDays, getTotalFocusHours } = useStatsStore();
+  const { streakDays } = useStatsStore();
   const { onlineCount, unreadCount, toggleChat } = useCommunityStore();
   const { xp } = useGamificationStore();
   const { tasks, toggleTaskDrawer } = useTaskStore();
@@ -107,19 +105,19 @@ export const TopBar: React.FC = () => {
 
   return (
     <header 
-      className="absolute left-2 right-2 sm:left-4 sm:right-4 z-30 flex items-center justify-between pointer-events-none transition-all duration-300 gap-2"
+      className="topbar-shell fixed left-2 right-2 sm:left-4 sm:right-4 z-30 flex items-center justify-between pointer-events-none transition-all duration-300 gap-2"
       style={{ top: 'max(1.2rem, calc(env(safe-area-inset-top, 0px) + 0.8rem))' }}
     >
       {/* 1. LEFT LUXURY ISLAND: Atmosphere, Room & Live Co-Study */}
-      <div className="glass-island rounded-2xl p-1 sm:p-1.5 flex items-center gap-1 sm:gap-2 pointer-events-auto shadow-2xl shrink-0">
+      <div className="topbar-left glass-island rounded-2xl p-1 sm:p-1.5 flex items-center gap-1 sm:gap-2 pointer-events-auto shadow-2xl shrink-0 min-w-0">
         {/* Room Selector */}
         <button
           onClick={() => setActiveModal('rooms')}
-          className="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1.5 rounded-xl hover:bg-white/5 text-stone-100 transition-all group cursor-pointer"
+          className="topbar-room-button flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1.5 rounded-xl hover:bg-white/5 text-stone-100 transition-all group cursor-pointer min-w-0"
           title={t.changeRoom}
         >
           <span className="w-2 h-2 rounded-full bg-amber-400 group-hover:scale-125 shadow-[0_0_8px_rgba(251,191,36,0.6)] transition-all shrink-0" />
-          <span className="text-xs sm:text-sm font-bold tracking-wide text-amber-100 max-w-[85px] xs:max-w-[130px] sm:max-w-none truncate">
+          <span className="topbar-room-label text-xs sm:text-sm font-bold tracking-wide text-amber-100 max-w-[85px] sm:max-w-none truncate">
             {localizedRoomName}
           </span>
           <Compass className="w-3.5 h-3.5 text-stone-400 group-hover:text-amber-300 transition-colors shrink-0" />
@@ -142,7 +140,7 @@ export const TopBar: React.FC = () => {
         {/* Live Co-Study Buddies */}
         <button
           onClick={toggleChat}
-          className="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-2.5 py-1.5 rounded-xl bg-emerald-950/40 hover:bg-emerald-900/60 text-emerald-200 border border-emerald-500/30 text-xs font-semibold transition-all cursor-pointer group shrink-0"
+          className="topbar-community flex items-center gap-1.5 sm:gap-2 px-2 sm:px-2.5 py-1.5 rounded-xl bg-emerald-950/40 hover:bg-emerald-900/60 text-emerald-200 border border-emerald-500/30 text-xs font-semibold transition-all cursor-pointer group shrink-0"
           title={language === 'tr' ? 'Birlikte Çalışanlar & Canlı Sohbet (C)' : 'Co-Study Community & Chat (C)'}
         >
           <span className="relative flex h-2 w-2 shrink-0">
@@ -163,7 +161,7 @@ export const TopBar: React.FC = () => {
       </div>
 
       {/* 2. CENTER LUXURY ISLAND: Real-time Ambient Digital Clock & Streak */}
-      <div className="flex items-center gap-1.5 sm:gap-2 pointer-events-auto shrink-0">
+      <div className="topbar-clock flex items-center gap-1.5 sm:gap-2 pointer-events-auto shrink-0">
         {/* Real-time Digital Clock Island */}
         <div 
           className="glass-island px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-2xl flex items-center gap-1.5 sm:gap-2 shadow-2xl border border-white/10 select-none backdrop-blur-md"
@@ -212,11 +210,11 @@ export const TopBar: React.FC = () => {
       </div>
 
       {/* 3. RIGHT LUXURY ISLAND: Studio Command Toolbar & Profile */}
-      <div className="glass-island rounded-2xl p-1 sm:p-1.5 flex items-center gap-1 pointer-events-auto shadow-2xl shrink-0">
+      <div className="topbar-actions glass-island rounded-2xl p-1 sm:p-1.5 flex items-center gap-1 pointer-events-auto shadow-2xl shrink-0">
         {/* Study Statistics & Heatmap */}
         <button
           onClick={() => setActiveModal('stats')}
-          className="flex items-center gap-1.5 px-2 sm:px-2.5 py-1.5 rounded-xl hover:bg-amber-500/15 text-amber-200/90 hover:text-amber-100 text-xs font-bold transition-all cursor-pointer bg-amber-500/10 border border-amber-500/30 shrink-0"
+          className="topbar-secondary-action flex items-center gap-1.5 px-2 sm:px-2.5 py-1.5 rounded-xl hover:bg-amber-500/15 text-amber-200/90 hover:text-amber-100 text-xs font-bold transition-all cursor-pointer bg-amber-500/10 border border-amber-500/30 shrink-0"
           title={language === 'tr' ? 'Çalışma İstatistikleri & Isı Haritası' : 'Study Statistics & Heatmap'}
         >
           <BarChart2 className="w-3.5 h-3.5 text-amber-400" />
@@ -226,7 +224,7 @@ export const TopBar: React.FC = () => {
         {/* Boss Raid Arena Trigger — Visible & Prominent on all screens! */}
         <button
           onClick={() => setActiveModal('boss_raid')}
-          className={`flex items-center gap-1.5 px-2 sm:px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer border shrink-0 ${
+          className={`topbar-secondary-action flex items-center gap-1.5 px-2 sm:px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer border shrink-0 ${
             frenzyActive 
               ? 'bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 border-amber-500/50 shadow-[0_0_10px_rgba(245,158,11,0.3)] animate-pulse'
               : 'bg-red-950/50 hover:bg-red-900/70 text-red-200 hover:text-red-100 border-red-500/40 shadow-sm'
@@ -256,7 +254,7 @@ export const TopBar: React.FC = () => {
         {/* Study Tasks & Mini Kanban — Prominent, easy-to-tap pill for phone & tablet */}
         <button
           onClick={toggleTaskDrawer}
-          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 border border-amber-500/30 text-xs font-bold transition-all cursor-pointer relative shrink-0 active:scale-95 shadow-sm"
+          className="topbar-secondary-action flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 border border-amber-500/30 text-xs font-bold transition-all cursor-pointer relative shrink-0 active:scale-95 shadow-sm"
           title={language === 'tr' ? 'Çalışma Görevleri & To-Do Listesi (T)' : 'Tasks & To-Do List (T)'}
         >
           <CheckSquare className="w-4 h-4 text-amber-400" />
@@ -408,7 +406,7 @@ export const TopBar: React.FC = () => {
         {/* STUDIO MENU TOGGLE BUTTON (Screens < 1536px, Mobile & Tablet) */}
         <button
           onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-          className={`2xl:hidden p-1.5 rounded-xl transition-all cursor-pointer ${
+          className={`topbar-menu-trigger 2xl:hidden p-1.5 rounded-xl transition-all cursor-pointer ${
             isMobileMenuOpen ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40' : 'hover:bg-white/5 text-stone-300'
           }`}
           title={language === 'tr' ? 'Stüdyo Menüsü' : 'Studio Menu'}
@@ -416,7 +414,7 @@ export const TopBar: React.FC = () => {
           {isMobileMenuOpen ? <X className="w-4 h-4 text-amber-400" /> : <Menu className="w-4 h-4 text-stone-300" />}
         </button>
 
-        <div className="w-[1px] h-4 bg-white/10 mx-0.5" />
+        <div className="topbar-actions-divider w-[1px] h-4 bg-white/10 mx-0.5" />
 
         {/* User Account Menu Avatar */}
         <UserMenu />
@@ -425,7 +423,7 @@ export const TopBar: React.FC = () => {
       {/* 4. MOBILE & TABLET STUDIO DRAWER / MENU POPUP (Screens < 1536px) */}
       {isMobileMenuOpen && (
         <div 
-          className="2xl:hidden fixed inset-0 z-50 bg-black/60 backdrop-blur-sm pointer-events-auto animate-fade-in flex flex-col justify-start p-4 pt-16"
+          className="app-modal-overlay topbar-mobile-menu 2xl:hidden fixed inset-0 z-50 bg-black/60 backdrop-blur-sm pointer-events-auto animate-fade-in flex flex-col justify-start p-4 pt-16"
           onClick={() => setIsMobileMenuOpen(false)}
         >
           <div 

@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
-import { X, Mail, Lock, User, Eye, EyeOff, Globe, Loader2, AlertCircle, KeyRound } from 'lucide-react';
+import { X, Mail, Lock, User, Eye, EyeOff, Loader2, AlertCircle, KeyRound } from 'lucide-react';
 import { useAppStore } from '../../store/useAppStore';
 import { useAuthStore } from '../../store/useAuthStore';
 import { useTaskStore } from '../../store/useTaskStore';
 import { useStatsStore } from '../../store/useStatsStore';
-import { signInWithEmail, registerWithEmail, resetPassword, isFirebaseConfigured, loginAsDemoUser } from '../../firebase/auth';
+import { signInWithEmail, registerWithEmail, resetPassword, loginAsDemoUser } from '../../firebase/auth';
 
 type AuthView = 'login' | 'register' | 'reset';
 
@@ -126,11 +126,11 @@ export const AuthModal: React.FC = () => {
   return (
     <div 
       onClick={() => setActiveModal('none')}
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm pointer-events-auto"
+      className="app-modal-overlay app-auth-overlay fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm pointer-events-auto overflow-y-auto"
     >
       <div 
         onClick={(e) => e.stopPropagation()}
-        className="bg-stone-900/98 text-stone-100 border border-stone-800 rounded-2xl shadow-2xl w-full max-w-md animate-in fade-in zoom-in-95 duration-150 overflow-hidden"
+        className="app-modal-panel bg-stone-900/98 text-stone-100 border border-stone-800 rounded-2xl shadow-2xl w-full max-w-md max-h-[90dvh] flex flex-col animate-in fade-in zoom-in-95 duration-150 overflow-hidden"
       >
         
         {/* Header */}
@@ -156,7 +156,7 @@ export const AuthModal: React.FC = () => {
           </button>
         </div>
 
-        <div className="p-5 space-y-4">
+        <div className="p-5 space-y-4 overflow-y-auto overscroll-contain">
           {/* Error / Success Messages */}
           {error && (
             <div className="flex items-center gap-2 px-3 py-2.5 bg-red-950/50 border border-red-800/60 rounded-lg text-sm text-red-300">

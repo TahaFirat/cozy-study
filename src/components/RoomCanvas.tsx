@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { PixelRenderer } from '../engine/PixelRenderer';
 import { useAppStore } from '../store/useAppStore';
 import { useAudioStore } from '../store/useAudioStore';
@@ -71,12 +71,12 @@ export const RoomCanvas: React.FC = () => {
   const { unlockedTrophies } = useBossRaidStore();
 
   const [mousePos, setMousePos] = useState<{ x: number; y: number } | null>(null);
-  const isMouseDownRef = useRef(false);
+  const isPointerDownRef = useRef(false);
+  const activePointerIdRef = useRef<number | null>(null);
   const dragDistanceRef = useRef(0);
-  const touchStartPosRef = useRef<{ x: number; y: number } | null>(null);
-  const touchStartTimeRef = useRef(0);
-  const lastTouchPosRef = useRef<{ x: number; y: number } | null>(null);
-  const lastTouchTimeRef = useRef(0);
+  const pointerStartPosRef = useRef<{ x: number; y: number } | null>(null);
+  const pointerStartTimeRef = useRef(0);
+  const lastPointerPosRef = useRef<{ x: number; y: number } | null>(null);
   const lastInteractionTimeRef = useRef(0);
   const lastScratchAudioRef = useRef(0);
 
@@ -144,62 +144,78 @@ export const RoomCanvas: React.FC = () => {
     };
   }, []);
 
-  const handleMouseDown = () => {
-    isMouseDownRef.current = true;
-    dragDistanceRef.current = 0;
-  };
-
-  const handleMouseUp = () => {
-    isMouseDownRef.current = false;
-  };
-
-  // Handle Mouse Hover & Window Scratching (Optimized to avoid 60-120 FPS React re-renders)
-  const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
+  const scratchWindowAt = (clientX: number, clientY: number, intensity: number) => {
     if (!rendererRef.current || !canvasRef.current) return;
+    const { x: canvasX, y: canvasY } = getLetterboxedCanvasCoords(canvasRef.current, clientX, clientY);
+    const cfg = ROOM_CONFIGS[activeRoom];
+    const insideWindow = cfg.windowPanes?.length
+      ? cfg.windowPanes.some((p) =>
+          canvasX >= p.x && canvasX <= p.x + p.w && canvasY >= p.y && canvasY <= p.y + p.h
+        )
+      : canvasX >= cfg.windowBounds.x &&
+        canvasX <= cfg.windowBounds.x + cfg.windowBounds.w &&
+        canvasY >= cfg.windowBounds.y &&
+        canvasY <= cfg.windowBounds.y + cfg.windowBounds.h;
+
+    if (!insideWindow) return;
+    rendererRef.current.particleSystem.addWindowScratch(canvasX, canvasY, intensity);
+    const now = performance.now();
+    if (now - lastScratchAudioRef.current > 130) {
+      webAudioEngine.playGlassWipe();
+      lastScratchAudioRef.current = now;
+    }
+  };
+
+  // A single Pointer Events path prevents iOS/Android from dispatching both a
+  // touch action and its synthetic click for the same physical tap.
+  const handlePointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    if (!e.isPrimary || !rendererRef.current) return;
+    e.preventDefault();
+    e.currentTarget.setPointerCapture(e.pointerId);
+    activePointerIdRef.current = e.pointerId;
+    isPointerDownRef.current = true;
+    dragDistanceRef.current = 0;
+    pointerStartPosRef.current = { x: e.clientX, y: e.clientY };
+    lastPointerPosRef.current = { x: e.clientX, y: e.clientY };
+    pointerStartTimeRef.current = performance.now();
+
     const hovered = rendererRef.current.getHoveredObject(e.clientX, e.clientY, activeRoom);
     if (hovered !== hoveredObject) {
       setHoveredObject(hovered);
     }
-    // Only update React mousePos state when hovering an interactive object to show the tooltip
-    if (hovered) {
-      setMousePos({ x: e.clientX, y: e.clientY });
-    } else if (mousePos) {
-      setMousePos(null);
+  };
+
+  // Hover and window scratching without a parallel touch handler.
+  const handlePointerMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    if (!rendererRef.current || !canvasRef.current || !e.isPrimary) return;
+    const hovered = rendererRef.current.getHoveredObject(e.clientX, e.clientY, activeRoom);
+    if (hovered !== hoveredObject) setHoveredObject(hovered);
+
+    // Touch tooltips obscure the small scene. Show them only for hover-capable pointers.
+    if (e.pointerType !== 'touch') {
+      if (hovered) setMousePos({ x: e.clientX, y: e.clientY });
+      else if (mousePos) setMousePos(null);
     }
 
-    // Interactive Window Condensation Scratching (Rain / Snow)
-    if (isMouseDownRef.current && canvasRef.current) {
-      dragDistanceRef.current += Math.hypot(e.movementX, e.movementY);
-      const { x: canvasX, y: canvasY } = getLetterboxedCanvasCoords(canvasRef.current, e.clientX, e.clientY);
-
-      const cfg = ROOM_CONFIGS[activeRoom];
-      let insideWindow = false;
-      if (cfg.windowPanes && cfg.windowPanes.length > 0) {
-        insideWindow = cfg.windowPanes.some(p =>
-          canvasX >= p.x && canvasX <= p.x + p.w &&
-          canvasY >= p.y && canvasY <= p.y + p.h
-        );
-      } else {
-        const wb = cfg.windowBounds;
-        insideWindow = (
-          canvasX >= wb.x && canvasX <= wb.x + wb.w &&
-          canvasY >= wb.y && canvasY <= wb.y + wb.h
-        );
+    if (isPointerDownRef.current && activePointerIdRef.current === e.pointerId) {
+      const previous = lastPointerPosRef.current;
+      if (previous) {
+        dragDistanceRef.current += Math.hypot(e.clientX - previous.x, e.clientY - previous.y);
       }
-
-      if (insideWindow) {
-        rendererRef.current.particleSystem.addWindowScratch(canvasX, canvasY, 8);
-        const now = Date.now();
-        if (now - lastScratchAudioRef.current > 130) {
-          webAudioEngine.playGlassWipe();
-          lastScratchAudioRef.current = now;
-        }
-      }
+      lastPointerPosRef.current = { x: e.clientX, y: e.clientY };
+      scratchWindowAt(e.clientX, e.clientY, e.pointerType === 'touch' ? 14 : 8);
     }
   };
 
-  const handleMouseLeave = () => {
-    isMouseDownRef.current = false;
+  const clearPointerInteraction = () => {
+    isPointerDownRef.current = false;
+    activePointerIdRef.current = null;
+    pointerStartPosRef.current = null;
+    lastPointerPosRef.current = null;
+  };
+
+  const handlePointerLeave = () => {
+    if (isPointerDownRef.current) return;
     setHoveredObject(null);
     setMousePos(null);
   };
@@ -210,8 +226,9 @@ export const RoomCanvas: React.FC = () => {
   // Handle Interactive Clicks & Taps
   const handleInteractiveClick = (clicked: InteractiveObjectId) => {
     const now = performance.now();
-    // Guard against rapid duplicate triggers (350ms cooldown)
-    if (now - lastInteractionTimeRef.current < 350) return;
+    // Guard only against genuinely duplicated platform events. Normal taps are
+    // already de-duplicated by the unified pointer pipeline.
+    if (now - lastInteractionTimeRef.current < 250) return;
     lastInteractionTimeRef.current = now;
 
     webAudioEngine.init();
@@ -315,94 +332,37 @@ export const RoomCanvas: React.FC = () => {
     }
   };
 
-  const handleClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    // If this click is a synthetic event emitted by the browser right after a touch, ignore it!
-    if (performance.now() - lastTouchTimeRef.current < 500) {
-      return;
-    }
-    if (!rendererRef.current) return;
-    const clicked = rendererRef.current.getHoveredObject(e.clientX, e.clientY, activeRoom);
-    if (clicked) {
-      handleInteractiveClick(clicked);
-    }
-  };
-
-  // Mobile Touch Handlers
-  const handleTouchStart = (e: React.TouchEvent<HTMLCanvasElement>) => {
-    if (!e.touches[0] || !canvasRef.current || !rendererRef.current) return;
-    isMouseDownRef.current = true;
-    dragDistanceRef.current = 0;
-    const touch = e.touches[0];
-    touchStartPosRef.current = { x: touch.clientX, y: touch.clientY };
-    touchStartTimeRef.current = performance.now();
-    lastTouchPosRef.current = { x: touch.clientX, y: touch.clientY };
-    const hovered = rendererRef.current.getHoveredObject(touch.clientX, touch.clientY, activeRoom);
-    if (hovered !== hoveredObject) {
-      setHoveredObject(hovered);
-    }
-  };
-
-  const handleTouchMove = (e: React.TouchEvent<HTMLCanvasElement>) => {
-    if (!isMouseDownRef.current || !e.touches[0] || !canvasRef.current || !rendererRef.current) return;
-    const touch = e.touches[0];
-
-    if (lastTouchPosRef.current) {
-      dragDistanceRef.current += Math.hypot(
-        touch.clientX - lastTouchPosRef.current.x,
-        touch.clientY - lastTouchPosRef.current.y
-      );
-      lastTouchPosRef.current = { x: touch.clientX, y: touch.clientY };
-    }
-
-    const { x: canvasX, y: canvasY } = getLetterboxedCanvasCoords(canvasRef.current, touch.clientX, touch.clientY);
-
-    const cfg = ROOM_CONFIGS[activeRoom];
-    let insideWindow = false;
-    if (cfg.windowPanes && cfg.windowPanes.length > 0) {
-      insideWindow = cfg.windowPanes.some((p) =>
-        canvasX >= p.x && canvasX <= p.x + p.w &&
-        canvasY >= p.y && canvasY <= p.y + p.h
-      );
-    } else {
-      insideWindow =
-        canvasX >= cfg.windowBounds.x &&
-        canvasX <= cfg.windowBounds.x + cfg.windowBounds.w &&
-        canvasY >= cfg.windowBounds.y &&
-        canvasY <= cfg.windowBounds.y + cfg.windowBounds.h;
-    }
-
-    if (insideWindow) {
-      rendererRef.current.particleSystem.addWindowScratch(canvasX, canvasY, 14);
-      const now = performance.now();
-      if (now - lastScratchAudioRef.current > 120) {
-        webAudioEngine.playGlassWipe();
-        lastScratchAudioRef.current = now;
-      }
-    }
-  };
-
-  const handleTouchEnd = (e: React.TouchEvent<HTMLCanvasElement>) => {
-    isMouseDownRef.current = false;
-    lastTouchPosRef.current = null;
+  const handlePointerUp = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    if (!e.isPrimary || activePointerIdRef.current !== e.pointerId) return;
+    e.preventDefault();
     const now = performance.now();
-    lastTouchTimeRef.current = now;
+    const startPos = pointerStartPosRef.current;
+    const duration = now - pointerStartTimeRef.current;
+    const totalMoved = startPos
+      ? Math.max(dragDistanceRef.current, Math.hypot(e.clientX - startPos.x, e.clientY - startPos.y))
+      : dragDistanceRef.current;
+    const tapTolerance = e.pointerType === 'touch' ? 28 : 8;
 
-    if (e.changedTouches[0] && canvasRef.current && rendererRef.current) {
-      const touch = e.changedTouches[0];
-      const startPos = touchStartPosRef.current;
-      const duration = now - touchStartTimeRef.current;
-      const totalMoved = startPos 
-        ? Math.hypot(touch.clientX - startPos.x, touch.clientY - startPos.y) 
-        : dragDistanceRef.current;
-
-      // Reliable mobile tap: movement < 36px and tap duration < 600ms
-      if (totalMoved < 36 && duration < 600) {
-        const clicked = rendererRef.current.getHoveredObject(touch.clientX, touch.clientY, activeRoom);
-        if (clicked) {
-          handleInteractiveClick(clicked);
-        }
-      }
+    if (totalMoved <= tapTolerance && duration < 750 && rendererRef.current) {
+      const clicked = rendererRef.current.getHoveredObject(e.clientX, e.clientY, activeRoom);
+      if (clicked) handleInteractiveClick(clicked);
     }
+
+    if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    }
+    clearPointerInteraction();
+    if (e.pointerType === 'touch') {
+      setHoveredObject(null);
+      setMousePos(null);
+    }
+  };
+
+  const handlePointerCancel = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    if (activePointerIdRef.current !== e.pointerId) return;
+    clearPointerInteraction();
+    setHoveredObject(null);
+    setMousePos(null);
   };
 
   // Safe lookup for hovered hotspot with localized name & hint
@@ -424,42 +384,34 @@ export const RoomCanvas: React.FC = () => {
     : (fallbackLocalized?.hint || '');
 
   return (
-    <div 
-      className="relative w-full h-full flex items-center justify-center overflow-hidden bg-black select-none"
-      style={{
-        paddingTop: 'max(1rem, env(safe-area-inset-top, 0px))',
-        paddingBottom: 'max(1.25rem, env(safe-area-inset-bottom, 0px))',
-      }}
-    >
+    <div className="room-stage relative w-full h-full flex items-center justify-center overflow-hidden bg-stone-950 select-none">
       {/* Dynamic Living Ambilight Aura (Radiates room ambiance outwards) */}
       <div 
-        className="absolute inset-0 ambilight-halo pointer-events-none flex items-center justify-center overflow-hidden"
+        className="room-stage-backdrop absolute inset-0 ambilight-halo pointer-events-none flex items-center justify-center overflow-hidden"
         style={{ zIndex: 0 }}
       >
         <img 
           src={activeRoomConfig.imageSrc} 
           alt="" 
-          className="w-full h-full max-w-[190vh] max-h-[60vw] object-cover scale-110 opacity-70"
+          className="w-full h-full object-cover scale-110 opacity-80"
         />
       </div>
 
       {/* Aspect-ratio preserving 16:9 pixel canvas */}
       <canvas
         ref={canvasRef}
-        onMouseDown={handleMouseDown}
-        onMouseUp={handleMouseUp}
-        onMouseMove={handleMouseMove}
-        onMouseLeave={handleMouseLeave}
-        onClick={handleClick}
-        onTouchStart={handleTouchStart}
-        onTouchMove={handleTouchMove}
-        onTouchEnd={handleTouchEnd}
-        className={`relative z-10 pixel-canvas w-auto max-w-full aspect-video cursor-${
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerCancel}
+        onPointerLeave={handlePointerLeave}
+        className={`room-scene-canvas relative z-10 pixel-canvas aspect-video cursor-${
           hoveredObject ? 'pointer' : 'default'
-        } transition-all duration-700`}
+        }`}
+        role="application"
+        aria-label={language === 'tr' ? 'Etkileşimli çalışma odası' : 'Interactive study room'}
         style={{
           boxShadow: '0 0 70px rgba(0,0,0,0.92), 0 0 20px rgba(0,0,0,0.8)',
-          height: 'min(56.25vw, calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 5rem))',
           touchAction: 'none',
           imageRendering: 'pixelated',
         }}

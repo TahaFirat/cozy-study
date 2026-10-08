@@ -21,7 +21,6 @@ export const FocusTimerWidget: React.FC = () => {
 
   const { language, breakMode, setBreakMode, setActiveModal } = useAppStore();
   const [showPresets, setShowPresets] = useState(false);
-  const [isEditingGoal, setIsEditingGoal] = useState(false);
   const [tempGoal, setTempGoal] = useState(currentGoal);
   const t = TRANSLATIONS[language];
 

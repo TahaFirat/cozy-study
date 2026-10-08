@@ -99,19 +99,31 @@ export class PixelRenderer {
 
     const cfg = this.getRoomConfig(roomId);
 
-    // Check hotspots with comfortable generous touch padding for mobile/tablet screens
+    // Keep coarse-pointer targets at least ~32 CSS pixels wide regardless of
+    // how small the 960x540 scene is rendered on a phone. Pick the nearest
+    // matching hotspot so expanded targets do not make neighbouring objects
+    // feel random.
     const isTouchInput = typeof navigator !== 'undefined' && navigator.maxTouchPoints > 0;
-    const touchPad = isTouchInput ? 36 : 20;
+    const cssPad = isTouchInput ? 32 : 10;
+    const padX = cssPad * (this.width / drawW);
+    const padY = cssPad * (this.height / drawH);
+    let nearest: { id: InteractiveObjectId; distance: number; order: number } | null = null;
+
     for (let i = cfg.hotspots.length - 1; i >= 0; i--) {
       const h = cfg.hotspots[i];
       if (
-        canvasX >= h.x - touchPad && canvasX <= h.x + h.w + touchPad &&
-        canvasY >= h.y - touchPad && canvasY <= h.y + h.h + touchPad
+        canvasX >= h.x - padX && canvasX <= h.x + h.w + padX &&
+        canvasY >= h.y - padY && canvasY <= h.y + h.h + padY
       ) {
-        return h.id;
+        const dx = Math.max(h.x - canvasX, 0, canvasX - (h.x + h.w));
+        const dy = Math.max(h.y - canvasY, 0, canvasY - (h.y + h.h));
+        const distance = Math.hypot(dx * (drawW / this.width), dy * (drawH / this.height));
+        if (!nearest || distance < nearest.distance || (distance === nearest.distance && i > nearest.order)) {
+          nearest = { id: h.id, distance, order: i };
+        }
       }
     }
-    return null;
+    return nearest?.id ?? null;
   }
 
   public start(getContext: () => SceneContext) {

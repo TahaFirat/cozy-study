@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef, useCallback } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { Minimize2 } from 'lucide-react';
 import { RoomCanvas } from './components/RoomCanvas';
 import { TopBar } from './components/ui/TopBar';
@@ -237,7 +237,7 @@ export const App: React.FC = () => {
   return (
     <div
       onMouseMove={handleMouseMove}
-      className={`relative w-screen h-screen h-[100dvh] overflow-hidden bg-stone-950 font-sans select-none ${
+      className={`app-shell relative w-screen h-[100dvh] overflow-hidden bg-stone-950 font-sans select-none ${
         crtOverlay ? `crt-overlay crt-theme-${selectedCrtTheme}` : ''
       }`}
     >
