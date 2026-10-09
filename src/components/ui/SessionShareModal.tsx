@@ -1,20 +1,18 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { X, Download, Copy, Sparkles, Check, Share2 } from 'lucide-react';
+import { X, Download, Copy, Check } from 'lucide-react';
 import { useAppStore } from '../../store/useAppStore';
 import { useStatsStore } from '../../store/useStatsStore';
 import { useTimerStore } from '../../store/useTimerStore';
 import { ROOM_CONFIGS } from '../../engine/roomConfigs';
-import { TRANSLATIONS } from '../../i18n/translations';
 
 export const SessionShareModal: React.FC = () => {
-  const { activeModal, setActiveModal, language, activeRoom, weather, showToast } = useAppStore();
+  const { activeModal, setActiveModal, language, activeRoom, showToast } = useAppStore();
   const { streakDays, getTotalFocusHours } = useStatsStore();
   const { lastCompletedMinutes, currentGoal } = useTimerStore();
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [copied, setCopied] = useState(false);
   const isTr = language === 'tr';
-  const t = TRANSLATIONS[language];
 
   const cfg = ROOM_CONFIGS[activeRoom] || ROOM_CONFIGS.bedroom;
 
@@ -172,7 +170,7 @@ export const SessionShareModal: React.FC = () => {
     if (img.complete) {
       img.onload?.(new Event('load'));
     }
-  }, [activeModal, lastCompletedMinutes, currentGoal, streakDays, activeRoom, weather, isTr]);
+  }, [activeModal, lastCompletedMinutes, currentGoal, streakDays, activeRoom, cfg.imageSrc, getTotalFocusHours, isTr]);
 
   if (activeModal !== 'session_share') return null;
 
@@ -206,15 +204,15 @@ export const SessionShareModal: React.FC = () => {
   return (
     <div 
       onClick={() => setActiveModal('none')}
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md pointer-events-auto"
+      className="app-modal-overlay fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md pointer-events-auto"
     >
       <div 
         onClick={(e) => e.stopPropagation()}
-        className="bg-stone-900/95 text-stone-100 border border-stone-800 rounded-3xl shadow-2xl p-6 w-full max-w-md max-h-[95dvh] flex flex-col animate-in fade-in zoom-in-95 duration-200"
+        className="app-modal-panel session-share-panel bg-stone-900/95 text-stone-100 border border-stone-800 rounded-3xl shadow-2xl p-6 w-full max-w-md max-h-[95dvh] flex flex-col animate-in fade-in zoom-in-95 duration-200 overflow-hidden"
       >
         
         {/* Header */}
-        <div className="flex items-center justify-between pb-3 border-b border-stone-800">
+        <div className="session-share-header flex items-center justify-between pb-3 border-b border-stone-800 shrink-0">
           <div className="flex items-center gap-2">
             <span className="text-xl">📸</span>
             <div>
@@ -235,8 +233,8 @@ export const SessionShareModal: React.FC = () => {
         </div>
 
         {/* Story Card Canvas Preview */}
-        <div className="flex-1 overflow-y-auto py-3 flex items-center justify-center">
-          <div className="relative rounded-2xl overflow-hidden shadow-2xl border border-stone-800 max-h-[62dvh] aspect-[9/16]">
+        <div className="session-share-body flex-1 min-h-0 overflow-y-auto overscroll-contain py-3 flex items-center justify-center">
+          <div className="session-share-preview relative rounded-2xl overflow-hidden shadow-2xl border border-stone-800 max-h-[62dvh] aspect-[9/16]">
             <canvas
               ref={canvasRef}
               className="w-full h-full object-contain"
@@ -245,7 +243,7 @@ export const SessionShareModal: React.FC = () => {
         </div>
 
         {/* Action Buttons */}
-        <div className="pt-3 border-t border-stone-800 flex items-center justify-between gap-2">
+        <div className="session-share-actions pt-3 border-t border-stone-800 flex items-center justify-between gap-2 shrink-0">
           <button
             onClick={handleCopyClipboard}
             className="flex-1 py-2.5 rounded-xl bg-stone-800 hover:bg-stone-700 text-stone-200 text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-colors border border-stone-700"

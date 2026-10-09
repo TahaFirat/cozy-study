@@ -1,11 +1,12 @@
 import { existsSync } from 'node:fs';
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { spawn } from 'node:child_process';
 import { once } from 'node:events';
 
 const appUrl = process.env.RESPONSIVE_TEST_URL || 'http://127.0.0.1:5173/';
+const screenshotDir = process.env.RESPONSIVE_SCREENSHOT_DIR;
 const chromeCandidates = [
   process.env.CHROME_PATH,
   'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
@@ -22,11 +23,12 @@ if (!chromePath) {
 }
 
 const viewports = [
-  { name: 'iPhone 12 portrait', width: 390, height: 844, mobile: true },
-  { name: 'Android compact', width: 360, height: 800, mobile: true },
-  { name: 'iPad portrait', width: 820, height: 1180, mobile: true },
-  { name: 'Phone landscape', width: 844, height: 390, mobile: true },
-  { name: 'Desktop', width: 1440, height: 900, mobile: false },
+  { name: 'iPhone 12 portrait', width: 390, height: 844, mobile: true, safeTop: 47, safeRight: 0, safeBottom: 34, safeLeft: 0 },
+  { name: 'iPhone large portrait', width: 430, height: 932, mobile: true, safeTop: 59, safeRight: 0, safeBottom: 34, safeLeft: 0 },
+  { name: 'Android compact', width: 360, height: 800, mobile: true, safeTop: 24, safeRight: 0, safeBottom: 16, safeLeft: 0 },
+  { name: 'iPad portrait', width: 820, height: 1180, mobile: true, safeTop: 24, safeRight: 0, safeBottom: 20, safeLeft: 0 },
+  { name: 'Phone landscape', width: 844, height: 390, mobile: true, safeTop: 0, safeRight: 47, safeBottom: 21, safeLeft: 47 },
+  { name: 'Desktop', width: 1440, height: 900, mobile: false, safeTop: 0, safeRight: 0, safeBottom: 0, safeLeft: 0 },
 ];
 
 const profileDir = await mkdtemp(join(tmpdir(), 'lockin-responsive-'));
@@ -132,7 +134,7 @@ const metricsExpression = `(() => {
     const box = element.getBoundingClientRect();
     const style = getComputedStyle(element);
     return {
-      visible: style.display !== 'none' && style.visibility !== 'hidden' && box.width > 0 && box.height > 0,
+      visible: style.display !== 'none' && style.visibility !== 'hidden' && Number(style.opacity) > 0.01 && box.width > 0 && box.height > 0,
       left: box.left, right: box.right, top: box.top, bottom: box.bottom,
       width: box.width, height: box.height,
     };
@@ -177,6 +179,16 @@ try {
     await send('Page.navigate', { url: appUrl }, sessionId);
     await loaded;
     await new Promise((resolve) => setTimeout(resolve, 1200));
+    await send('Runtime.evaluate', {
+      expression: `(() => {
+        const root = document.documentElement.style;
+        root.setProperty('--safe-top', '${viewport.safeTop}px');
+        root.setProperty('--safe-right', '${viewport.safeRight}px');
+        root.setProperty('--safe-bottom', '${viewport.safeBottom}px');
+        root.setProperty('--safe-left', '${viewport.safeLeft}px');
+      })()`,
+    }, sessionId);
+    await new Promise((resolve) => setTimeout(resolve, 400));
 
     const { result } = await send('Runtime.evaluate', {
       expression: metricsExpression,
@@ -184,27 +196,44 @@ try {
     }, sessionId);
     const data = result.value;
     const { width, height } = data.viewport;
-    const withinX = (box) => !box?.visible || (box.left >= -1 && box.right <= width + 1);
-    const withinY = (box) => !box?.visible || (box.top >= -1 && box.bottom <= height + 1);
+    const withinSafeX = (box) => !box?.visible || (
+      box.left >= viewport.safeLeft - 1 && box.right <= width - viewport.safeRight + 1
+    );
+    const withinSafeY = (box) => !box?.visible || (
+      box.top >= viewport.safeTop - 1 && box.bottom <= height - viewport.safeBottom + 1
+    );
 
     if (overlaps(data.music, data.timer) || overlaps(data.timer, data.ambient)) {
       console.error(JSON.stringify({ viewport: viewport.name, music: data.music, timer: data.timer, ambient: data.ambient }));
     }
+    if (!withinSafeY(data.topLeft) || !withinSafeY(data.topActions)) {
+      console.error(JSON.stringify({ viewport: viewport.name, safeTop: viewport.safeTop, safeBottom: viewport.safeBottom, topLeft: data.topLeft, topActions: data.topActions }));
+    }
 
     assert(width === viewport.width && height === viewport.height, `${viewport.name}: viewport emülasyonu başarısız.`);
     assert(data.document.width <= width, `${viewport.name}: sayfa yatay taşıyor (${data.document.width}px).`);
-    assert(withinX(data.topLeft) && withinX(data.topActions), `${viewport.name}: üst bar yatay taşıyor.`);
-    assert(withinY(data.topLeft) && withinY(data.topActions), `${viewport.name}: üst bar dikey taşıyor.`);
+    assert(withinSafeX(data.topLeft) && withinSafeX(data.topActions), `${viewport.name}: üst bar yatay safe-area dışına taşıyor.`);
+    assert(withinSafeY(data.topLeft) && withinSafeY(data.topActions), `${viewport.name}: üst bar safe-area dışına taşıyor.`);
     assert(!overlaps(data.topLeft, data.topActions, 0), `${viewport.name}: üst bar bölümleri çakışıyor.`);
-    assert(withinX(data.music) && withinX(data.timer) && withinX(data.ambient), `${viewport.name}: alt kontroller yatay taşıyor.`);
-    assert(withinY(data.music) && withinY(data.timer) && withinY(data.ambient), `${viewport.name}: alt kontroller dikey taşıyor.`);
+    assert(withinSafeX(data.music) && withinSafeX(data.timer) && withinSafeX(data.ambient), `${viewport.name}: alt kontroller yatay safe-area dışına taşıyor.`);
+    assert(withinSafeY(data.music) && withinSafeY(data.timer) && withinSafeY(data.ambient), `${viewport.name}: alt kontroller safe-area dışına taşıyor.`);
     assert(!overlaps(data.music, data.timer) && !overlaps(data.timer, data.ambient), `${viewport.name}: alt kontroller çakışıyor.`);
     assert(data.canvas?.visible && data.canvas.width > 0, `${viewport.name}: oda sahnesi görünmüyor.`);
+    if (viewport.mobile && viewport.height > viewport.width) {
+      assert(data.canvas.height >= height * 0.32, `${viewport.name}: oda sahnesi dikey ekranda hâlâ çok küçük.`);
+    }
     assert(
       data.backdrop?.visible && data.backdrop.width >= width && data.backdrop.height >= height,
       `${viewport.name}: arka plan viewport'u doldurmuyor.`,
     );
     if (viewport.width < 640) assert(data.login?.visible, `${viewport.name}: mobil giriş düğmesi görünmüyor.`);
+
+    if (screenshotDir) {
+      await mkdir(screenshotDir, { recursive: true });
+      const { data: png } = await send('Page.captureScreenshot', { format: 'png', fromSurface: true }, sessionId);
+      const fileName = viewport.name.toLowerCase().replace(/[^a-z0-9]+/g, '-') + '.png';
+      await writeFile(join(screenshotDir, fileName), Buffer.from(png, 'base64'));
+    }
 
     console.log(`✓ ${viewport.name} (${width}x${height})`);
   }
@@ -219,6 +248,104 @@ try {
   await send('Page.navigate', { url: appUrl }, sessionId);
   await reloaded;
   await new Promise((resolve) => setTimeout(resolve, 1200));
+  await send('Runtime.evaluate', {
+    expression: `(() => {
+      const root = document.documentElement.style;
+      root.setProperty('--safe-top', '47px');
+      root.setProperty('--safe-right', '0px');
+      root.setProperty('--safe-bottom', '34px');
+      root.setProperty('--safe-left', '0px');
+    })()`,
+  }, sessionId);
+  await new Promise((resolve) => setTimeout(resolve, 400));
+
+  const assertPanelWithinSafeArea = async (modalId, selector) => {
+    await send('Runtime.evaluate', {
+      expression: `window.__useAppStore.setState({ activeModal: '${modalId}' })`,
+    }, sessionId);
+    await new Promise((resolve) => setTimeout(resolve, 450));
+    const { result } = await send('Runtime.evaluate', {
+      expression: `(() => {
+        const panel = document.querySelector('${selector}');
+        const box = panel?.getBoundingClientRect();
+        const style = panel ? getComputedStyle(panel) : null;
+        const controls = ['.topbar-shell', '.mobile-music-trigger', '.mobile-focus-timer', '.mobile-ambient-trigger']
+          .map((item) => document.querySelector(item))
+          .filter(Boolean)
+          .map((item) => Number(getComputedStyle(item).opacity));
+        return {
+          panel: box ? { left: box.left, right: box.right, top: box.top, bottom: box.bottom } : null,
+          overflow: style?.overflow,
+          controlsHidden: controls.every((opacity) => opacity < 0.01),
+        };
+      })()`,
+      returnByValue: true,
+    }, sessionId);
+    const state = result.value;
+    assert(state.panel, `${modalId}: panel bulunamadı.`);
+    assert(state.panel.left >= -1 && state.panel.right <= 391, `${modalId}: panel yatay taşıyor.`);
+    assert(state.panel.top >= 46 && state.panel.bottom <= 811, `${modalId}: panel safe-area dışına taşıyor.`);
+    assert(state.controlsHidden, `${modalId}: arka plandaki kontroller modalın üstünde kalıyor.`);
+    if (screenshotDir) {
+      const { data: png } = await send('Page.captureScreenshot', { format: 'png', fromSurface: true }, sessionId);
+      await writeFile(join(screenshotDir, `iphone-${modalId}.png`), Buffer.from(png, 'base64'));
+    }
+    await send('Runtime.evaluate', { expression: `window.__useAppStore.setState({ activeModal: 'none' })` }, sessionId);
+    await new Promise((resolve) => setTimeout(resolve, 350));
+  };
+
+  await assertPanelWithinSafeArea('settings', '.settings-modal-panel');
+  await assertPanelWithinSafeArea('mixer', '.ambient-mixer-panel');
+  await assertPanelWithinSafeArea('session_share', '.session-share-panel');
+  console.log('✓ Mobil modal sınırları ve arka kontrol gizleme');
+
+  await send('Runtime.evaluate', {
+    expression: `document.querySelector('.topbar-menu-trigger')?.click()`,
+  }, sessionId);
+  await new Promise((resolve) => setTimeout(resolve, 150));
+  const { result: studioResult } = await send('Runtime.evaluate', {
+    expression: `(() => {
+      const panel = document.querySelector('.topbar-menu-panel');
+      const box = panel?.getBoundingClientRect();
+      const dock = document.querySelector('.mobile-bottom-dock');
+      return {
+        panel: box ? { left: box.left, right: box.right, top: box.top, bottom: box.bottom } : null,
+        dockOpacity: dock ? Number(getComputedStyle(dock).opacity) : 1,
+      };
+    })()`,
+    returnByValue: true,
+  }, sessionId);
+  assert(studioResult.value.panel?.top >= 46 && studioResult.value.panel?.bottom <= 811, 'Stüdyo menüsü safe-area dışına taşıyor.');
+  assert(studioResult.value.dockOpacity < 0.01, 'Stüdyo menüsü açıkken alt dock gizlenmedi.');
+  if (screenshotDir) {
+    const { data: png } = await send('Page.captureScreenshot', { format: 'png', fromSurface: true }, sessionId);
+    await writeFile(join(screenshotDir, 'iphone-studio-menu.png'), Buffer.from(png, 'base64'));
+  }
+
+  await send('Runtime.evaluate', {
+    expression: `(() => {
+      const button = [...document.querySelectorAll('.topbar-menu-panel button')]
+        .find((item) => item.textContent?.includes('Canlı Çalışma Odası'));
+      button?.click();
+    })()`,
+  }, sessionId);
+  await new Promise((resolve) => setTimeout(resolve, 150));
+  const { result: communityResult } = await send('Runtime.evaluate', {
+    expression: `(() => {
+      const drawer = document.querySelector('.app-community-drawer');
+      const box = drawer?.getBoundingClientRect();
+      return box ? { left: box.left, right: box.right, top: box.top, bottom: box.bottom } : null;
+    })()`,
+    returnByValue: true,
+  }, sessionId);
+  assert(communityResult.value?.top >= 46 && communityResult.value?.bottom <= 811, 'Canlı çalışma çekmecesi safe-area dışına taşıyor.');
+  if (screenshotDir) {
+    const { data: png } = await send('Page.captureScreenshot', { format: 'png', fromSurface: true }, sessionId);
+    await writeFile(join(screenshotDir, 'iphone-community.png'), Buffer.from(png, 'base64'));
+  }
+  await send('Runtime.evaluate', { expression: `document.querySelector('.fixed.inset-0.z-40')?.click()` }, sessionId);
+  await new Promise((resolve) => setTimeout(resolve, 80));
+  console.log('✓ Stüdyo menüsü ve canlı çalışma çekmecesi');
 
   await send('Runtime.evaluate', {
     expression: `document.querySelector('.mobile-login-button')?.click()`,
@@ -248,10 +375,62 @@ try {
   assert(auth.emailVisible, 'Giriş formu e-posta alanı görünmüyor.');
   assert(auth.inputFontSize >= 16, 'iOS form alanı otomatik yakınlaştırmayı tetikleyebilir.');
   await send('Runtime.evaluate', {
+    expression: `(() => {
+      const button = [...document.querySelectorAll('.app-modal-panel button')]
+        .find((item) => item.textContent?.includes('Hesap oluştur'));
+      button?.click();
+    })()`,
+  }, sessionId);
+  await new Promise((resolve) => setTimeout(resolve, 100));
+  const { result: registerResult } = await send('Runtime.evaluate', {
+    expression: `(() => {
+      const panel = document.querySelector('.app-modal-panel');
+      const inputs = [...panel.querySelectorAll('input')];
+      const box = panel.getBoundingClientRect();
+      return {
+        inputCount: inputs.length,
+        hasConfirm: inputs.some((input) => input.placeholder.includes('tekrar')),
+        allRequired: inputs.every((input) => input.required),
+        minPasswordLength: Math.min(...inputs.filter((input) => input.type === 'password').map((input) => input.minLength)),
+        panel: { left: box.left, right: box.right, top: box.top, bottom: box.bottom },
+      };
+    })()`,
+    returnByValue: true,
+  }, sessionId);
+  const register = registerResult.value;
+  assert(register.inputCount === 4 && register.hasConfirm, 'Hesap oluşturma formunda doğrulama alanları eksik.');
+  assert(register.allRequired && register.minPasswordLength >= 6, 'Hesap oluşturma alanlarının tarayıcı doğrulaması eksik.');
+  assert(register.panel.top >= 46 && register.panel.bottom <= 811, 'Hesap oluşturma formu safe-area dışına taşıyor.');
+  const { result: passwordValidationResult } = await send('Runtime.evaluate', {
+    expression: `(() => {
+      const form = document.querySelector('.app-modal-panel form');
+      const inputs = [...form.querySelectorAll('input')];
+      const setValue = (input, value) => {
+        Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(input, value);
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+      };
+      ['Test Kullanıcı', 'test@example.com', 'abcdef', 'abcdeg'].forEach((value, index) => setValue(inputs[index], value));
+      form.requestSubmit();
+      return true;
+    })()`,
+    returnByValue: true,
+  }, sessionId);
+  assert(passwordValidationResult.value, 'Hesap oluşturma doğrulama testi çalıştırılamadı.');
+  await new Promise((resolve) => setTimeout(resolve, 100));
+  const { result: validationMessageResult } = await send('Runtime.evaluate', {
+    expression: `document.querySelector('.app-modal-panel')?.textContent || ''`,
+    returnByValue: true,
+  }, sessionId);
+  assert(validationMessageResult.value.includes('Şifreler eşleşmiyor'), 'Eşleşmeyen şifreler kullanıcıya açıklanmadı.');
+  if (screenshotDir) {
+    const { data: png } = await send('Page.captureScreenshot', { format: 'png', fromSurface: true }, sessionId);
+    await writeFile(join(screenshotDir, 'iphone-register.png'), Buffer.from(png, 'base64'));
+  }
+  await send('Runtime.evaluate', {
     expression: `window.__useAppStore.setState({ activeModal: 'none', lampOn: true })`,
     returnByValue: true,
   }, sessionId);
-  console.log('✓ Mobil giriş görünürlüğü ve modal sınırları');
+  console.log('✓ Mobil giriş, kayıt doğrulaması ve modal sınırları');
 
   const { result: pointResult } = await send('Runtime.evaluate', {
     expression: `(() => {

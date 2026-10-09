@@ -127,7 +127,17 @@ if (typeof window !== 'undefined') {
     saveProfileSnapshot(getActiveProfileId());
   });
 
+  // WKWebView can occasionally delay Firebase's first persistence callback.
+  // Never leave the account control stuck behind an endless spinner.
+  const authReadyFallback = window.setTimeout(() => {
+    if (!useAuthStore.getState().isAuthReady) {
+      console.warn('[Auth] Initial Firebase state timed out; continuing in guest mode.');
+      useAuthStore.setState({ isLoading: false, isAuthReady: true });
+    }
+  }, 6000);
+
   unsubscribe = subscribeToAuthState(async (user) => {
+    window.clearTimeout(authReadyFallback);
     switchUserProfile(user ? user.uid : null);
     useAuthStore.setState({ user, isLoading: false, isAuthReady: true });
     if (user) {

@@ -411,7 +411,6 @@ export const RoomCanvas: React.FC = () => {
         role="application"
         aria-label={language === 'tr' ? 'Etkileşimli çalışma odası' : 'Interactive study room'}
         style={{
-          boxShadow: '0 0 70px rgba(0,0,0,0.92), 0 0 20px rgba(0,0,0,0.8)',
           touchAction: 'none',
           imageRendering: 'pixelated',
         }}

@@ -66,10 +66,7 @@ export function isReviewerOrDemoAccount(email: string): boolean {
     clean === 'apple-review@cozystudy.app' ||
     clean === 'apple-review@lockin.app' ||
     clean === 'reviewer@apple.com' ||
-    clean === 'demo@lockin.app' ||
-    clean.includes('apple-review') ||
-    clean.includes('reviewer') ||
-    clean.includes('demo')
+    clean === 'demo@lockin.app'
   );
 }
 
@@ -97,7 +94,9 @@ export async function signInWithEmail(email: string, password: string): Promise<
   }
 
   if (!auth) {
-    return createDemoAuthUser(cleanEmail);
+    throw Object.assign(new Error('Firebase authentication is unavailable'), {
+      code: 'auth/configuration-not-found',
+    });
   }
 
   try {
@@ -117,11 +116,32 @@ export async function registerWithEmail(
   password: string,
   displayName: string
 ): Promise<AuthUser> {
-  if (!auth) throw new Error('Firebase not configured');
-  const result = await createUserWithEmailAndPassword(auth, email, password);
-  await updateProfile(result.user, { displayName });
-  await ensureUserDoc(result.user);
-  return mapFirebaseUser(result.user);
+  if (!auth) {
+    throw Object.assign(new Error('Firebase authentication is unavailable'), {
+      code: 'auth/configuration-not-found',
+    });
+  }
+
+  const cleanEmail = email.trim().toLowerCase();
+  const cleanDisplayName = displayName.trim();
+  const result = await createUserWithEmailAndPassword(auth, cleanEmail, password);
+
+  // Account creation is the source of truth. Profile and Firestore metadata
+  // are best-effort so a temporary sync failure never reports a successfully
+  // created Firebase account as a failed registration.
+  try {
+    await updateProfile(result.user, { displayName: cleanDisplayName });
+  } catch (error) {
+    console.warn('[Firebase] Account created; display name sync will retry later.', error);
+  }
+  try {
+    await ensureUserDoc(result.user);
+  } catch (error) {
+    console.warn('[Firebase] Account created; profile document sync will retry later.', error);
+  }
+
+  const mapped = mapFirebaseUser(result.user);
+  return { ...mapped, displayName: mapped.displayName || cleanDisplayName };
 }
 
 // Sign Out
@@ -132,8 +152,12 @@ export async function signOutUser(): Promise<void> {
 
 // Password Reset
 export async function resetPassword(email: string): Promise<void> {
-  if (!auth) throw new Error('Firebase not configured');
-  await sendPasswordResetEmail(auth, email);
+  if (!auth) {
+    throw Object.assign(new Error('Firebase authentication is unavailable'), {
+      code: 'auth/configuration-not-found',
+    });
+  }
+  await sendPasswordResetEmail(auth, email.trim().toLowerCase());
 }
 
 // Auth state listener

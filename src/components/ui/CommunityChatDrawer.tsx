@@ -58,7 +58,7 @@ export const CommunityChatDrawer: React.FC = () => {
       {/* Floating Co-Study Island (Keeps the cozy room visible, zero blackouts!) */}
       <div 
         onClick={(e) => e.stopPropagation()}
-        className="fixed top-14 sm:top-16 left-2 right-2 sm:left-auto sm:right-4 w-auto sm:w-96 max-w-[96vw] sm:max-w-md max-h-[80dvh] z-50 flex flex-col bg-stone-900/95 text-stone-100 border border-stone-700/80 rounded-2xl shadow-[0_12px_45px_rgba(0,0,0,0.7)] backdrop-blur-xl overflow-hidden animate-in fade-in zoom-in-95 duration-200 pointer-events-auto"
+        className="app-community-drawer fixed top-14 sm:top-16 left-2 right-2 sm:left-auto sm:right-4 w-auto sm:w-96 max-w-[96vw] sm:max-w-md max-h-[80dvh] z-50 flex flex-col bg-stone-900/95 text-stone-100 border border-stone-700/80 rounded-2xl shadow-[0_12px_45px_rgba(0,0,0,0.7)] backdrop-blur-xl overflow-hidden animate-in fade-in zoom-in-95 duration-200 pointer-events-auto"
       >
         {/* Top Header */}
         <div className="p-3.5 sm:p-4 border-b border-stone-800/90 bg-stone-950/60 flex items-center justify-between shrink-0">

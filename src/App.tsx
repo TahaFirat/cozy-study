@@ -238,6 +238,8 @@ export const App: React.FC = () => {
     <div
       onMouseMove={handleMouseMove}
       className={`app-shell relative w-screen h-[100dvh] overflow-hidden bg-stone-950 font-sans select-none ${
+        activeModal !== 'none' || isChatOpen ? 'has-blocking-overlay ' : ''
+      }${
         crtOverlay ? `crt-overlay crt-theme-${selectedCrtTheme}` : ''
       }`}
     >

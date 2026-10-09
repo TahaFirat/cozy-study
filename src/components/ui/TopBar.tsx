@@ -62,6 +62,11 @@ export const TopBar: React.FC = () => {
   const { currentBossId, bosses } = useBossRaidStore();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
+  useEffect(() => {
+    document.documentElement.classList.toggle('studio-menu-open', isMobileMenuOpen);
+    return () => document.documentElement.classList.remove('studio-menu-open');
+  }, [isMobileMenuOpen]);
+
   const currentBoss = bosses[currentBossId] || bosses.horologium;
   const bossHpPercent = Math.round((currentBoss.currentHp / currentBoss.maxHp) * 100);
   const gamificationLevel = Math.floor(xp / 500) + 1;
@@ -106,7 +111,7 @@ export const TopBar: React.FC = () => {
   return (
     <header 
       className="topbar-shell fixed left-2 right-2 sm:left-4 sm:right-4 z-30 flex items-center justify-between pointer-events-none transition-all duration-300 gap-2"
-      style={{ top: 'max(1.2rem, calc(env(safe-area-inset-top, 0px) + 0.8rem))' }}
+      style={{ top: 'max(1.2rem, calc(var(--safe-top) + 0.8rem))' }}
     >
       {/* 1. LEFT LUXURY ISLAND: Atmosphere, Room & Live Co-Study */}
       <div className="topbar-left glass-island rounded-2xl p-1 sm:p-1.5 flex items-center gap-1 sm:gap-2 pointer-events-auto shadow-2xl shrink-0 min-w-0">
@@ -423,11 +428,11 @@ export const TopBar: React.FC = () => {
       {/* 4. MOBILE & TABLET STUDIO DRAWER / MENU POPUP (Screens < 1536px) */}
       {isMobileMenuOpen && (
         <div 
-          className="app-modal-overlay topbar-mobile-menu 2xl:hidden fixed inset-0 z-50 bg-black/60 backdrop-blur-sm pointer-events-auto animate-fade-in flex flex-col justify-start p-4 pt-16"
+          className="app-modal-overlay topbar-mobile-menu 2xl:hidden fixed inset-0 z-50 bg-black/85 backdrop-blur-lg pointer-events-auto animate-fade-in flex flex-col justify-start p-4 pt-16"
           onClick={() => setIsMobileMenuOpen(false)}
         >
           <div 
-            className="bg-stone-900/98 text-stone-100 border border-stone-800 rounded-2xl shadow-2xl p-4 w-full max-w-sm sm:max-w-md ml-auto flex flex-col gap-3 animate-in fade-in zoom-in-95 duration-150 max-h-[85dvh] overflow-y-auto"
+            className="app-modal-panel topbar-menu-panel bg-stone-900/98 text-stone-100 border border-stone-800 rounded-2xl shadow-2xl p-4 w-full max-w-sm sm:max-w-md ml-auto flex flex-col gap-3 animate-in fade-in zoom-in-95 duration-150 max-h-[85dvh] overflow-y-auto overscroll-contain"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header */}
@@ -556,6 +561,23 @@ export const TopBar: React.FC = () => {
                   <div>{language === 'tr' ? 'Güç Tasarruf Modu' : 'Battery Saver Mode'}</div>
                   <div className="text-[10px] text-stone-400">
                     {batterySaverMode ? (language === 'tr' ? 'Etkin (12 FPS)' : 'Active (12 FPS)') : (language === 'tr' ? 'Isınmayı önle' : 'Prevent heating')}
+                  </div>
+                </div>
+              </button>
+
+              {/* Live Community — keeps the feature reachable on portrait phones */}
+              <button
+                onClick={() => {
+                  setIsMobileMenuOpen(false);
+                  toggleChat();
+                }}
+                className="p-2.5 rounded-xl bg-emerald-950/30 hover:bg-emerald-900/40 border border-emerald-500/30 text-left flex items-center gap-2 text-stone-200 transition-colors cursor-pointer"
+              >
+                <Users className="w-4 h-4 text-emerald-400 shrink-0" />
+                <div className="min-w-0 font-medium">
+                  <div className="text-emerald-200">{language === 'tr' ? 'Canlı Çalışma Odası' : 'Live Study Room'}</div>
+                  <div className="text-[10px] text-emerald-400/80">
+                    {onlineCount || 1} {language === 'tr' ? 'yayında' : 'online'}{unreadCount > 0 ? ` · ${unreadCount}` : ''}
                   </div>
                 </div>
               </button>

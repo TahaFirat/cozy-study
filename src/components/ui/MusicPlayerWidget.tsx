@@ -190,7 +190,7 @@ export const MusicPlayerWidget: React.FC = () => {
       {/* 1. MOBILE & TABLET TRIGGER: Floating pill button */}
       <div 
         className="mobile-music-trigger 2xl:hidden absolute left-3 sm:left-4 z-30 transition-all duration-300 pointer-events-auto"
-        style={{ bottom: 'max(1.75rem, calc(env(safe-area-inset-bottom, 0px) + 1.25rem))' }}
+        style={{ bottom: 'max(1.75rem, calc(var(--safe-bottom) + 1.25rem))' }}
       >
         <button
           onClick={() => setIsMobileModalOpen(true)}
@@ -247,7 +247,7 @@ export const MusicPlayerWidget: React.FC = () => {
       {/* 3. DESKTOP PERSISTENT CARD (Screens >= 1536px) */}
       <div 
         className="hidden 2xl:block absolute left-4 z-30 transition-all duration-300 pointer-events-auto"
-        style={{ bottom: 'max(1.75rem, calc(env(safe-area-inset-bottom, 0px) + 1.25rem))' }}
+        style={{ bottom: 'max(1.75rem, calc(var(--safe-bottom) + 1.25rem))' }}
       >
         <div className="glass-island text-stone-100 rounded-2xl shadow-2xl p-3 w-80 sm:w-96 border border-white/10">
           {renderPlayerCardContent(false)}

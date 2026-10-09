@@ -2,8 +2,6 @@ import React, { useState } from 'react';
 import { X, Mail, Lock, User, Eye, EyeOff, Loader2, AlertCircle, KeyRound } from 'lucide-react';
 import { useAppStore } from '../../store/useAppStore';
 import { useAuthStore } from '../../store/useAuthStore';
-import { useTaskStore } from '../../store/useTaskStore';
-import { useStatsStore } from '../../store/useStatsStore';
 import { signInWithEmail, registerWithEmail, resetPassword, loginAsDemoUser } from '../../firebase/auth';
 
 type AuthView = 'login' | 'register' | 'reset';
@@ -15,6 +13,7 @@ export const AuthModal: React.FC = () => {
   const [view, setView] = useState<AuthView>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -28,6 +27,33 @@ export const AuthModal: React.FC = () => {
   const clearForm = () => {
     setError(null);
     setSuccessMsg(null);
+  };
+
+  const handleFieldFocus = (event: React.FocusEvent<HTMLInputElement>) => {
+    const field = event.currentTarget;
+    window.setTimeout(() => field.scrollIntoView({ block: 'center', behavior: 'smooth' }), 250);
+  };
+
+  const authErrorMessage = (err: unknown, action: 'login' | 'register' | 'reset') => {
+    const code = (err as { code?: string }).code;
+    const messages: Record<string, [string, string]> = {
+      'auth/invalid-email': ['Geçerli bir e-posta adresi gir.', 'Enter a valid email address.'],
+      'auth/invalid-credential': ['E-posta veya şifre hatalı.', 'Incorrect email or password.'],
+      'auth/wrong-password': ['E-posta veya şifre hatalı.', 'Incorrect email or password.'],
+      'auth/user-not-found': ['Bu e-posta ile kayıtlı hesap bulunamadı.', 'No account found with this email.'],
+      'auth/email-already-in-use': ['Bu e-posta adresi zaten kullanımda.', 'This email address is already in use.'],
+      'auth/weak-password': ['Şifre çok zayıf. En az 6 karakter kullan.', 'Password is too weak. Use at least 6 characters.'],
+      'auth/network-request-failed': ['İnternet bağlantını kontrol edip tekrar dene.', 'Check your connection and try again.'],
+      'auth/too-many-requests': ['Çok fazla deneme yapıldı. Biraz bekleyip tekrar dene.', 'Too many attempts. Please wait and try again.'],
+      'auth/user-disabled': ['Bu hesap devre dışı bırakılmış.', 'This account has been disabled.'],
+      'auth/operation-not-allowed': ['E-posta ile giriş Firebase üzerinde etkin değil.', 'Email authentication is not enabled.'],
+      'auth/configuration-not-found': ['Hesap servisine şu anda ulaşılamıyor.', 'The account service is currently unavailable.'],
+    };
+    const known = code ? messages[code] : undefined;
+    if (known) return tr ? known[0] : known[1];
+    if (action === 'reset') return tr ? 'Sıfırlama e-postası gönderilemedi.' : 'Could not send the reset email.';
+    if (action === 'register') return tr ? 'Hesap oluşturulamadı. Bilgileri kontrol edip tekrar dene.' : 'Could not create the account. Check your details and try again.';
+    return tr ? 'Giriş yapılamadı. Lütfen tekrar dene.' : 'Could not sign in. Please try again.';
   };
 
   const handleDemoSignIn = () => {
@@ -52,23 +78,7 @@ export const AuthModal: React.FC = () => {
       setActiveModal('none');
     } catch (err: unknown) {
       console.error('[Firebase Auth Login Error]', err);
-      const clean = email.trim().toLowerCase();
-      if (clean.includes('apple') || clean.includes('review') || clean.includes('demo')) {
-        const demoUser = loginAsDemoUser();
-        setUser(demoUser);
-        setActiveModal('none');
-        return;
-      }
-      const code = (err as { code?: string }).code;
-      if (code === 'auth/invalid-credential' || code === 'auth/wrong-password') {
-        setError(tr ? 'E-posta veya şifre hatalı.' : 'Incorrect email or password.');
-      } else if (code === 'auth/user-not-found') {
-        setError(tr ? 'Bu e-posta ile kayıtlı hesap bulunamadı.' : 'No account found with this email.');
-      } else if (code === 'auth/operation-not-allowed') {
-        setError(tr ? 'Firebase konsolunda E-posta girişi henüz açılmamış. Authentication menüsünden etkinleştirin.' : 'Email sign-in is not enabled in Firebase console.');
-      } else {
-        setError(tr ? `Giriş yapılamadı (${code || 'Tekrar dene'})` : `Could not sign in (${code || 'Please try again'})`);
-      }
+      setError(authErrorMessage(err, 'login'));
     } finally {
       setIsLoading(false);
     }
@@ -84,26 +94,19 @@ export const AuthModal: React.FC = () => {
       setError(tr ? 'Şifre en az 6 karakter olmalı.' : 'Password must be at least 6 characters.');
       return;
     }
+    if (password !== confirmPassword) {
+      setError(tr ? 'Şifreler eşleşmiyor.' : 'Passwords do not match.');
+      return;
+    }
     setIsLoading(true);
     setError(null);
     try {
-      const user = await registerWithEmail(email, password, displayName);
+      const user = await registerWithEmail(email.trim(), password, displayName.trim());
       setUser(user);
-      useTaskStore.setState({ tasks: [], activeTaskId: null, sessionIntent: '' });
-      useStatsStore.setState({ sessions: [], streakDays: 0, lastSessionDate: null });
       setActiveModal('none');
     } catch (err: unknown) {
       console.error('[Firebase Auth Register Error]', err);
-      const code = (err as { code?: string }).code;
-      if (code === 'auth/email-already-in-use') {
-        setError(tr ? 'Bu e-posta adresi zaten kullanımda.' : 'Email already in use.');
-      } else if (code === 'auth/operation-not-allowed') {
-        setError(tr ? 'Firebase konsolunda E-posta kaydı henüz açılmamış. Authentication menüsünden etkinleştirin.' : 'Email sign-up is not enabled in Firebase console.');
-      } else if (code === 'auth/weak-password') {
-        setError(tr ? 'Şifre çok zayıf. En az 6 karakter olmalıdır.' : 'Password is too weak.');
-      } else {
-        setError(tr ? `Kayıt oluşturulamadı (${code || 'Tekrar deneyin'})` : `Registration failed (${code || 'Please try again'})`);
-      }
+      setError(authErrorMessage(err, 'register'));
     } finally {
       setIsLoading(false);
     }
@@ -116,8 +119,8 @@ export const AuthModal: React.FC = () => {
     try {
       await resetPassword(email);
       setSuccessMsg(tr ? 'Şifre sıfırlama e-postası gönderildi! 📧' : 'Password reset email sent! 📧');
-    } catch {
-      setError(tr ? 'E-posta gönderilemedi.' : 'Failed to send reset email.');
+    } catch (err: unknown) {
+      setError(authErrorMessage(err, 'reset'));
     } finally {
       setIsLoading(false);
     }
@@ -126,7 +129,7 @@ export const AuthModal: React.FC = () => {
   return (
     <div 
       onClick={() => setActiveModal('none')}
-      className="app-modal-overlay app-auth-overlay fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm pointer-events-auto overflow-y-auto"
+      className="app-modal-overlay app-auth-overlay fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md pointer-events-auto overflow-hidden"
     >
       <div 
         onClick={(e) => e.stopPropagation()}
@@ -200,7 +203,10 @@ export const AuthModal: React.FC = () => {
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-500" />
                 <input
                   type="email"
+                  inputMode="email"
+                  autoComplete="email"
                   value={email}
+                  onFocus={handleFieldFocus}
                   onChange={(e) => { setEmail(e.target.value); clearForm(); }}
                   placeholder={tr ? 'E-posta adresin' : 'Your email'}
                   required
@@ -211,7 +217,9 @@ export const AuthModal: React.FC = () => {
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-500" />
                 <input
                   type={showPassword ? 'text' : 'password'}
+                  autoComplete="current-password"
                   value={password}
+                  onFocus={handleFieldFocus}
                   onChange={(e) => { setPassword(e.target.value); clearForm(); }}
                   placeholder={tr ? 'Şifren' : 'Your password'}
                   required
@@ -260,7 +268,9 @@ export const AuthModal: React.FC = () => {
                 <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-500" />
                 <input
                   type="text"
+                  autoComplete="name"
                   value={displayName}
+                  onFocus={handleFieldFocus}
                   onChange={(e) => { setDisplayName(e.target.value); clearForm(); }}
                   placeholder={tr ? 'Adın (görünür isim)' : 'Your name (display name)'}
                   required
@@ -271,7 +281,10 @@ export const AuthModal: React.FC = () => {
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-500" />
                 <input
                   type="email"
+                  inputMode="email"
+                  autoComplete="email"
                   value={email}
+                  onFocus={handleFieldFocus}
                   onChange={(e) => { setEmail(e.target.value); clearForm(); }}
                   placeholder={tr ? 'E-posta adresin' : 'Your email'}
                   required
@@ -282,7 +295,10 @@ export const AuthModal: React.FC = () => {
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-500" />
                 <input
                   type={showPassword ? 'text' : 'password'}
+                  autoComplete="new-password"
+                  minLength={6}
                   value={password}
+                  onFocus={handleFieldFocus}
                   onChange={(e) => { setPassword(e.target.value); clearForm(); }}
                   placeholder={tr ? 'Şifre (en az 6 karakter)' : 'Password (min 6 characters)'}
                   required
@@ -295,6 +311,20 @@ export const AuthModal: React.FC = () => {
                 >
                   {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
+              </div>
+              <div className="relative">
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-500" />
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  autoComplete="new-password"
+                  minLength={6}
+                  value={confirmPassword}
+                  onFocus={handleFieldFocus}
+                  onChange={(e) => { setConfirmPassword(e.target.value); clearForm(); }}
+                  placeholder={tr ? 'Şifreyi tekrar yaz' : 'Confirm password'}
+                  required
+                  className="w-full pl-9 pr-4 py-2.5 bg-stone-950/60 border border-stone-700 rounded-xl text-sm text-stone-100 placeholder-stone-500 focus:outline-none focus:border-amber-500 transition-colors"
+                />
               </div>
               <button
                 type="submit"
@@ -326,7 +356,10 @@ export const AuthModal: React.FC = () => {
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-500" />
                 <input
                   type="email"
+                  inputMode="email"
+                  autoComplete="email"
                   value={email}
+                  onFocus={handleFieldFocus}
                   onChange={(e) => { setEmail(e.target.value); clearForm(); }}
                   placeholder={tr ? 'E-posta adresin' : 'Your email'}
                   required

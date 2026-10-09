@@ -23,9 +23,15 @@ export const UserMenu: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className="p-2 bg-stone-900/85 border border-stone-800 rounded-lg">
-        <Loader2 className="w-4 h-4 text-stone-400 animate-spin" />
-      </div>
+      <button
+        onClick={() => setActiveModal('auth')}
+        className="mobile-login-button min-h-9 flex items-center gap-1.5 px-2.5 py-1.5 bg-amber-500/15 text-amber-200 border border-amber-500/40 rounded-xl text-[11px] font-bold transition-all cursor-pointer shadow-sm active:scale-95"
+        aria-label={tr ? 'Hesap yüklenirken giriş ekranını aç' : 'Open sign in while account loads'}
+      >
+        <User className="w-3.5 h-3.5" />
+        <span>{tr ? 'Giriş' : 'Sign in'}</span>
+        <Loader2 className="w-3 h-3 text-amber-400 animate-spin" />
+      </button>
     );
   }
 

@@ -120,15 +120,15 @@ export const SettingsModal: React.FC = () => {
   return (
     <div 
       onClick={() => setActiveModal('none')}
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/65 backdrop-blur-sm pointer-events-auto"
+      className="app-modal-overlay fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md pointer-events-auto"
     >
       <div 
         onClick={(e) => e.stopPropagation()}
-        className="bg-stone-900/95 text-stone-100 border border-stone-800 rounded-2xl shadow-2xl p-6 w-full max-w-lg max-h-[85dvh] flex flex-col animate-in fade-in zoom-in-95 duration-150"
+        className="app-modal-panel settings-modal-panel bg-stone-900/95 text-stone-100 border border-stone-800 rounded-2xl shadow-2xl p-6 w-full max-w-lg max-h-[85dvh] flex flex-col animate-in fade-in zoom-in-95 duration-150 overflow-hidden"
       >
         
         {/* Header */}
-        <div className="flex items-center justify-between pb-3.5 border-b border-stone-800">
+        <div className="settings-modal-header flex items-center justify-between pb-3.5 border-b border-stone-800 shrink-0">
           <div className="flex items-center gap-2.5">
             <Sliders className="w-5 h-5 text-amber-400" />
             <div>
@@ -144,7 +144,7 @@ export const SettingsModal: React.FC = () => {
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto py-4 space-y-4 pr-1">
+        <div className="settings-modal-body flex-1 min-h-0 overflow-y-auto overscroll-contain py-4 space-y-4 pr-1">
           {/* Language Selection Section (Optimization & Turkish Support) */}
           <div>
             <label className="text-xs font-bold text-stone-300 mb-2 flex items-center gap-1.5 uppercase tracking-wider">
@@ -758,7 +758,7 @@ export const SettingsModal: React.FC = () => {
         </div>
 
         {/* Footer */}
-        <div className="pt-3.5 border-t border-stone-800 flex justify-end">
+        <div className="settings-modal-footer pt-3.5 border-t border-stone-800 flex justify-end shrink-0">
           <button
             onClick={() => setActiveModal('none')}
             className="px-5 py-2 rounded-lg bg-stone-800 hover:bg-stone-700 text-stone-200 text-xs font-semibold cursor-pointer transition-colors"
