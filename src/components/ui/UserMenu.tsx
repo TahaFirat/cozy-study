@@ -21,21 +21,7 @@ export const UserMenu: React.FC = () => {
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  if (isLoading) {
-    return (
-      <button
-        onClick={() => setActiveModal('auth')}
-        className="mobile-login-button min-h-9 flex items-center gap-1.5 px-2.5 py-1.5 bg-amber-500/15 text-amber-200 border border-amber-500/40 rounded-xl text-[11px] font-bold transition-all cursor-pointer shadow-sm active:scale-95"
-        aria-label={tr ? 'Hesap yüklenirken giriş ekranını aç' : 'Open sign in while account loads'}
-      >
-        <User className="w-3.5 h-3.5" />
-        <span>{tr ? 'Giriş' : 'Sign in'}</span>
-        <Loader2 className="w-3 h-3 text-amber-400 animate-spin" />
-      </button>
-    );
-  }
-
-  // Not logged in — show Guest Menu with Profile, Stats, and Sign In
+  // Not logged in or initial load — show Guest Menu with Profile, Stats, and Sign In
   if (!user) {
     return (
       <div ref={menuRef} className="relative">

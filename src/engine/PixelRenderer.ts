@@ -151,9 +151,14 @@ export class PixelRenderer {
       const sceneCtx = getContext();
 
       // Dynamic battery & thermal optimization:
+      // If a modal or menu is open, the canvas is obscured by backdrops: throttle to 2 FPS!
       // If user enabled batterySaverMode: cap to 12 FPS! This keeps mobile chips ice-cold during 5-hour study blocks!
       // Otherwise: 20 FPS on mobile/tablet, 28 FPS on desktop
-      const targetFPS = sceneCtx.batterySaverMode ? 12 : (isMobileOrTablet ? 20 : 28);
+      const isModalOrMenuOpen = typeof document !== 'undefined' && (
+        document.querySelector('.app-modal-overlay') !== null ||
+        document.documentElement.classList.contains('studio-menu-open')
+      );
+      const targetFPS = isModalOrMenuOpen ? 2 : (sceneCtx.batterySaverMode ? 12 : (isMobileOrTablet ? 20 : 28));
       const frameInterval = 1000 / targetFPS;
 
       // Throttle render rate: skips unnecessary frames on 90Hz/120Hz tablet screens

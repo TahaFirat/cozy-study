@@ -1,6 +1,14 @@
 import { initializeApp } from 'firebase/app';
-import { getAuth, GoogleAuthProvider } from 'firebase/auth';
+import {
+  initializeAuth,
+  getAuth,
+  indexedDBLocalPersistence,
+  browserLocalPersistence,
+  GoogleAuthProvider,
+  Auth,
+} from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
+import { Capacitor } from '@capacitor/core';
 
 // Firebase config — client-side credentials with safe production fallbacks
 const firebaseConfig = {
@@ -27,7 +35,31 @@ try {
   console.warn('[Firebase] App init note:', e);
 }
 
-export const auth = isFirebaseConfigured ? getAuth(app!) : null;
+let authInstance: Auth | null = null;
+
+if (isFirebaseConfigured && app) {
+  try {
+    if (Capacitor.isNativePlatform()) {
+      // In iOS & Android native WKWebView: Prioritize browserLocalPersistence (localStorage)
+      // to eliminate WebKit's slow/hanging IndexedDB daemon, while retaining indexedDB fallback.
+      authInstance = initializeAuth(app, {
+        persistence: [browserLocalPersistence, indexedDBLocalPersistence],
+      });
+    } else {
+      authInstance = initializeAuth(app, {
+        persistence: [indexedDBLocalPersistence, browserLocalPersistence],
+      });
+    }
+  } catch (_err) {
+    try {
+      authInstance = getAuth(app);
+    } catch (e) {
+      console.warn('[Firebase] Fallback getAuth error:', e);
+    }
+  }
+}
+
+export const auth = authInstance;
 export const db = isFirebaseConfigured ? getFirestore(app!) : null;
 export const googleProvider = isFirebaseConfigured ? new GoogleAuthProvider() : null;
 

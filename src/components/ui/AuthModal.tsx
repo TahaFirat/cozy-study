@@ -48,6 +48,7 @@ export const AuthModal: React.FC = () => {
       'auth/user-disabled': ['Bu hesap devre dışı bırakılmış.', 'This account has been disabled.'],
       'auth/operation-not-allowed': ['E-posta ile giriş Firebase üzerinde etkin değil.', 'Email authentication is not enabled.'],
       'auth/configuration-not-found': ['Hesap servisine şu anda ulaşılamıyor.', 'The account service is currently unavailable.'],
+      'auth/timeout': ['Bağlantı zaman aşımına uğradı. İnternetini kontrol edip tekrar dene.', 'Connection timed out. Check your internet and try again.'],
     };
     const known = code ? messages[code] : undefined;
     if (known) return tr ? known[0] : known[1];

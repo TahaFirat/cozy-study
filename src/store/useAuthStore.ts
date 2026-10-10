@@ -23,7 +23,7 @@ interface AuthState {
 
 export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
-  isLoading: true,
+  isLoading: false,
   isSyncing: false,
   isAuthReady: false,
 
@@ -134,7 +134,7 @@ if (typeof window !== 'undefined') {
       console.warn('[Auth] Initial Firebase state timed out; continuing in guest mode.');
       useAuthStore.setState({ isLoading: false, isAuthReady: true });
     }
-  }, 6000);
+  }, 1800);
 
   unsubscribe = subscribeToAuthState(async (user) => {
     window.clearTimeout(authReadyFallback);

@@ -76,6 +76,23 @@ class WebAudioEngine {
 
       this.isInitialized = true;
 
+      // Suspend idle AudioContext on background to eliminate battery drain
+      if (typeof document !== 'undefined') {
+        document.addEventListener('visibilitychange', () => {
+          if (!this.ctx) return;
+          if (document.hidden) {
+            const hasAudio = (this.runningChannels.size > 0 || Object.keys(this.naturalSources).length > 0) && !this.isMuted;
+            if (!hasAudio && this.ctx.state === 'running') {
+              this.ctx.suspend().catch(() => {});
+            }
+          } else {
+            if (this.ctx.state === 'suspended') {
+              this.ctx.resume().catch(() => {});
+            }
+          }
+        });
+      }
+
       // Preload the most essential natural audio loops in the background
       this.loadNaturalBuffer('fireplace').catch(() => {});
       this.loadNaturalBuffer('rain').catch(() => {});
