@@ -150,24 +150,18 @@ export class PixelRenderer {
 
       const sceneCtx = getContext();
 
-      // Dynamic battery & thermal optimization:
-      // If a modal or menu is open, the canvas is obscured by backdrops: throttle to 2 FPS!
-      // If user enabled batterySaverMode: cap to 12 FPS! This keeps mobile chips ice-cold during 5-hour study blocks!
-      // Otherwise: 20 FPS on mobile/tablet, 28 FPS on desktop
-      const isModalOrMenuOpen = typeof document !== 'undefined' && (
-        document.querySelector('.app-modal-overlay') !== null ||
-        document.documentElement.classList.contains('studio-menu-open')
-      );
-      const targetFPS = isModalOrMenuOpen ? 2 : (sceneCtx.batterySaverMode ? 12 : (isMobileOrTablet ? 20 : 28));
-      const frameInterval = 1000 / targetFPS;
-
-      // Throttle render rate: skips unnecessary frames on 90Hz/120Hz tablet screens
-      const elapsedSinceLastRender = time - lastRenderTime;
-      if (elapsedSinceLastRender < frameInterval) {
-        this.animationFrameId = requestAnimationFrame(loop);
-        return;
+      // Battery Saver Mode:
+      // Only when explicitly enabled by user: throttle strictly to 12 FPS for maximum battery preservation.
+      // Otherwise: run buttery smooth at native 60 FPS with zero lag or stutter!
+      if (sceneCtx.batterySaverMode) {
+        const frameInterval = 1000 / 12; // 83.33ms (12 FPS)
+        const elapsedSinceLastRender = time - lastRenderTime;
+        if (elapsedSinceLastRender < frameInterval) {
+          this.animationFrameId = requestAnimationFrame(loop);
+          return;
+        }
+        lastRenderTime = time - (elapsedSinceLastRender % frameInterval);
       }
-      lastRenderTime = time - (elapsedSinceLastRender % frameInterval);
 
       const delta = Math.min(100, Math.max(1, time - lastTime));
       lastTime = time;

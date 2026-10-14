@@ -232,8 +232,8 @@ export const MusicPlayerWidget: React.FC = () => {
       {/* 2. MOBILE & TABLET MODAL / BOTTOM SHEET (Kept mounted in DOM so Spotify/YouTube audio keeps playing after closing) */}
       <div 
         onClick={() => setIsMobileModalOpen(false)}
-        className={`app-modal-overlay 2xl:hidden fixed inset-0 z-50 flex items-end sm:items-center justify-center p-3 sm:p-4 bg-black/75 backdrop-blur-sm transition-all duration-300 pointer-events-auto ${
-          isMobileModalOpen ? 'opacity-100' : 'opacity-0 pointer-events-none translate-y-full'
+        className={`2xl:hidden fixed inset-0 z-50 flex items-end sm:items-center justify-center p-3 sm:p-4 bg-black/75 backdrop-blur-sm transition-all duration-300 pointer-events-auto ${
+          isMobileModalOpen ? 'app-modal-overlay opacity-100' : 'opacity-0 pointer-events-none translate-y-full'
         }`}
       >
         <div 
