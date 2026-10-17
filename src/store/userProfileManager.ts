@@ -336,9 +336,47 @@ export function seedReviewerDemoProfile(): void {
 // Global Profile Switcher
 let activeProfileId: string | null = null;
 let autoSaveInterval: number | null = null;
+let isRestoringProfile = false;
+let storeSubscriptionsInitialized = false;
 
 export function getActiveProfileId(): string {
   return activeProfileId || 'guest';
+}
+
+function initImmediateStorePersistence(): void {
+  if (typeof window === 'undefined' || storeSubscriptionsInitialized) return;
+  storeSubscriptionsInitialized = true;
+
+  // Immediately sync profile snapshot whenever tasks or sessions are added/edited/deleted
+  useTaskStore.subscribe((state, prevState) => {
+    if (isRestoringProfile || !activeProfileId) return;
+    if (
+      state.tasks !== prevState.tasks ||
+      state.activeTaskId !== prevState.activeTaskId ||
+      state.sessionIntent !== prevState.sessionIntent
+    ) {
+      saveProfileSnapshot(activeProfileId);
+    }
+  });
+
+  useStatsStore.subscribe((state, prevState) => {
+    if (isRestoringProfile || !activeProfileId) return;
+    if (state.sessions !== prevState.sessions || state.streakDays !== prevState.streakDays) {
+      saveProfileSnapshot(activeProfileId);
+    }
+  });
+
+  // Save immediately when app is backgrounded or closed on iOS/Android
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden' && activeProfileId) {
+      saveProfileSnapshot(activeProfileId);
+    }
+  });
+  window.addEventListener('pagehide', () => {
+    if (activeProfileId) {
+      saveProfileSnapshot(activeProfileId);
+    }
+  });
 }
 
 export function switchUserProfile(newProfileId: string | null): void {
@@ -352,30 +390,39 @@ export function switchUserProfile(newProfileId: string | null): void {
     saveProfileSnapshot(activeProfileId);
   }
 
-  // 2. Wipe memory stores completely to prevent ANY data cross-contamination
-  resetStoresToCleanState();
+  isRestoringProfile = true;
+  try {
+    // 2. Wipe memory stores completely to prevent ANY data cross-contamination
+    resetStoresToCleanState();
 
-  // 3. Set new active profile ID
-  activeProfileId = targetId;
+    // 3. Set new active profile ID
+    activeProfileId = targetId;
 
-  // 4. Try to load saved profile for new user
-  const loaded = loadProfileSnapshot(targetId);
-  if (!loaded) {
-    if (targetId.includes('apple-review') || targetId.includes('demo')) {
-      seedReviewerDemoProfile();
-      saveProfileSnapshot(targetId);
-      console.log(`[ProfileManager] Initialized rich demo state for "${targetId}".`);
-    } else {
-      console.log(`[ProfileManager] Initialized fresh clean state for "${targetId}".`);
+    // 4. Try to load saved profile for new user
+    const loaded = loadProfileSnapshot(targetId);
+    if (!loaded) {
+      if (targetId.includes('apple-review') || targetId.includes('demo')) {
+        seedReviewerDemoProfile();
+        saveProfileSnapshot(targetId);
+        console.log(`[ProfileManager] Initialized rich demo state for "${targetId}".`);
+      } else {
+        saveProfileSnapshot(targetId);
+        console.log(`[ProfileManager] Initialized fresh clean state for "${targetId}".`);
+      }
     }
+  } finally {
+    isRestoringProfile = false;
   }
+
+  initImmediateStorePersistence();
 
   // 5. Setup periodic autosave
   if (typeof window !== 'undefined' && !autoSaveInterval) {
     autoSaveInterval = window.setInterval(() => {
-      if (activeProfileId) {
+      if (activeProfileId && !isRestoringProfile) {
         saveProfileSnapshot(activeProfileId);
       }
     }, 8000);
   }
 }
+

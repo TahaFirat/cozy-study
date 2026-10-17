@@ -279,7 +279,15 @@ export const StatsModal: React.FC = () => {
                   return (
                     <div
                       key={day.date}
-                      className={`h-11 rounded-lg border flex flex-col items-center justify-center text-xs font-mono transition-transform hover:scale-105 ${bgClass}`}
+                      onClick={() =>
+                        showToast(
+                          language === 'tr'
+                            ? `📅 ${day.date}: ${day.minutes} dakika odaklanıldı`
+                            : `📅 ${day.date}: ${day.minutes} min focused`,
+                          2000
+                        )
+                      }
+                      className={`h-11 rounded-lg border flex flex-col items-center justify-center text-xs font-mono transition-transform hover:scale-105 cursor-pointer active:scale-95 ${bgClass}`}
                       title={`${day.date}: ${day.minutes} min focused`}
                     >
                       <span className="text-[10px]">{shortDate}</span>
@@ -332,6 +340,14 @@ export const StatsModal: React.FC = () => {
                             return (
                               <div
                                 key={day.date}
+                                onClick={() =>
+                                  showToast(
+                                    language === 'tr'
+                                      ? `📅 ${day.date}: ${day.minutes} dk odaklanıldı`
+                                      : `📅 ${day.date}: ${day.minutes} min focused`,
+                                    2000
+                                  )
+                                }
                                 className={`w-2.5 h-2.5 rounded-[2px] border transition-transform cursor-pointer ${bgClass}`}
                                 title={`${day.date} (${day.month}): ${day.minutes} ${language === 'tr' ? 'dk odaklanıldı' : 'min focused'}`}
                               />

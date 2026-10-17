@@ -219,6 +219,19 @@ export const FocusTimerWidget: React.FC = () => {
                   className="flex-1 bg-stone-950 border border-stone-700/80 rounded-lg px-2 py-1 text-xs text-stone-100 placeholder-stone-500 focus:outline-none focus:border-amber-500"
                   maxLength={60}
                 />
+                {tempGoal && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setTempGoal('');
+                      setCurrentGoal('');
+                    }}
+                    className="p-1.5 rounded-lg bg-stone-800 hover:bg-red-950/50 text-stone-400 hover:text-red-300 transition-colors cursor-pointer"
+                    title={language === 'tr' ? 'Hedefi Sil' : 'Clear Goal'}
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={() => {
@@ -233,23 +246,39 @@ export const FocusTimerWidget: React.FC = () => {
               </div>
             </div>
 
-            {/* Custom Minutes & Guided Break Options */}
+            {/* Custom Minutes, Reset & Guided Break Options */}
             <div className="pt-1.5 border-t border-stone-800 space-y-1">
+              <div className="grid grid-cols-2 gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowPresets(false);
+                    setActiveModal('timer_custom');
+                  }}
+                  className="py-1.5 px-2 text-xs font-medium text-stone-300 hover:text-amber-200 bg-stone-800/60 hover:bg-stone-800 rounded-lg transition-colors cursor-pointer"
+                >
+                  ✦ {t.timer.customDuration}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    resetTimer();
+                    setBreakMode('none');
+                    setShowPresets(false);
+                  }}
+                  className="py-1.5 px-2 text-xs font-medium text-stone-300 hover:text-amber-200 bg-stone-800/60 hover:bg-stone-800 rounded-lg transition-colors cursor-pointer flex items-center justify-center gap-1"
+                >
+                  <RotateCcw className="w-3 h-3" />
+                  <span>{t.timer.reset}</span>
+                </button>
+              </div>
               <button
-                onClick={() => {
-                  setShowPresets(false);
-                  setActiveModal('timer_custom');
-                }}
-                className="w-full py-1 text-xs font-medium text-stone-400 hover:text-amber-200 hover:bg-stone-800/80 rounded transition-colors cursor-pointer"
-              >
-                ✦ {t.timer.customDuration}
-              </button>
-              <button
+                type="button"
                 onClick={() => {
                   setShowPresets(false);
                   setActiveModal('break_guide');
                 }}
-                className="w-full py-1 text-xs font-medium text-emerald-400 hover:text-emerald-300 hover:bg-emerald-950/40 rounded transition-colors cursor-pointer flex items-center justify-center gap-1.5"
+                className="w-full py-1.5 text-xs font-medium text-emerald-400 hover:text-emerald-300 hover:bg-emerald-950/40 rounded-lg transition-colors cursor-pointer flex items-center justify-center gap-1.5"
               >
                 <span>🌿</span>
                 <span>{language === 'tr' ? 'Rehberli Mola Egzersizi' : 'Guided Break Guide'}</span>

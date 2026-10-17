@@ -193,6 +193,13 @@ export const GamificationModal: React.FC = () => {
                           : `${badge.emoji} ${badge.nameEn} — ${badge.descEn}`,
                         3000
                       );
+                    } else {
+                      showToast(
+                        tr
+                          ? `🔒 ${badge.nameTr}: ${badge.descTr}`
+                          : `🔒 ${badge.nameEn}: ${badge.descEn}`,
+                        3200
+                      );
                     }
                   }}
                   className={`relative flex flex-col items-center gap-1.5 p-2.5 rounded-xl border transition-all cursor-pointer group ${

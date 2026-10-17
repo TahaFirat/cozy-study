@@ -345,12 +345,12 @@
   }
 }
 
-/* Purpose-built Cohesive Vertical Study Sanctuary for Portrait Phones */
-@media (max-width: 639px) and (orientation: portrait) {
+/* Purpose-built Cohesive Vertical Study Sanctuary for Portrait Phones & Portrait Tablets */
+@media (max-width: 1023px) and (orientation: portrait) {
   .room-stage:not(.is-immersive-stage) {
     flex-direction: column;
     justify-content: center;
-    align-items: stretch;
+    align-items: center;
     gap: 0.65rem;
     padding-top: max(3.6rem, calc(var(--safe-top) + 3.35rem));
     padding-bottom: max(5.15rem, calc(var(--safe-bottom) + 4.85rem));
@@ -362,6 +362,7 @@
     display: flex;
     flex-direction: column;
     width: 100%;
+    max-width: 48rem;
     border-radius: 1.25rem;
     overflow: hidden;
     border: 1px solid rgba(245, 158, 11, 0.24);
@@ -384,18 +385,15 @@
 
   .room-stage:not(.is-immersive-stage) .portrait-sanctuary-console {
     display: flex !important;
+    max-width: 48rem;
   }
 }
 
 @media (min-width: 640px) and (max-width: 1023px) {
-  .topbar-secondary-action {
-    display: none !important;
-  }
-
   .topbar-shell {
-    gap: 0.65rem;
-    left: max(1rem, calc(var(--safe-left) + 0.5rem)) !important;
-    right: max(1rem, calc(var(--safe-right) + 0.5rem)) !important;
+    gap: 0.5rem;
+    left: max(0.75rem, calc(var(--safe-left) + 0.5rem)) !important;
+    right: max(0.75rem, calc(var(--safe-right) + 0.5rem)) !important;
   }
 
   .topbar-left {
@@ -403,7 +401,7 @@
   }
 
   .topbar-room-label {
-    max-width: 13rem;
+    max-width: 9.5rem;
   }
 
   .mobile-music-trigger {
@@ -465,6 +463,14 @@
 
   .app-modal-panel {
     max-height: calc(100dvh - var(--safe-top) - var(--safe-bottom) - 0.5rem) !important;
+  }
+
+  .task-drawer-intent {
+    padding-block: 0.35rem !important;
+  }
+
+  .task-drawer-creator {
+    padding: 0.5rem 0.75rem !important;
   }
 
   .boss-raid-panel {

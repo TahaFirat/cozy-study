@@ -453,6 +453,45 @@ export const TopBar: React.FC = () => {
 
             {/* Quick Actions Grid */}
             <div className="grid grid-cols-2 gap-2 text-xs">
+              {/* Study Tasks / Todo Drawer */}
+              <button
+                onClick={() => {
+                  setIsMobileMenuOpen(false);
+                  toggleTaskDrawer();
+                }}
+                className="p-2.5 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/35 text-left flex items-center gap-2 text-stone-200 transition-colors cursor-pointer"
+              >
+                <CheckSquare className="w-4 h-4 text-amber-400 shrink-0" />
+                <div className="min-w-0">
+                  <div className="font-bold text-[11px] text-amber-200">
+                    {language === 'tr' ? 'Görevler & Todo' : 'Tasks & Todo'}
+                  </div>
+                  <div className="text-[10px] text-amber-300/80 font-mono">
+                    {tasks.filter((t) => t.status !== 'done').length}{' '}
+                    {language === 'tr' ? 'aktif görev' : 'active'}
+                  </div>
+                </div>
+              </button>
+
+              {/* Study Statistics & Heatmap */}
+              <button
+                onClick={() => {
+                  setIsMobileMenuOpen(false);
+                  setActiveModal('stats');
+                }}
+                className="p-2.5 rounded-xl bg-stone-800/80 hover:bg-stone-700 text-left flex items-center gap-2 text-stone-200 transition-colors cursor-pointer"
+              >
+                <BarChart2 className="w-4 h-4 text-amber-400 shrink-0" />
+                <div className="min-w-0">
+                  <div className="font-bold text-[11px] text-stone-100">
+                    {language === 'tr' ? 'İstatistikler' : 'Statistics'}
+                  </div>
+                  <div className="text-[10px] text-stone-400 font-mono">
+                    🔥 {streakDays} {t.streak}
+                  </div>
+                </div>
+              </button>
+
               {/* Language Switch */}
               <button
                 onClick={() => {
@@ -477,7 +516,7 @@ export const TopBar: React.FC = () => {
               >
                 <Swords className="w-4 h-4 text-red-400 shrink-0" />
                 <div className="min-w-0">
-                  <div className="font-bold text-[11px] text-red-200">Boss Savaşı</div>
+                  <div className="font-bold text-[11px] text-red-200">{language === 'tr' ? 'Boss Savaşı' : 'Boss Raid'}</div>
                   <div className="text-[10px] text-red-400 font-mono">HP: {bossHpPercent}%</div>
                 </div>
               </button>

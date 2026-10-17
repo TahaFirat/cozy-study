@@ -193,9 +193,14 @@ export const JournalModal: React.FC = () => {
                         {formatDate(session.timestamp)}
                       </span>
                       <button
-                        onClick={() => deleteSession(session.id)}
-                        className="opacity-0 group-hover:opacity-100 p-1 text-stone-500 hover:text-red-400 transition-opacity cursor-pointer"
-                        title="Sil"
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          deleteSession(session.id);
+                          showToast(language === 'tr' ? 'Günlük kaydı silindi 🗑️' : 'Journal entry deleted 🗑️', 2000);
+                        }}
+                        className="w-7 h-7 rounded-lg bg-red-950/35 hover:bg-red-900/55 border border-red-500/25 text-red-300 hover:text-red-200 flex items-center justify-center transition-colors cursor-pointer active:scale-90"
+                        title={language === 'tr' ? 'Sil' : 'Delete'}
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>

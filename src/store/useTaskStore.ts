@@ -24,6 +24,7 @@ interface TaskState {
 
   // Actions
   addTask: (title: string, priority?: TaskPriority, category?: string, pomodoroEstimate?: number, status?: TaskStatus) => void;
+  editTask: (id: string, updates: Partial<Pick<StudyTask, 'title' | 'priority' | 'category' | 'pomodoroEstimate' | 'status'>>) => void;
   updateTaskStatus: (id: string, status: TaskStatus) => void;
   moveTask: (id: string, targetStatus: TaskStatus, targetIndex?: number) => void;
   reorderTasks: (tasks: StudyTask[]) => void;
@@ -34,11 +35,12 @@ interface TaskState {
   toggleTaskDrawer: () => void;
   setTaskDrawerOpen: (open: boolean) => void;
   clearCompletedTasks: () => void;
+  clearAllTasks: () => void;
 }
 
 export const useTaskStore = create<TaskState>()(
   persist(
-    (set, get) => ({
+    (set) => ({
       tasks: [],
       activeTaskId: null,
       sessionIntent: '',
@@ -57,6 +59,24 @@ export const useTaskStore = create<TaskState>()(
           completedAt: status === 'done' ? new Date().toISOString() : undefined,
         };
         set((state) => ({ tasks: [newTask, ...state.tasks] }));
+      },
+
+      editTask: (id, updates) => {
+        set((state) => ({
+          tasks: state.tasks.map((t) => {
+            if (t.id !== id) return t;
+            const nextStatus = updates.status ?? t.status;
+            return {
+              ...t,
+              ...updates,
+              status: nextStatus,
+              completedAt:
+                nextStatus === 'done'
+                  ? t.completedAt || new Date().toISOString()
+                  : undefined,
+            };
+          }),
+        }));
       },
 
       updateTaskStatus: (id, status) => {
@@ -143,7 +163,17 @@ export const useTaskStore = create<TaskState>()(
       clearCompletedTasks: () => {
         set((state) => ({
           tasks: state.tasks.filter((t) => t.status !== 'done'),
+          activeTaskId:
+            state.activeTaskId && state.tasks.some((t) => t.id === state.activeTaskId && t.status === 'done')
+              ? null
+              : state.activeTaskId,
         }));
+      },
+      clearAllTasks: () => {
+        set({
+          tasks: [],
+          activeTaskId: null,
+        });
       },
     }),
     {
