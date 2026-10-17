@@ -88,7 +88,7 @@ export const useAudioStore = create<AudioState>()(
       masterVolume: 0.8,
       isMuted: false,
 
-      ambientVolumes: { ...DEFAULT_AMBIENT_VOLUMES },
+      ambientVolumes: { ...DEFAULT_AMBIENT_VOLUMES, rain: 0.35, fireplace: 0.55 },
       activePresetId: null,
       binauralMode: 'gamma_40hz',
 
@@ -124,6 +124,14 @@ export const useAudioStore = create<AudioState>()(
         const ambientVolumes = { ...get().ambientVolumes, [channel]: vol };
         set({ ambientVolumes, activePresetId: null });
         webAudioEngine.setChannelVolume(channel, vol);
+        if (channel === 'fireplace') {
+          import('./useAppStore').then(({ useAppStore }) => {
+            const isFireOn = vol > 0.01;
+            if (useAppStore.getState().fireplaceActive !== isFireOn) {
+              useAppStore.setState({ fireplaceActive: isFireOn });
+            }
+          }).catch(() => {});
+        }
       },
 
       setBinauralMode: (binauralMode) => {
@@ -137,6 +145,9 @@ export const useAudioStore = create<AudioState>()(
           const merged = { ...DEFAULT_AMBIENT_VOLUMES, ...preset.volumes };
           set({ ambientVolumes: merged, activePresetId: presetId });
           webAudioEngine.setAllChannelVolumes(merged);
+          import('./useAppStore').then(({ useAppStore }) => {
+            useAppStore.setState({ fireplaceActive: (merged.fireplace || 0) > 0.01 });
+          }).catch(() => {});
         }
       },
 
@@ -148,11 +159,18 @@ export const useAudioStore = create<AudioState>()(
         }
         set({ ambientVolumes: merged, activePresetId: null });
         webAudioEngine.setAllChannelVolumes(merged);
+        import('./useAppStore').then(({ useAppStore }) => {
+          useAppStore.setState({ fireplaceActive: (merged.fireplace || 0) > 0.01 });
+        }).catch(() => {});
       },
 
       resetAmbient: () => {
-        set({ ambientVolumes: { ...DEFAULT_AMBIENT_VOLUMES }, activePresetId: null });
-        webAudioEngine.setAllChannelVolumes(DEFAULT_AMBIENT_VOLUMES);
+        const resetVols = { ...DEFAULT_AMBIENT_VOLUMES, rain: 0, fireplace: 0 };
+        set({ ambientVolumes: resetVols, activePresetId: null });
+        webAudioEngine.setAllChannelVolumes(resetVols);
+        import('./useAppStore').then(({ useAppStore }) => {
+          useAppStore.setState({ fireplaceActive: false });
+        }).catch(() => {});
       },
 
       setMusicVolume: (musicVolume) => {

@@ -290,134 +290,135 @@ export const BossRaidModal: React.FC = () => {
   return (
     <div 
       onClick={() => setActiveModal('none')}
-      className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/85 backdrop-blur-md pointer-events-auto"
+      className="app-modal-overlay boss-raid-overlay fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/85 backdrop-blur-md pointer-events-auto"
     >
       <div 
         onClick={(e) => e.stopPropagation()}
-        className="bg-stone-900/98 text-stone-100 border border-stone-800 rounded-3xl shadow-2xl p-3.5 sm:p-5 w-full max-w-5xl max-h-[96dvh] flex flex-col animate-in fade-in zoom-in-95 duration-200"
+        className="app-modal-panel boss-raid-panel bg-stone-900/98 text-stone-100 border border-stone-800 rounded-2xl sm:rounded-3xl shadow-2xl p-3 sm:p-5 w-full max-w-5xl max-h-[96dvh] flex flex-col animate-in fade-in zoom-in-95 duration-200 overflow-hidden"
       >
         
         {/* Header with Global Community Raid Indicator */}
-        <div className="flex items-center justify-between pb-2 border-b border-stone-800/80">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-stone-800 border border-stone-700/70 flex items-center justify-center text-base shadow-sm">
+        <div className="boss-raid-header shrink-0 flex items-center justify-between gap-2 pb-2 border-b border-stone-800/80">
+          <div className="flex items-center gap-2 sm:gap-2.5 min-w-0">
+            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-stone-800 border border-stone-700/70 flex items-center justify-center text-sm sm:text-base shadow-sm shrink-0">
               ⚔️
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h3 className="text-sm sm:text-base font-bold text-stone-100">
-                  {isTr ? 'Kronos Diyarı: Küresel Boss Akını' : 'Chronos Realm: Global Boss Raids'}
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+                <h3 className="text-xs sm:text-base font-bold text-stone-100 truncate">
+                  <span className="sm:hidden">{isTr ? 'Kronos: Küresel Boss Akını' : 'Chronos: Global Boss Raid'}</span>
+                  <span className="hidden sm:inline">{isTr ? 'Kronos Diyarı: Küresel Boss Akını' : 'Chronos Realm: Global Boss Raids'}</span>
                 </h3>
-                <span className="text-[10px] bg-amber-500/15 text-amber-300 font-mono px-2 py-0.5 rounded-full font-bold border border-amber-500/30 flex items-center gap-1">
-                  <Globe className="w-3 h-3 text-amber-400" />
+                <span className="text-[9px] sm:text-[10px] bg-amber-500/15 text-amber-300 font-mono px-1.5 sm:px-2 py-0.5 rounded-full font-bold border border-amber-500/30 flex items-center gap-1 whitespace-nowrap shrink-0">
+                  <Globe className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-amber-400 shrink-0" />
                   <span>Global Raid</span>
                 </span>
+                <span className="text-[9px] sm:text-[10px] bg-stone-800/90 text-stone-300 font-mono px-1.5 sm:px-2 py-0.5 rounded-full border border-white/5 flex items-center gap-1 whitespace-nowrap shrink-0">
+                  <Timer className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-amber-400 shrink-0" />
+                  <strong className="text-amber-300">{seasonDays}g {seasonHours}s {seasonMinutes}dk</strong>
+                </span>
+                {frenzyActive && (
+                  <span className="text-[9px] sm:text-[10px] bg-gradient-to-r from-amber-500/20 to-amber-400/10 text-amber-200 font-mono px-1.5 sm:px-2 py-0.5 rounded-full font-bold border border-amber-500/40 flex items-center gap-1 animate-pulse whitespace-nowrap shrink-0">
+                    <Flame className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-amber-400 fill-amber-400 shrink-0" />
+                    <span>{isTr ? `Altın Saat (${frenzyMinsRemaining}dk)` : `Frenzy (${frenzyMinsRemaining}m)`}</span>
+                  </span>
+                )}
               </div>
-              <p className="text-[11px] text-stone-400">
+              <p className="boss-raid-subtitle hidden md:block text-[11px] text-stone-400 mt-0.5 truncate">
                 {isTr 
                   ? 'Dünya genelindeki tüm öğrencilerle birlikte devasa can havuzuna sahip bosslara saldır!' 
                   : 'Attack massive world raid bosses collectively alongside focused studiers worldwide!'}
               </p>
-              {/* Season Countdown & Frenzy Hours Header Badges */}
-              <div className="flex items-center gap-2 flex-wrap mt-1">
-                <span className="text-[10px] bg-stone-800/80 text-stone-300 font-mono px-2 py-0.5 rounded-full border border-white/5 flex items-center gap-1">
-                  <Timer className="w-3 h-3 text-amber-400" />
-                  <span>{isTr ? 'Sezon Sonu:' : 'Season Ends:'}</span>
-                  <strong className="text-amber-300">{seasonDays}g {seasonHours}s {seasonMinutes}dk {seasonSeconds}s</strong>
-                </span>
-                {frenzyActive && (
-                  <span className="text-[10px] bg-gradient-to-r from-amber-500/20 to-amber-400/10 text-amber-200 font-mono px-2 py-0.5 rounded-full font-bold border border-amber-500/40 flex items-center gap-1 animate-pulse">
-                    <Flame className="w-3 h-3 text-amber-400 fill-amber-400" />
-                    <span>{isTr ? `Altın Saat (2x Yük & 1.5x Hasar • Kalan ${frenzyMinsRemaining} dk)` : `Frenzy (2x Chg & 1.5x DMG • ${frenzyMinsRemaining}m)`}</span>
-                  </span>
-                )}
-              </div>
             </div>
           </div>
 
-          {/* Right side global raiders badge */}
-          <div className="flex items-center gap-2">
-            <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-stone-800/80 border border-white/5 text-[11px] text-stone-300">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-              <Users className="w-3.5 h-3.5 text-emerald-400" />
+          {/* Right side global raiders badge + Close */}
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+            <div className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-1 rounded-xl bg-stone-800/80 border border-white/5 text-[10px] sm:text-[11px] text-stone-300">
+              <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-emerald-400 animate-ping shrink-0" />
+              <Users className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-emerald-400 hidden xs:inline shrink-0" />
               <span className="font-mono font-bold text-emerald-300">{liveRaidersCount.toLocaleString()}</span>
-              <span className="text-stone-400">{isTr ? 'Çevrimiçi' : 'Online'}</span>
+              <span className="text-stone-400 hidden sm:inline">{isTr ? 'Çevrimiçi' : 'Online'}</span>
             </div>
 
             <button
               onClick={() => setActiveModal('none')}
-              className="p-1 text-stone-400 hover:text-stone-100 rounded-lg hover:bg-stone-800 cursor-pointer transition-colors"
+              className="p-1.5 text-stone-400 hover:text-stone-100 rounded-xl hover:bg-stone-800 cursor-pointer transition-colors"
+              aria-label={isTr ? 'Kapat' : 'Close'}
             >
-              <X className="w-4 h-4" />
+              <X className="w-4 h-4 sm:w-5 sm:h-5" />
             </button>
           </div>
         </div>
 
-        {/* Tab Navigation */}
-        {/* Navigation Tabs */}
-        <div className="flex gap-2 pt-2 border-b border-stone-800/80 pb-1.5 overflow-x-auto">
+        {/* Navigation Tabs — shrink-0 prevents vertical squishing in landscape */}
+        <div className="boss-raid-tabs shrink-0 grid grid-cols-4 sm:flex gap-1 sm:gap-2 pt-2 pb-1.5 border-b border-stone-800/80">
           <button
             onClick={() => setActiveTab('arena')}
-            className={`px-3 py-1 rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
+            className={`px-2 sm:px-3 py-1.5 rounded-xl text-[11px] sm:text-xs font-semibold transition-all flex items-center justify-center sm:justify-start gap-1 sm:gap-1.5 cursor-pointer whitespace-nowrap ${
               activeTab === 'arena'
                 ? 'bg-amber-500 text-stone-950 shadow-sm font-bold'
                 : 'bg-stone-800/60 text-stone-400 hover:text-stone-200'
             }`}
           >
-            <Swords className="w-3.5 h-3.5" />
-            <span>{isTr ? 'Savaş Arenası' : 'Battle Arena'}</span>
+            <Swords className="w-3.5 h-3.5 shrink-0" />
+            <span className="sm:hidden truncate">{isTr ? 'Arena' : 'Arena'}</span>
+            <span className="hidden sm:inline">{isTr ? 'Savaş Arenası' : 'Battle Arena'}</span>
           </button>
 
           <button
             onClick={() => setActiveTab('leaderboard')}
-            className={`px-3 py-1 rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
+            className={`px-2 sm:px-3 py-1.5 rounded-xl text-[11px] sm:text-xs font-semibold transition-all flex items-center justify-center sm:justify-start gap-1 sm:gap-1.5 cursor-pointer whitespace-nowrap ${
               activeTab === 'leaderboard'
                 ? 'bg-amber-500 text-stone-950 shadow-sm font-bold'
                 : 'bg-stone-800/60 text-stone-400 hover:text-stone-200'
             }`}
           >
-            <Trophy className="w-3.5 h-3.5 text-amber-300" />
-            <span>{isTr ? 'Liderlik Tablosu' : 'Leaderboard'}</span>
+            <Trophy className={`w-3.5 h-3.5 shrink-0 ${activeTab === 'leaderboard' ? 'text-stone-950' : 'text-amber-300'}`} />
+            <span className="sm:hidden truncate">{isTr ? 'Sıralama' : 'Ranks'}</span>
+            <span className="hidden sm:inline">{isTr ? 'Liderlik Tablosu' : 'Leaderboard'}</span>
           </button>
 
           <button
             onClick={() => setActiveTab('trophies')}
-            className={`px-3 py-1 rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
+            className={`px-2 sm:px-3 py-1.5 rounded-xl text-[11px] sm:text-xs font-semibold transition-all flex items-center justify-center sm:justify-start gap-1 sm:gap-1.5 cursor-pointer whitespace-nowrap ${
               activeTab === 'trophies'
                 ? 'bg-amber-500 text-stone-950 shadow-sm font-bold'
                 : 'bg-stone-800/60 text-stone-400 hover:text-stone-200'
             }`}
           >
-            <Award className="w-3.5 h-3.5" />
-            <span>{isTr ? 'Kazanılan Kupalar' : 'Trophies & Decor'}</span>
-            <span className="text-[10px] bg-black/30 px-1.5 py-0.5 rounded-full font-mono font-bold">
+            <Award className="w-3.5 h-3.5 shrink-0" />
+            <span className="sm:hidden truncate">{isTr ? 'Kupalar' : 'Trophies'}</span>
+            <span className="hidden sm:inline">{isTr ? 'Kazanılan Kupalar' : 'Trophies & Decor'}</span>
+            <span className="text-[9px] sm:text-[10px] bg-black/30 px-1 sm:px-1.5 py-0.2 rounded-full font-mono font-bold">
               {Object.values(bosses).filter((b) => unlockedTrophies.includes(b.trophyId) || (Boolean(b.isDefeated) && (personalDamagePerBoss[b.id] || 0) > 0)).length}/4
             </span>
           </button>
 
           <button
             onClick={() => setActiveTab('logs')}
-            className={`px-3 py-1 rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
+            className={`px-2 sm:px-3 py-1.5 rounded-xl text-[11px] sm:text-xs font-semibold transition-all flex items-center justify-center sm:justify-start gap-1 sm:gap-1.5 cursor-pointer whitespace-nowrap ${
               activeTab === 'logs'
                 ? 'bg-amber-500 text-stone-950 shadow-sm font-bold'
                 : 'bg-stone-800/60 text-stone-400 hover:text-stone-200'
             }`}
           >
-            <Flame className="w-3.5 h-3.5" />
-            <span>{isTr ? 'Küresel Günlük' : 'Combat Feed'}</span>
+            <Flame className="w-3.5 h-3.5 shrink-0" />
+            <span className="sm:hidden truncate">{isTr ? 'Günlük' : 'Feed'}</span>
+            <span className="hidden sm:inline">{isTr ? 'Küresel Günlük' : 'Combat Feed'}</span>
           </button>
         </div>
 
         {/* Modal Body */}
-        <div className="flex-1 overflow-y-auto py-1.5 sm:py-2 space-y-1.5 sm:space-y-2 pr-1 pb-2">
+        <div className="boss-raid-body flex-1 min-h-0 overflow-y-auto overscroll-contain py-1.5 sm:py-2 space-y-1.5 sm:space-y-2 pr-0.5 sm:pr-1 pb-2">
           {activeTab === 'arena' && (
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-3.5 lg:gap-4.5 items-start mt-1">
+            <div className="boss-raid-arena-grid grid grid-cols-1 md:grid-cols-12 gap-2.5 sm:gap-3.5 lg:gap-4.5 items-start mt-0.5">
               
-              {/* LEFT COLUMN: Grand Imposing Vertical Battle Stage (lg:col-span-5) */}
-              <div className="lg:col-span-5 flex flex-col space-y-2">
+              {/* LEFT COLUMN: Grand Imposing Battle Stage (md:col-span-5) */}
+              <div className="boss-raid-left-col md:col-span-5 flex flex-col space-y-1.5">
                 <div 
                   onClick={handleArenaClick}
-                  className="relative w-full h-[340px] sm:h-[420px] lg:h-[480px] rounded-2xl overflow-hidden border border-amber-500/25 bg-stone-950/80 shadow-[0_0_35px_rgba(0,0,0,0.8)] group cursor-crosshair select-none"
+                  className="boss-raid-stage relative w-full h-[200px] sm:h-[300px] md:h-[380px] lg:h-[460px] rounded-2xl overflow-hidden border border-amber-500/25 bg-stone-950/80 shadow-[0_0_35px_rgba(0,0,0,0.8)] group cursor-crosshair select-none"
                   title={isTr ? "Saldırmak için tıkla!" : "Click arena to strike!"}
                 >
                   <canvas
@@ -428,25 +429,25 @@ export const BossRaidModal: React.FC = () => {
                   />
 
                   {/* Floating click hint overlay */}
-                  <div className="absolute top-2.5 right-3 px-2 py-0.5 rounded-full bg-black/65 backdrop-blur-sm border border-white/10 text-[9px] font-mono text-stone-300 opacity-0 group-hover:opacity-100 transition-opacity">
-                    {isTr ? '🎯 Arenaya tıkla' : '🎯 Click arena'}
+                  <div className="absolute top-2 right-2.5 px-2 py-0.5 rounded-full bg-black/65 backdrop-blur-sm border border-white/10 text-[9px] font-mono text-stone-300">
+                    {isTr ? '🎯 Saldırmak için dokun' : '🎯 Tap to strike'}
                   </div>
 
                   {/* Boss Health Mini Tag on Canvas */}
-                  <div className="absolute top-2.5 left-3 px-2 py-0.5 rounded-full bg-black/60 backdrop-blur-sm border border-white/10 text-[9.5px] font-mono font-bold text-amber-300">
+                  <div className="absolute top-2 left-2.5 px-2 py-0.5 rounded-full bg-black/60 backdrop-blur-sm border border-white/10 text-[9.5px] font-mono font-bold text-amber-300">
                     {boss.name} • {hpPercent}%
                   </div>
 
                   {/* Defeat Golden Banner Overlay */}
                   {boss.isDefeated && (
                     <div className="absolute inset-0 bg-black/85 backdrop-blur-sm flex flex-col items-center justify-center p-3 animate-in fade-in zoom-in-95 duration-300">
-                      <div className="w-12 h-12 rounded-2xl bg-amber-500/20 border border-amber-400/40 flex items-center justify-center text-2xl shadow-[0_0_25px_rgba(245,158,11,0.5)] animate-bounce">
+                      <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-amber-500/20 border border-amber-400/40 flex items-center justify-center text-xl sm:text-2xl shadow-[0_0_25px_rgba(245,158,11,0.5)] animate-bounce">
                         👑
                       </div>
-                      <h3 className="text-base sm:text-lg font-black text-amber-300 mt-2 font-mono tracking-wide text-center">
+                      <h3 className="text-sm sm:text-lg font-black text-amber-300 mt-1.5 font-mono tracking-wide text-center">
                         {isTr ? 'KADİM BOSS ALT EDİLDİ!' : 'TITAN DEFEATED!'}
                       </h3>
-                      <p className="text-xs text-stone-300 text-center mt-1 max-w-xs">
+                      <p className="text-[11px] sm:text-xs text-stone-300 text-center mt-0.5 max-w-xs">
                         {isTr 
                           ? `Tebrikler! "${boss.trophyNameTr}" vitrinine eklendi.` 
                           : `Congratulations! "${boss.trophyNameEn}" placed in showcase.`}
@@ -458,7 +459,7 @@ export const BossRaidModal: React.FC = () => {
                           setGhostHp(boss.maxHp);
                           showToast(isTr ? `🔄 ${boss.name} yeniden canlandı!` : `🔄 ${boss.name} revived!`, 3000);
                         }}
-                        className="mt-3 px-4 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-stone-950 font-bold text-xs flex items-center gap-1.5 shadow-lg active:scale-95 transition-all cursor-pointer"
+                        className="mt-2.5 px-3.5 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-stone-950 font-bold text-xs flex items-center gap-1.5 shadow-lg active:scale-95 transition-all cursor-pointer"
                       >
                         <RotateCcw className="w-3.5 h-3.5" />
                         <span>{isTr ? 'Yeniden Meydan Oku' : 'Rematch Boss'}</span>
@@ -467,13 +468,13 @@ export const BossRaidModal: React.FC = () => {
                   )}
                 </div>
 
-                <div className="text-[10px] text-stone-400 text-center font-mono">
+                <div className="boss-raid-stage-hint hidden sm:block text-[10px] text-stone-400 text-center font-mono">
                   {isTr ? '💡 Arenaya doğrudan tıklayarak da saldırabilirsin' : '💡 You can also click the arena stage to attack'}
                 </div>
               </div>
 
-              {/* RIGHT COLUMN: Tactical Command HUD & Attack Controls (lg:col-span-7) */}
-              <div className="lg:col-span-7 flex flex-col space-y-2.5">
+              {/* RIGHT COLUMN: Tactical Command HUD & Attack Controls (md:col-span-7) */}
+              <div className="boss-raid-right-col md:col-span-7 flex flex-col space-y-2">
                 {/* 4 Masterpiece Boss Selector Tabs with Live Mini-HP Gauges */}
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
                   {Object.values(bosses).map((b) => {
@@ -491,8 +492,8 @@ export const BossRaidModal: React.FC = () => {
                             webAudioEngine.playChime('wood_block');
                             showToast(
                               isTr
-                                ? `🔒 Bu kadim boss henüz keşfedilmedi! Meydan okumak için Seviye ${b.unlockLevel} gereklidir.`
-                                : `🔒 Undiscovered titan! Reach Level ${b.unlockLevel} to challenge this boss.`,
+                                ? `🔒 ${b.name} (${b.titleTr}) mühürlü! Meydan okumak için Seviye ${b.unlockLevel} gereklidir.`
+                                : `🔒 ${b.name} (${b.titleEn}) is sealed! Reach Level ${b.unlockLevel} to challenge.`,
                               3000
                             );
                             return;
@@ -507,22 +508,16 @@ export const BossRaidModal: React.FC = () => {
                           isSelected
                             ? 'bg-stone-800/90 ring-1 ring-white/10 shadow-sm cursor-pointer'
                             : isLocked
-                              ? 'bg-stone-950/60 border-dashed border-stone-800/80 opacity-60 hover:opacity-80 cursor-not-allowed'
+                              ? 'bg-stone-950/60 border-dashed border-stone-800/80 opacity-70 hover:opacity-90 cursor-not-allowed'
                               : 'bg-stone-950/40 border-white/5 hover:border-white/10 hover:bg-stone-900/40 cursor-pointer'
                         }`}
                       >
                         <div className="flex items-center justify-between">
-                          {isLocked ? (
-                            <div className="w-6 h-6 rounded-lg bg-stone-900 border border-stone-800 flex items-center justify-center text-xs text-stone-500 shadow-inner">
-                              <span>❓</span>
-                            </div>
-                          ) : (
-                            <img 
-                              src={`/sprites/bosses/boss_${b.id}.png`} 
-                              alt={b.name} 
-                              className="w-6 h-6 object-contain" 
-                            />
-                          )}
+                          <img 
+                            src={`/sprites/bosses/boss_${b.id}.png`} 
+                            alt={b.name} 
+                            className={`w-6 h-6 object-contain ${isLocked ? 'brightness-0 invert opacity-35' : ''}`} 
+                          />
                           {isLocked ? (
                             <span className="text-[8px] bg-amber-500/15 text-amber-300 font-semibold px-1 py-0.2 rounded border border-amber-500/25 flex items-center gap-0.5">
                               <Lock className="w-2.5 h-2.5" /> Lv.{b.unlockLevel}
@@ -538,10 +533,10 @@ export const BossRaidModal: React.FC = () => {
                           )}
                         </div>
                         <div className="text-[11px] font-bold text-stone-200 mt-0.5 truncate flex items-center gap-1">
-                          <span>{isLocked ? (isTr ? '🔒 ??? (Mühürlü Boss)' : '🔒 ??? (Sealed Boss)') : b.name}</span>
+                          <span>{isLocked ? `🔒 ${b.name}` : b.name}</span>
                         </div>
                         <div className="text-[9px] text-stone-400 truncate">
-                          {isLocked ? (isTr ? `Seviye ${b.unlockLevel} Gerekli` : `Requires Lv.${b.unlockLevel}`) : `${b.maxHp.toLocaleString()} HP`}
+                          {isLocked ? (isTr ? b.titleTr : b.titleEn) : `${b.maxHp.toLocaleString()} HP`}
                         </div>
 
                         {/* Live Mini-HP Gauge Bar */}
@@ -1156,13 +1151,13 @@ export const BossRaidModal: React.FC = () => {
         </div>
 
         {/* Footer */}
-        <div className="pt-2.5 border-t border-stone-800 flex items-center justify-between text-xs text-stone-400">
-          <span>
-            {isTr ? '⚡ 1 Yük (25 dk) = 250 DMG • 2 Yük (50 dk) = 650 Kritik DMG • Canlı Akın' : '⚡ 1 Charge (25m) = 250 DMG • 2 Charges (50m) = 650 Crit DMG • Live Raid'}
+        <div className="boss-raid-footer shrink-0 pt-2 border-t border-stone-800 flex items-center justify-between gap-2 text-[11px] sm:text-xs text-stone-400">
+          <span className="truncate">
+            {isTr ? '⚡ 1 Yük (25 dk) = 250 DMG • 2 Yük (50 dk) = 650 Kritik DMG' : '⚡ 1 Charge (25m) = 250 DMG • 2 Charges (50m) = 650 Crit DMG'}
           </span>
           <button
             onClick={() => setActiveModal('none')}
-            className="px-4 py-1.5 rounded-xl bg-stone-800 hover:bg-stone-700 text-stone-200 text-xs font-semibold cursor-pointer transition-colors"
+            className="px-3.5 py-1.5 rounded-xl bg-stone-800 hover:bg-stone-700 text-stone-200 text-xs font-semibold cursor-pointer transition-colors shrink-0"
           >
             {isTr ? 'Kapat' : 'Close'}
           </button>

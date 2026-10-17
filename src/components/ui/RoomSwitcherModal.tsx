@@ -7,6 +7,7 @@ import { useAuthStore } from '../../store/useAuthStore';
 import { ROOMS } from '../../audio/soundPresets';
 import { RoomId } from '../../types';
 import { TRANSLATIONS, getRoomTranslation } from '../../i18n/translations';
+import { webAudioEngine } from '../../audio/WebAudioEngine';
 
 export const RoomSwitcherModal: React.FC = () => {
   const { activeModal, setActiveModal, activeRoom, setActiveRoom, setTimeOfDay, setWeather, showToast, language } = useAppStore();
@@ -35,11 +36,12 @@ export const RoomSwitcherModal: React.FC = () => {
       return;
     }
 
+    webAudioEngine.init();
     setActiveRoom(roomId);
     setTimeOfDay(room.defaultTimeOfDay);
     setWeather(room.defaultWeather);
 
-    // Apply subtle room soundscape if user has soundscapes active, or leave silent if user prefers silence
+    // Apply subtle room soundscape if user has soundscapes active
     const currentAmbientVolumes = useAudioStore.getState().ambientVolumes;
     const isUserListeningToSound = Object.values(currentAmbientVolumes).some((v) => v > 0.02);
     if (isUserListeningToSound) {
@@ -66,11 +68,11 @@ export const RoomSwitcherModal: React.FC = () => {
   return (
     <div 
       onClick={() => setActiveModal('none')}
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/65 backdrop-blur-sm pointer-events-auto"
+      className="app-modal-overlay fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/65 backdrop-blur-sm pointer-events-auto"
     >
       <div 
         onClick={(e) => e.stopPropagation()}
-        className="bg-stone-900/95 text-stone-100 border border-stone-800 rounded-2xl shadow-2xl p-6 w-full max-w-lg max-h-[85dvh] flex flex-col animate-in fade-in zoom-in-95 duration-150"
+        className="app-modal-panel bg-stone-900/95 text-stone-100 border border-stone-800 rounded-2xl shadow-2xl p-4 sm:p-6 w-full max-w-lg max-h-[85dvh] flex flex-col animate-in fade-in zoom-in-95 duration-150 overflow-hidden"
       >
         
         {/* Header */}

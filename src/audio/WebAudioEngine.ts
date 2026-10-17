@@ -28,7 +28,8 @@ class WebAudioEngine {
   private naturalBuffers: Partial<Record<AmbientSoundChannel, AudioBuffer>> = {};
   private naturalSources: Partial<Record<AmbientSoundChannel, AudioBufferSourceNode>> = {};
   private naturalStopTimers: Partial<Record<AmbientSoundChannel, number>> = {};
-  private loadingNaturalChannels = new Set<AmbientSoundChannel>();
+  private loadingNaturalPromises: Partial<Record<AmbientSoundChannel, Promise<AudioBuffer | null>>> = {};
+  private fireplaceCrackleTimeout: number | null = null;
   private thunderTimeouts: number[] = [];
   private activeThunderAudios: HTMLAudioElement[] = [];
   private readonly naturalAudioSources: Partial<Record<AmbientSoundChannel, string>> = {
@@ -46,7 +47,7 @@ class WebAudioEngine {
   public init() {
     if (this.isInitialized && this.ctx) {
       if (this.ctx.state === 'suspended') {
-        this.ctx.resume();
+        this.ctx.resume().catch(() => {});
       }
       return;
     }
@@ -114,37 +115,251 @@ class WebAudioEngine {
     this.setMasterVolume(this.masterVolume);
   }
 
-  private async loadNaturalBuffer(channel: AmbientSoundChannel): Promise<AudioBuffer | null> {
-    if (this.naturalBuffers[channel]) return this.naturalBuffers[channel]!;
-    const src = this.naturalAudioSources[channel];
-    if (!src || !this.ctx) return null;
-    if (this.loadingNaturalChannels.has(channel)) return null;
+  /**
+   * Generates a studio-grade, gapless stereo AudioBuffer for natural channels
+   * when .ogg decoding is unsupported (e.g. iOS Safari / WKWebView) or offline.
+   */
+  private createProceduralNaturalBuffer(channel: AmbientSoundChannel): AudioBuffer | null {
+    if (!this.ctx) return null;
+    const sr = this.ctx.sampleRate;
+    const duration = 8.0;
+    const len = Math.floor(sr * duration);
+    const buffer = this.ctx.createBuffer(2, len, sr);
 
-    this.loadingNaturalChannels.add(channel);
-    try {
-      const response = await fetch(src);
-      const arrayBuffer = await response.arrayBuffer();
-      const decoded = await this.ctx.decodeAudioData(arrayBuffer);
+    for (let ch = 0; ch < 2; ch++) {
+      const data = buffer.getChannelData(ch);
+      const phaseOffset = ch * 1.15;
 
-      // Apply crossfade smoothing at loop boundary (first and last 2048 samples)
-      // to eliminate any click or waveform jump at the loop point
-      for (let ch = 0; ch < decoded.numberOfChannels; ch++) {
-        const data = decoded.getChannelData(ch);
-        const crossfadeLen = Math.min(2048, Math.floor(data.length / 10));
-        for (let i = 0; i < crossfadeLen; i++) {
-          const t = i / crossfadeLen;
-          data[i] = data[i] * t + data[data.length - crossfadeLen + i] * (1 - t);
+      if (channel === 'fireplace') {
+        // 1. Warm Hearth Draft & Dancing Flame Roar (modulated low-passed brown/pink noise)
+        let lp1 = 0;
+        let lp2 = 0;
+        let emberLp = 0;
+        for (let i = 0; i < len; i++) {
+          const t = i / sr;
+          const white = Math.random() * 2 - 1;
+          // Periodic flame flicker waves (multiples of 0.125Hz for seamless 8s loop)
+          const flameMod =
+            0.62 +
+            0.22 * Math.sin(2 * Math.PI * 0.75 * t + phaseOffset) +
+            0.14 * Math.sin(2 * Math.PI * 1.875 * t - phaseOffset * 0.7) +
+            0.09 * Math.sin(2 * Math.PI * 3.25 * t + phaseOffset * 0.4);
+
+          // Deep hearth rumble (~140Hz) + warm wood flame body (~380Hz)
+          lp1 += 0.022 * (white - lp1);
+          lp2 += 0.055 * (lp1 - lp2);
+          // Subtle glowing ember hiss
+          emberLp += 0.18 * (white - emberLp);
+          const emberBand = white - emberLp;
+
+          data[i] = (lp2 * 1.35 * flameMod) + (emberBand * 0.018 * (0.7 + 0.3 * flameMod));
+        }
+
+        // 2. Embedded Organic Pine & Oak Wood Pops / Crackles (~55 transients across 8s)
+        const numSnaps = 56;
+        for (let s = 0; s < numSnaps; s++) {
+          // Deterministic-ish spacing with jitter away from loop edges
+          const snapTime = 0.12 + ((s + Math.random() * 0.85) / numSnaps) * (duration - 0.28);
+          const startIdx = Math.floor(snapTime * sr);
+          const isHeavyPop = s % 5 === 0;
+          const snapDur = isHeavyPop ? 0.022 : 0.009 + Math.random() * 0.010;
+          const snapSamples = Math.min(len - startIdx, Math.floor(snapDur * sr));
+          const freq = isHeavyPop ? 520 + Math.random() * 680 : 1650 + Math.random() * 2400;
+          const panWeight = ch === 0 ? 0.65 + Math.random() * 0.35 : 0.65 + Math.random() * 0.35;
+          const amp = (isHeavyPop ? 0.42 : 0.26 + Math.random() * 0.22) * panWeight;
+
+          for (let j = 0; j < snapSamples; j++) {
+            const st = j / sr;
+            const env = Math.exp(-st / (snapDur * 0.28));
+            const burst = (Math.random() * 2 - 1) * 0.55 + Math.sin(2 * Math.PI * freq * st) * 0.45;
+            data[startIdx + j] += burst * env * amp;
+          }
+        }
+      } else if (channel === 'rain') {
+        // Warm cozy rain against window glass with soft droplet micro-impacts
+        let b0 = 0, b1 = 0, b2 = 0, lp = 0;
+        for (let i = 0; i < len; i++) {
+          const t = i / sr;
+          const white = Math.random() * 2 - 1;
+          b0 = 0.997 * b0 + white * 0.029;
+          b1 = 0.985 * b1 + white * 0.032;
+          b2 = 0.940 * b2 + white * 0.048;
+          const pink = b0 + b1 + b2 + white * 0.018;
+          // Warm window glass lowpass (~2.2kHz feel)
+          lp += 0.22 * (pink - lp);
+          const breeze = 0.88 + 0.12 * Math.sin(2 * Math.PI * 0.25 * t + phaseOffset);
+          data[i] = lp * 0.48 * breeze;
+        }
+        // Soft individual raindrop patters on the sill
+        const drops = 320;
+        for (let d = 0; d < drops; d++) {
+          const dt0 = 0.05 + Math.random() * (duration - 0.12);
+          const idx = Math.floor(dt0 * sr);
+          const dSamples = Math.min(len - idx, Math.floor(0.006 * sr));
+          const dFreq = 950 + Math.random() * 1450;
+          const dAmp = 0.045 + Math.random() * 0.055;
+          for (let j = 0; j < dSamples; j++) {
+            const st = j / sr;
+            const env = Math.exp(-st / 0.0016);
+            data[idx + j] += Math.sin(2 * Math.PI * dFreq * st) * env * dAmp;
+          }
+        }
+      } else if (channel === 'wind') {
+        // Sweeping mountain & night breeze with dynamic filter modulation
+        let lp1 = 0, lp2 = 0;
+        for (let i = 0; i < len; i++) {
+          const t = i / sr;
+          const white = Math.random() * 2 - 1;
+          const gust =
+            0.52 +
+            0.30 * Math.sin(2 * Math.PI * 0.125 * t + phaseOffset) +
+            0.18 * Math.sin(2 * Math.PI * 0.25 * t - phaseOffset * 0.5);
+          const coeff = 0.012 + 0.028 * gust;
+          lp1 += coeff * (white - lp1);
+          lp2 += coeff * (lp1 - lp2);
+          data[i] = lp2 * (0.95 + 0.55 * gust);
+        }
+      } else if (channel === 'forest') {
+        // Gentle canopy breeze + distant woodland bird chirps
+        let lp = 0;
+        for (let i = 0; i < len; i++) {
+          const t = i / sr;
+          const white = Math.random() * 2 - 1;
+          const sway = 0.72 + 0.28 * Math.sin(2 * Math.PI * 0.25 * t + phaseOffset);
+          lp += (0.04 + 0.03 * sway) * (white - lp);
+          data[i] = lp * 0.26 * sway;
+        }
+        // Soft distant bird notes
+        const birdTimes = [0.9, 1.12, 2.8, 3.05, 5.2, 5.42, 6.8];
+        birdTimes.forEach((bt, idx) => {
+          const startIdx = Math.floor(bt * sr);
+          const noteLen = Math.min(len - startIdx, Math.floor(0.14 * sr));
+          const f0 = 2100 + (idx % 3) * 320;
+          const f1 = f0 + (idx % 2 === 0 ? 420 : -280);
+          const pan = idx % 2 === ch ? 0.09 : 0.04;
+          for (let j = 0; j < noteLen; j++) {
+            const u = j / noteLen;
+            const st = j / sr;
+            const env = Math.sin(Math.PI * u) * Math.exp(-u * 1.8);
+            const freq = f0 + (f1 - f0) * u;
+            data[startIdx + j] += Math.sin(2 * Math.PI * freq * st) * env * pan;
+          }
+        });
+      } else {
+        // 'thunder': Deep sub-bass storm horizon rumble loop
+        let lp1 = 0, lp2 = 0;
+        for (let i = 0; i < len; i++) {
+          const t = i / sr;
+          const white = Math.random() * 2 - 1;
+          const swell =
+            0.45 +
+            0.35 * Math.sin(2 * Math.PI * 0.125 * t + phaseOffset * 0.5) +
+            0.20 * Math.sin(2 * Math.PI * 0.375 * t);
+          lp1 += 0.009 * (white - lp1);
+          lp2 += 0.011 * (lp1 - lp2);
+          data[i] = lp2 * 2.2 * swell;
         }
       }
 
-      this.naturalBuffers[channel] = decoded;
-      return decoded;
-    } catch (e) {
-      console.warn(`Could not decode audio buffer for ${channel}:`, e);
-      return null;
-    } finally {
-      this.loadingNaturalChannels.delete(channel);
+      // Smooth crossfade at loop boundaries (first & last 4096 samples) & soft clip
+      const crossfadeLen = Math.min(4096, Math.floor(len / 8));
+      for (let i = 0; i < crossfadeLen; i++) {
+        const w = i / crossfadeLen;
+        data[i] = data[i] * w + data[len - crossfadeLen + i] * (1 - w);
+      }
+      for (let i = 0; i < len; i++) {
+        data[i] = Math.tanh(data[i] * 1.2);
+      }
     }
+
+    return buffer;
+  }
+
+  private scheduleFireplaceCrackles() {
+    if (this.fireplaceCrackleTimeout) return;
+    const tick = () => {
+      this.fireplaceCrackleTimeout = null;
+      const vol = this.naturalChannelVolumes.fireplace || 0;
+      if (vol <= 0.005 || !this.ctx || !this.ambientGains.fireplace) return;
+
+      if (this.ctx.state === 'running' && !this.isMuted) {
+        try {
+          const now = this.ctx.currentTime;
+          const snaps = 1 + Math.floor(Math.random() * 3);
+          for (let i = 0; i < snaps; i++) {
+            const delay = i * (0.04 + Math.random() * 0.09);
+            const t = now + delay;
+            const osc = this.ctx.createOscillator();
+            const filter = this.ctx.createBiquadFilter();
+            const gain = this.ctx.createGain();
+
+            osc.type = i === 0 && Math.random() < 0.35 ? 'triangle' : 'sawtooth';
+            const startFreq = 1400 + Math.random() * 2200;
+            osc.frequency.setValueAtTime(startFreq, t);
+            osc.frequency.exponentialRampToValueAtTime(280 + Math.random() * 250, t + 0.018);
+
+            filter.type = 'bandpass';
+            filter.frequency.setValueAtTime(1800 + Math.random() * 1400, t);
+            filter.Q.setValueAtTime(3.2, t);
+
+            const snapGain = 0.08 + Math.random() * 0.09;
+            gain.gain.setValueAtTime(snapGain, t);
+            gain.gain.exponentialRampToValueAtTime(0.0008, t + 0.022);
+
+            osc.connect(filter);
+            filter.connect(gain);
+            gain.connect(this.ambientGains.fireplace);
+            osc.start(t);
+            osc.stop(t + 0.025);
+          }
+        } catch {}
+      }
+
+      this.fireplaceCrackleTimeout = window.setTimeout(tick, 900 + Math.random() * 1900);
+    };
+    this.fireplaceCrackleTimeout = window.setTimeout(tick, 600);
+  }
+
+  private async loadNaturalBuffer(channel: AmbientSoundChannel): Promise<AudioBuffer | null> {
+    if (this.naturalBuffers[channel]) return this.naturalBuffers[channel]!;
+    if (this.loadingNaturalPromises[channel]) return this.loadingNaturalPromises[channel]!;
+
+    const src = this.naturalAudioSources[channel];
+    if (!src || !this.ctx) return null;
+
+    const loadPromise = (async (): Promise<AudioBuffer | null> => {
+      try {
+        const response = await fetch(src);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const arrayBuffer = await response.arrayBuffer();
+        const decoded = await this.ctx!.decodeAudioData(arrayBuffer);
+
+        // Apply crossfade smoothing at loop boundary (first and last 2048 samples)
+        for (let ch = 0; ch < decoded.numberOfChannels; ch++) {
+          const data = decoded.getChannelData(ch);
+          const crossfadeLen = Math.min(2048, Math.floor(data.length / 10));
+          for (let i = 0; i < crossfadeLen; i++) {
+            const t = i / crossfadeLen;
+            data[i] = data[i] * t + data[data.length - crossfadeLen + i] * (1 - t);
+          }
+        }
+
+        this.naturalBuffers[channel] = decoded;
+        return decoded;
+      } catch {
+        // Fallback for iOS Safari / WKWebView (which does not decode .ogg Vorbis)
+        const fallback = this.createProceduralNaturalBuffer(channel);
+        if (fallback) {
+          this.naturalBuffers[channel] = fallback;
+        }
+        return fallback;
+      } finally {
+        delete this.loadingNaturalPromises[channel];
+      }
+    })();
+
+    this.loadingNaturalPromises[channel] = loadPromise;
+    return loadPromise;
   }
 
   public ensureRunning() {
@@ -154,7 +369,7 @@ class WebAudioEngine {
   }
 
   public setChannelVolume(channel: AmbientSoundChannel, volume: number) {
-    // 1. Natural Recorded High-Fidelity Audio Streams (hardware decoded, 0% CPU, true gapless looping)
+    // 1. Natural Recorded / Hybrid High-Fidelity Audio Streams
     const naturalSrc = this.naturalAudioSources[channel];
     if (naturalSrc) {
       this.naturalChannelVolumes[channel] = volume;
@@ -169,7 +384,6 @@ class WebAudioEngine {
 
         const startPlaying = (buf: AudioBuffer) => {
           if (!this.ctx) return;
-          // If source node is already active, just adjust gain
           let source = this.naturalSources[channel];
           if (!source) {
             source = this.ctx.createBufferSource();
@@ -185,6 +399,9 @@ class WebAudioEngine {
           if (gainNode) {
             const target = Math.max(0, Math.min(1, volume));
             gainNode.gain.setTargetAtTime(target, this.ctx.currentTime, 0.08);
+          }
+          if (channel === 'fireplace') {
+            this.scheduleFireplaceCrackles();
           }
         };
 
@@ -223,6 +440,10 @@ class WebAudioEngine {
     if (this.naturalStopTimers[channel]) {
       clearTimeout(this.naturalStopTimers[channel]);
       delete this.naturalStopTimers[channel];
+    }
+    if (channel === 'fireplace' && this.fireplaceCrackleTimeout) {
+      clearTimeout(this.fireplaceCrackleTimeout);
+      this.fireplaceCrackleTimeout = null;
     }
     this.naturalChannelVolumes[channel] = 0;
 

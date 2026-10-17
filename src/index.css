@@ -82,6 +82,10 @@
   background: radial-gradient(circle at center, transparent 28%, rgba(7, 6, 5, 0.18) 72%, rgba(7, 6, 5, 0.42) 100%);
 }
 
+.portrait-stage-card {
+  display: contents;
+}
+
 .room-scene-canvas {
   display: block;
   width: min(100vw, calc(100dvh * 16 / 9));
@@ -174,16 +178,16 @@
   }
 
   .room-stage-backdrop.ambilight-halo {
-    inset: -2%;
-    filter: blur(5px) saturate(128%) brightness(0.58);
-    opacity: 0.96;
-    transform: scale(1.05);
+    inset: -5%;
+    filter: blur(52px) saturate(145%) brightness(0.26);
+    opacity: 0.92;
+    transform: scale(1.16);
   }
 
   .room-stage::after {
     background:
-      linear-gradient(to bottom, rgba(7, 6, 5, 0.28), transparent 24%, transparent 70%, rgba(7, 6, 5, 0.38)),
-      radial-gradient(circle at center, transparent 35%, rgba(7, 6, 5, 0.2) 100%);
+      linear-gradient(to bottom, rgba(7, 6, 5, 0.45), transparent 22%, transparent 68%, rgba(7, 6, 5, 0.55)),
+      radial-gradient(circle at center, transparent 30%, rgba(7, 6, 5, 0.35) 100%);
   }
 
   .room-scene-canvas {
@@ -203,7 +207,7 @@
     height: 4rem;
     border-radius: 1.125rem;
     pointer-events: none;
-    background: rgba(18, 16, 23, 0.72);
+    background: rgba(18, 16, 23, 0.78);
     border: 1px solid rgba(255, 255, 255, 0.08);
     box-shadow: 0 12px 40px rgba(0, 0, 0, 0.55);
     backdrop-filter: blur(24px) saturate(160%);
@@ -324,10 +328,12 @@
   .has-blocking-overlay .mobile-music-trigger,
   .has-blocking-overlay .mobile-focus-timer,
   .has-blocking-overlay .mobile-ambient-trigger,
+  .has-blocking-overlay .portrait-sanctuary-console,
   .studio-menu-open .mobile-bottom-dock,
   .studio-menu-open .mobile-music-trigger,
   .studio-menu-open .mobile-focus-timer,
-  .studio-menu-open .mobile-ambient-trigger {
+  .studio-menu-open .mobile-ambient-trigger,
+  .studio-menu-open .portrait-sanctuary-console {
     opacity: 0 !important;
     pointer-events: none !important;
   }
@@ -336,6 +342,48 @@
   .app-modal-panel textarea,
   .app-modal-panel select {
     font-size: 16px;
+  }
+}
+
+/* Purpose-built Cohesive Vertical Study Sanctuary for Portrait Phones */
+@media (max-width: 639px) and (orientation: portrait) {
+  .room-stage:not(.is-immersive-stage) {
+    flex-direction: column;
+    justify-content: center;
+    align-items: stretch;
+    gap: 0.65rem;
+    padding-top: max(3.6rem, calc(var(--safe-top) + 3.35rem));
+    padding-bottom: max(5.15rem, calc(var(--safe-bottom) + 4.85rem));
+    padding-left: max(0.65rem, calc(var(--safe-left) + 0.5rem));
+    padding-right: max(0.65rem, calc(var(--safe-right) + 0.5rem));
+  }
+
+  .room-stage:not(.is-immersive-stage) .portrait-stage-card {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    border-radius: 1.25rem;
+    overflow: hidden;
+    border: 1px solid rgba(245, 158, 11, 0.24);
+    background: rgba(12, 10, 9, 0.92);
+    box-shadow: 0 20px 48px rgba(0, 0, 0, 0.82), 0 0 24px rgba(245, 158, 11, 0.08);
+  }
+
+  .room-stage:not(.is-immersive-stage) .portrait-stage-header,
+  .room-stage:not(.is-immersive-stage) .portrait-stage-footer {
+    display: flex !important;
+  }
+
+  .room-stage:not(.is-immersive-stage) .room-scene-canvas {
+    width: 100% !important;
+    max-width: 100% !important;
+    height: auto !important;
+    aspect-ratio: 16 / 9;
+    box-shadow: none !important;
+  }
+
+  .room-stage:not(.is-immersive-stage) .portrait-sanctuary-console {
+    display: flex !important;
   }
 }
 
@@ -392,7 +440,7 @@
   }
 }
 
-@media (max-height: 500px) and (orientation: landscape) {
+@media (max-height: 560px) and (orientation: landscape) {
   .topbar-shell {
     top: max(0.35rem, calc(var(--safe-top) + 0.2rem)) !important;
   }
@@ -417,6 +465,45 @@
 
   .app-modal-panel {
     max-height: calc(100dvh - var(--safe-top) - var(--safe-bottom) - 0.5rem) !important;
+  }
+
+  .boss-raid-panel {
+    padding: 0.55rem 0.85rem !important;
+    border-radius: 1.15rem !important;
+  }
+
+  .boss-raid-header {
+    padding-bottom: 0.35rem !important;
+  }
+
+  .boss-raid-subtitle,
+  .boss-raid-stage-hint,
+  .boss-raid-footer {
+    display: none !important;
+  }
+
+  .boss-raid-tabs {
+    padding-top: 0.35rem !important;
+    padding-bottom: 0.35rem !important;
+  }
+
+  .boss-raid-arena-grid {
+    display: grid !important;
+    grid-template-columns: repeat(12, minmax(0, 1fr)) !important;
+    gap: 0.65rem !important;
+    align-items: start !important;
+  }
+
+  .boss-raid-left-col {
+    grid-column: span 5 / span 5 !important;
+  }
+
+  .boss-raid-right-col {
+    grid-column: span 7 / span 7 !important;
+  }
+
+  .boss-raid-stage {
+    height: min(215px, calc(100dvh - var(--safe-top) - var(--safe-bottom) - 5.2rem)) !important;
   }
 
   .settings-modal-panel,

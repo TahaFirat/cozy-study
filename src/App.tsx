@@ -180,23 +180,42 @@ export const App: React.FC = () => {
     setImmersiveMode,
   ]);
 
-  // First interaction Audio Context unlock (no unprompted loud rain blast)
+  // First interaction Audio Context unlock + immediate sync of active fireplace & ambient channels
   useEffect(() => {
     const handleFirstInteraction = () => {
       webAudioEngine.init();
+      const audioState = useAudioStore.getState();
+      const appState = useAppStore.getState();
+      webAudioEngine.setMasterVolume(audioState.masterVolume);
+      webAudioEngine.setMuted(audioState.isMuted);
+
+      const vols = { ...audioState.ambientVolumes };
+      if (appState.fireplaceActive && (vols.fireplace || 0) < 0.05) {
+        vols.fireplace = 0.55;
+        useAudioStore.setState({ ambientVolumes: vols });
+      }
+      if ((appState.weather === 'rain' || appState.weather === 'heavy_rain' || appState.weather === 'storm') && (vols.rain || 0) < 0.05) {
+        vols.rain = appState.weather === 'rain' ? 0.35 : 0.65;
+        useAudioStore.setState({ ambientVolumes: vols });
+      }
+      webAudioEngine.setAllChannelVolumes(vols);
+
       window.removeEventListener('click', handleFirstInteraction);
       window.removeEventListener('keydown', handleFirstInteraction);
       window.removeEventListener('touchstart', handleFirstInteraction);
+      window.removeEventListener('pointerdown', handleFirstInteraction);
     };
 
-    window.addEventListener('click', handleFirstInteraction);
-    window.addEventListener('keydown', handleFirstInteraction);
-    window.addEventListener('touchstart', handleFirstInteraction);
+    window.addEventListener('click', handleFirstInteraction, { passive: true });
+    window.addEventListener('keydown', handleFirstInteraction, { passive: true });
+    window.addEventListener('touchstart', handleFirstInteraction, { passive: true });
+    window.addEventListener('pointerdown', handleFirstInteraction, { passive: true });
 
     return () => {
       window.removeEventListener('click', handleFirstInteraction);
       window.removeEventListener('keydown', handleFirstInteraction);
       window.removeEventListener('touchstart', handleFirstInteraction);
+      window.removeEventListener('pointerdown', handleFirstInteraction);
     };
   }, []);
 

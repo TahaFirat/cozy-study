@@ -45,31 +45,38 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     if (!user) return;
 
     set({ isSyncing: true });
+    const timeoutId = window.setTimeout(() => {
+      set({ isSyncing: false });
+    }, 3500);
     try {
       const stats = useStatsStore.getState();
       const app = useAppStore.getState();
 
-      await Promise.all([
-        saveUserStats(user.uid, {
-          sessions: stats.sessions,
-          streakDays: stats.streakDays,
-          lastSessionDate: stats.lastSessionDate,
-        }),
-        saveUserSettings(user.uid, {
-          language: app.language,
-          activeRoom: app.activeRoom,
-          timeOfDay: app.timeOfDay,
-          weather: app.weather,
-          lampOn: app.lampOn,
-          crtOverlay: app.crtOverlay,
-          reduceMotion: app.reduceMotion,
-          soundFxEnabled: app.soundFxEnabled,
-          dailyGoalMinutes: app.dailyGoalMinutes,
-        }),
+      await Promise.race([
+        Promise.all([
+          saveUserStats(user.uid, {
+            sessions: stats.sessions,
+            streakDays: stats.streakDays,
+            lastSessionDate: stats.lastSessionDate,
+          }),
+          saveUserSettings(user.uid, {
+            language: app.language,
+            activeRoom: app.activeRoom,
+            timeOfDay: app.timeOfDay,
+            weather: app.weather,
+            lampOn: app.lampOn,
+            crtOverlay: app.crtOverlay,
+            reduceMotion: app.reduceMotion,
+            soundFxEnabled: app.soundFxEnabled,
+            dailyGoalMinutes: app.dailyGoalMinutes,
+          }),
+        ]),
+        new Promise((resolve) => setTimeout(resolve, 3500)),
       ]);
     } catch (err) {
       console.warn('Cloud sync failed:', err);
     } finally {
+      window.clearTimeout(timeoutId);
       set({ isSyncing: false });
     }
   },
@@ -79,11 +86,20 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     if (!user) return;
 
     set({ isSyncing: true });
+    const timeoutId = window.setTimeout(() => {
+      set({ isSyncing: false });
+    }, 3500);
     try {
-      const [cloudStats, cloudSettings] = await Promise.all([
-        loadUserStats(user.uid),
-        loadUserSettings(user.uid),
+      const result = await Promise.race([
+        Promise.all([
+          loadUserStats(user.uid),
+          loadUserSettings(user.uid),
+        ]),
+        new Promise<null>((resolve) => setTimeout(() => resolve(null), 3500)),
       ]);
+
+      if (!result) return;
+      const [cloudStats, cloudSettings] = result;
 
       if (cloudStats && cloudStats.sessions && cloudStats.sessions.length > 0) {
         // Merge cloud data with local — take cloud if it has more sessions
@@ -114,6 +130,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     } catch (err) {
       console.warn('Cloud load failed:', err);
     } finally {
+      window.clearTimeout(timeoutId);
       set({ isSyncing: false });
     }
   },
