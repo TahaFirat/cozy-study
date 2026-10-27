@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { X, Mail, Lock, User, Eye, EyeOff, Loader2, AlertCircle, KeyRound } from 'lucide-react';
 import { useAppStore } from '../../store/useAppStore';
 import { useAuthStore } from '../../store/useAuthStore';
-import { signInWithEmail, registerWithEmail, resetPassword, loginAsDemoUser } from '../../firebase/auth';
+import { signInWithEmail, registerWithEmail, resetPassword } from '../../firebase/auth';
 
 type AuthView = 'login' | 'register' | 'reset';
 
@@ -55,18 +55,6 @@ export const AuthModal: React.FC = () => {
     if (action === 'reset') return tr ? 'Sıfırlama e-postası gönderilemedi.' : 'Could not send the reset email.';
     if (action === 'register') return tr ? 'Hesap oluşturulamadı. Bilgileri kontrol edip tekrar dene.' : 'Could not create the account. Check your details and try again.';
     return tr ? 'Giriş yapılamadı. Lütfen tekrar dene.' : 'Could not sign in. Please try again.';
-  };
-
-  const handleDemoSignIn = () => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      const demoUser = loginAsDemoUser();
-      setUser(demoUser);
-      setActiveModal('none');
-    } finally {
-      setIsLoading(false);
-    }
   };
 
   const handleEmailLogin = async (e: React.FormEvent) => {
@@ -172,29 +160,6 @@ export const AuthModal: React.FC = () => {
             <div className="flex items-center gap-2 px-3 py-2.5 bg-emerald-950/50 border border-emerald-800/60 rounded-lg text-sm text-emerald-300">
               <span>{successMsg}</span>
             </div>
-          )}
-
-          {/* Google & Demo Sign-In Buttons */}
-          {view !== 'reset' && (
-            <>
-              {/* Apple Review / Demo Instant 1-Tap Access */}
-              <button
-                type="button"
-                onClick={handleDemoSignIn}
-                disabled={isLoading}
-                className="w-full flex items-center justify-center gap-2.5 py-2.5 px-4 bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/40 text-amber-200 text-xs font-bold rounded-xl transition-all cursor-pointer shadow-sm active:scale-[0.99]"
-                title={tr ? 'Apple İnceleme & Demo Hesabına 1 tıkla giriş yap' : '1-Tap Demo / Apple Reviewer Login'}
-              >
-                <span className="text-sm">✨</span>
-                <span>{tr ? 'Demo & Apple Reviewer Girişi (1-Tık)' : 'Demo & Apple Reviewer Access (1-Tap)'}</span>
-              </button>
-
-              <div className="flex items-center gap-3 pt-1">
-                <div className="flex-1 h-px bg-stone-800" />
-                <span className="text-xs text-stone-500 font-medium">{tr ? 'veya e-posta ile giriş yap' : 'or sign in with email'}</span>
-                <div className="flex-1 h-px bg-stone-800" />
-              </div>
-            </>
           )}
 
           {/* Login Form */}

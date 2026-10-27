@@ -76,18 +76,45 @@ export const BossRaidModal: React.FC = () => {
 
     const unsubLb = subscribeToBossLeaderboard(currentBossId, (liveEntries) => {
       if (liveEntries && liveEntries.length > 0) {
-        useBossRaidStore.setState((state) => ({
-          leaderboards: {
-            ...state.leaderboards,
-            [currentBossId]: liveEntries,
-          },
-        }));
+        useBossRaidStore.setState((state) => {
+          const existing = state.leaderboards?.[currentBossId] || [];
+          const map = new Map<string, any>();
+          existing.forEach((e) => {
+            if (e && e.name) map.set(e.name, e);
+          });
+          liveEntries.forEach((e) => {
+            if (e && e.name) map.set(e.name, e);
+          });
+          return {
+            leaderboards: {
+              ...state.leaderboards,
+              [currentBossId]: Array.from(map.values()),
+            },
+          };
+        });
       }
     });
+
+    // Live community raid ticker while Boss Raid modal is open
+    const raidTicker = window.setInterval(() => {
+      const store = useBossRaidStore.getState();
+      const activeBoss = store.bosses[store.currentBossId];
+      if (!activeBoss || activeBoss.isDefeated) return;
+      store.simulateCommunityAttack();
+      const latestLog = useBossRaidStore.getState().combatLogs[0];
+      if (latestLog && latestLog.isCommunity && Date.now() - latestLog.timestamp < 2000) {
+        rendererRef.current.triggerHit(
+          latestLog.damage,
+          Boolean(latestLog.isCritical),
+          activeBoss.themeColor
+        );
+      }
+    }, 8500);
 
     return () => {
       if (unsubHp) unsubHp();
       if (unsubLb) unsubLb();
+      clearInterval(raidTicker);
     };
   }, [activeModal, currentBossId]);
 
@@ -170,19 +197,34 @@ export const BossRaidModal: React.FC = () => {
     rendererRef.current.clearCombatVFX();
   }, [currentBossId]);
 
-  // Master 60FPS Boss Animation & Combat VFX Loop
+  // Master 60FPS Boss Animation & Combat VFX Loop (Re-binds immediately when switching back to 'arena' tab!)
   useEffect(() => {
-    if (activeModal !== 'boss_raid' || !canvasRef.current) return;
+    if (activeModal !== 'boss_raid' || activeTab !== 'arena' || !canvasRef.current) return;
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
     let animId: number;
-    lastTimeRef.current = performance.now();
+    const nowInit = performance.now();
+    lastTimeRef.current = nowInit;
     let lastRenderTime = 0;
     const batterySaver = useAppStore.getState().batterySaverMode;
     const targetFps = batterySaver ? 14 : 30;
     const frameInterval = 1000 / targetFps;
+
+    // Immediately paint Frame 0 synchronously so switching tabs NEVER flashes black!
+    rendererRef.current.render(
+      ctx,
+      canvas.width,
+      canvas.height,
+      boss.id,
+      boss.currentHp,
+      boss.maxHp,
+      boss.isDefeated,
+      boss.themeColor,
+      0.016,
+      nowInit
+    );
 
     const loop = (time: number) => {
       // Completely pause GPU render when app/tab is backgrounded to eliminate battery drain & heat
@@ -219,23 +261,13 @@ export const BossRaidModal: React.FC = () => {
 
     animId = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(animId);
-  }, [activeModal, currentBossId, boss.id, boss.currentHp, boss.maxHp, boss.isDefeated, boss.themeColor]);
+  }, [activeModal, activeTab, currentBossId, boss.id, boss.currentHp, boss.maxHp, boss.isDefeated, boss.themeColor]);
 
   if (activeModal !== 'boss_raid') return null;
 
-  // Strike Attack Triggers (Consumes focus charges earned from studying)
+  // Strike Attack Triggers (Consumes focus charges earned from studying — works 100% online & offline!)
   const handleChargeAttack = (chargeCost: number, isHeavyCrit = false) => {
     webAudioEngine.init();
-    if (!user) {
-      showToast(
-        isTr 
-          ? 'Global Boss Akınında hasar vurmak ve sıralamaya girmek için ücretsiz giriş yapın! ⚔️' 
-          : 'Sign in for free to deal real raid damage and climb the leaderboard! ⚔️',
-        4000
-      );
-      setActiveModal('auth');
-      return;
-    }
     if (boss.isDefeated) {
       showToast(isTr ? 'Bu boss zaten alt edildi! Yeniden meydan oku.' : 'Boss already defeated! Rematch to fight again.', 3000);
       return;
@@ -243,14 +275,19 @@ export const BossRaidModal: React.FC = () => {
     executeStrike(chargeCost, isHeavyCrit);
   };
 
-  const handlePracticeClick = () => {
-    webAudioEngine.init();
-    quickPracticeStrike();
-  };
-
   const handleArenaClick = () => {
     if (boss.isDefeated) return;
-    handlePracticeClick();
+    webAudioEngine.init();
+    if ((strikeCharges ?? 0) >= 1) {
+      handleChargeAttack(1, false);
+    } else {
+      showToast(
+        isTr
+          ? '⚡ Odak Vuruş Yükün kalmadı! Odak sayacını (25 dk) çalıştırarak yeni vuruş yükü kazanabilirsin.'
+          : '⚡ Out of Strike Charges! Run the focus timer (25m) to earn strike charges.',
+        3000
+      );
+    }
   };
 
   // Boss Phase Status calculation
@@ -616,6 +653,46 @@ export const BossRaidModal: React.FC = () => {
                       <span>{isTr ? 'Senin Katkın:' : 'Your Contribution:'} <strong className="text-amber-300">{myBossDmg.toLocaleString()} DMG ({myDmgPct}%)</strong></span>
                       <span className="text-stone-400">🏆 {myBossDmg > 2000 ? (isTr ? 'Elit Akıncı' : 'Elite Vanguard') : (isTr ? 'Akın Katılımcısı' : 'Raid Contributor')}</span>
                     </div>
+
+                    {/* Live Global Community Damage Feed Strip (Visible directly inside Arena!) */}
+                    {combatLogs.length > 0 && (
+                      <div className="mt-2 pt-2 border-t border-stone-800/80 flex flex-col gap-1">
+                        <div className="flex items-center justify-between text-[9.5px] text-stone-400">
+                          <span className="flex items-center gap-1.5 font-semibold text-emerald-300">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
+                            <span>{isTr ? 'Canlı Küresel Akıncı Hasarları' : 'Live Global Raider Strikes'}</span>
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => setActiveTab('leaderboard')}
+                            className="text-amber-300 hover:text-amber-200 font-bold cursor-pointer"
+                          >
+                            {isTr ? 'Tüm Sıralama →' : 'Leaderboard →'}
+                          </button>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-1">
+                          {combatLogs.slice(0, 2).map((log) => (
+                            <div
+                              key={log.id}
+                              className="px-2 py-1 rounded-lg bg-stone-900/90 border border-stone-800 flex items-center justify-between gap-1.5 text-[10px]"
+                            >
+                              <div className="flex items-center gap-1 min-w-0">
+                                <span>{log.isCommunity ? '🌍' : '⭐'}</span>
+                                <span className="font-bold text-stone-200 truncate">
+                                  {log.isCommunity ? (log.userName || 'Akıncı') : (isTr ? 'Sen' : 'You')}
+                                </span>
+                                <span className="text-stone-500 truncate hidden xs:inline">
+                                  ({log.minutes || 25}dk)
+                                </span>
+                              </div>
+                              <span className={`font-mono font-bold shrink-0 ${log.isCritical ? 'text-amber-300' : 'text-red-300'}`}>
+                                -{log.damage} DMG {log.isCritical ? '💥' : '⚔️'}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -643,16 +720,6 @@ export const BossRaidModal: React.FC = () => {
                           key={m}
                           type="button"
                           onClick={() => {
-                            if (!user) {
-                              showToast(
-                                isTr 
-                                  ? 'Ganimet sandıklarını açmak ve ödülleri hesabına kaydetmek için ücretsiz giriş yapın! 🎁' 
-                                  : 'Sign in for free to unlock loot chests and claim rewards! 🎁',
-                                4000
-                              );
-                              setActiveModal('auth');
-                              return;
-                            }
                             if (isClaimable) {
                               claimMilestoneChest(boss.id, m);
                             } else if (isClaimed) {
@@ -787,45 +854,35 @@ export const BossRaidModal: React.FC = () => {
                       )}
                     </div>
 
-                    {/* Action Strike Buttons */}
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 w-full">
-                      {/* Practice Dummy: Free 0-cost Test Strike */}
-                      <button
-                        onClick={handlePracticeClick}
-                        className="w-full px-2.5 py-2.5 rounded-xl bg-stone-800/90 hover:bg-stone-700 border border-white/10 text-stone-300 hover:text-white text-xs font-semibold transition-all flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 shadow-sm"
-                        title={isTr ? 'Can eksilmez, yük harcanmaz' : 'No DMG, no charge cost'}
-                      >
-                        <Zap className="w-3.5 h-3.5 text-sky-400 shrink-0" />
-                        <span className="truncate">{isTr ? 'Hedef Tahtası (0 Yük)' : 'Dummy Test (0 Chg)'}</span>
-                      </button>
-
+                    {/* Action Strike Buttons (2-Column Real Strike Grid — Practice Dummy Removed) */}
+                    <div className="grid grid-cols-2 gap-2.5 w-full">
                       {/* 1 Charge Attack: 250 DMG */}
                       <button
                         onClick={() => handleChargeAttack(1, false)}
                         disabled={boss.isDefeated || (strikeCharges ?? 0) < 1}
-                        className={`w-full px-2.5 py-2.5 rounded-xl border text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 shadow-sm ${
+                        className={`w-full px-3 py-3 rounded-xl border text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 shadow-sm ${
                           (strikeCharges ?? 0) >= 1 && !boss.isDefeated
                             ? 'bg-stone-800 hover:bg-stone-700 border-amber-500/40 text-amber-200'
                             : 'bg-stone-900 border-white/5 text-stone-500 cursor-not-allowed opacity-50'
                         }`}
                         title={(strikeCharges ?? 0) < 1 ? (isTr ? 'Yetersiz yük! 25 dk odaklan.' : 'Needs 1 charge. Study 25m.') : ''}
                       >
-                        <Zap className="w-3.5 h-3.5 text-amber-400 fill-amber-400 shrink-0" />
-                        <span className="truncate">{isTr ? '⚡ 1 Yük (250 DMG)' : '⚡ 1 Chg (250 DMG)'}</span>
+                        <Zap className="w-4 h-4 text-amber-400 fill-amber-400 shrink-0" />
+                        <span className="truncate">{isTr ? '⚡ 1 Yük Saldırısı (250 DMG)' : '⚡ 1 Charge Strike (250 DMG)'}</span>
                       </button>
 
                       {/* 2 Charges Attack: 650 DMG Critical */}
                       <button
                         onClick={() => handleChargeAttack(2, true)}
                         disabled={boss.isDefeated || (strikeCharges ?? 0) < 2}
-                        className={`w-full px-2.5 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 shadow-md ${
+                        className={`w-full px-3 py-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 shadow-md ${
                           (strikeCharges ?? 0) >= 2 && !boss.isDefeated
                             ? 'bg-gradient-to-r from-amber-500 to-amber-400 text-stone-950 shadow-amber-500/25 hover:brightness-110'
                             : 'bg-stone-900 border border-white/5 text-stone-500 cursor-not-allowed opacity-50'
                         }`}
                         title={(strikeCharges ?? 0) < 2 ? (isTr ? 'Yetersiz yük! 2 yük gerekir.' : 'Needs 2 charges.') : ''}
                       >
-                        <Sparkles className="w-3.5 h-3.5 text-stone-950 shrink-0" />
+                        <Sparkles className="w-4 h-4 text-stone-950 shrink-0" />
                         <span className="truncate">{isTr ? '💥 2 Yük Kritik (650 DMG)' : '💥 2 Chg Crit (650 DMG)'}</span>
                       </button>
                     </div>

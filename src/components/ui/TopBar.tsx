@@ -229,7 +229,7 @@ export const TopBar: React.FC = () => {
         {/* Boss Raid Arena Trigger — Visible & Prominent on all screens! */}
         <button
           onClick={() => setActiveModal('boss_raid')}
-          className={`topbar-secondary-action flex items-center gap-1.5 px-2 sm:px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer border shrink-0 ${
+          className={`flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer border shrink-0 ${
             frenzyActive 
               ? 'bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 border-amber-500/50 shadow-[0_0_10px_rgba(245,158,11,0.3)] animate-pulse'
               : 'bg-red-950/50 hover:bg-red-900/70 text-red-200 hover:text-red-100 border-red-500/40 shadow-sm'
@@ -259,11 +259,11 @@ export const TopBar: React.FC = () => {
         {/* Study Tasks & Mini Kanban — Prominent, easy-to-tap pill for phone & tablet */}
         <button
           onClick={toggleTaskDrawer}
-          className="topbar-secondary-action flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 border border-amber-500/30 text-xs font-bold transition-all cursor-pointer relative shrink-0 active:scale-95 shadow-sm"
+          className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-1.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 border border-amber-500/30 text-xs font-bold transition-all cursor-pointer relative shrink-0 active:scale-95 shadow-sm"
           title={language === 'tr' ? 'Çalışma Görevleri & To-Do Listesi (T)' : 'Tasks & To-Do List (T)'}
         >
           <CheckSquare className="w-4 h-4 text-amber-400" />
-          <span className="font-bold">Todo</span>
+          <span className="hidden xs:inline font-bold">Todo</span>
           {tasks.filter(t => t.status !== 'done').length > 0 && (
             <span className="px-1.5 py-0.2 bg-amber-400 text-stone-950 font-black text-[10px] rounded-full leading-none">
               {tasks.filter(t => t.status !== 'done').length}

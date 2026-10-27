@@ -29,9 +29,14 @@ class WebAudioEngine {
   private naturalSources: Partial<Record<AmbientSoundChannel, AudioBufferSourceNode>> = {};
   private naturalStopTimers: Partial<Record<AmbientSoundChannel, number>> = {};
   private loadingNaturalPromises: Partial<Record<AmbientSoundChannel, Promise<AudioBuffer | null>>> = {};
+  private proceduralLoopNodes: Partial<Record<AmbientSoundChannel, AudioScheduledSourceNode[]>> = {};
   private fireplaceCrackleTimeout: number | null = null;
   private thunderTimeouts: number[] = [];
   private activeThunderAudios: HTMLAudioElement[] = [];
+  private bgKeepAliveAudio: HTMLAudioElement | null = null;
+  private bgKeepAliveUrl: string | null = null;
+  private timerKeepAlive: boolean = false;
+  private keepAliveWatchdog: number | null = null;
   private readonly naturalAudioSources: Partial<Record<AmbientSoundChannel, string>> = {
     rain: '/sounds/rain.ogg',
     fireplace: '/sounds/fireplace.ogg',
@@ -44,11 +49,146 @@ class WebAudioEngine {
     this.soundFxEnabled = enabled;
   }
 
-  public init() {
-    if (this.isInitialized && this.ctx) {
-      if (this.ctx.state === 'suspended') {
+  public hasActiveAudio(): boolean {
+    if (this.isMuted) return false;
+    if (this.runningChannels.size > 0) return true;
+    if (Object.keys(this.naturalSources).length > 0) return true;
+    for (const v of Object.values(this.naturalChannelVolumes)) {
+      if ((v || 0) > 0.005) return true;
+    }
+    return false;
+  }
+
+  public setTimerKeepAlive(active: boolean) {
+    this.timerKeepAlive = active;
+    if (active && !this.isInitialized) {
+      this.init();
+    }
+    this.syncBackgroundKeepAlive();
+  }
+
+  private buildKeepAliveWavUrl(): string {
+    if (this.bgKeepAliveUrl) return this.bgKeepAliveUrl;
+    const sampleRate = 8000;
+    const seconds = 4;
+    const numSamples = sampleRate * seconds;
+    const buffer = new ArrayBuffer(44 + numSamples * 2);
+    const view = new DataView(buffer);
+
+    const writeString = (offset: number, str: string) => {
+      for (let i = 0; i < str.length; i++) {
+        view.setUint8(offset + i, str.charCodeAt(i));
+      }
+    };
+
+    writeString(0, 'RIFF');
+    view.setUint32(4, 36 + numSamples * 2, true);
+    writeString(8, 'WAVE');
+    writeString(12, 'fmt ');
+    view.setUint32(16, 16, true);
+    view.setUint16(20, 1, true); // PCM
+    view.setUint16(22, 1, true); // Mono
+    view.setUint32(24, sampleRate, true);
+    view.setUint32(28, sampleRate * 2, true);
+    view.setUint16(32, 2, true);
+    view.setUint16(34, 16, true);
+    writeString(36, 'data');
+    view.setUint32(40, numSamples * 2, true);
+
+    // Subtle non-zero sub-audible dither (-68dB) so iOS/Android hardware audio daemon never gates it as digital silence
+    for (let i = 0; i < numSamples; i++) {
+      const sample = Math.round(Math.sin((2 * Math.PI * 60 * i) / sampleRate) * 6 + (Math.random() * 4 - 2));
+      view.setInt16(44 + i * 2, sample, true);
+    }
+
+    const blob = new Blob([buffer], { type: 'audio/wav' });
+    this.bgKeepAliveUrl = URL.createObjectURL(blob);
+    return this.bgKeepAliveUrl;
+  }
+
+  public syncBackgroundKeepAlive() {
+    if (typeof window === 'undefined') return;
+    const shouldStayAlive = this.hasActiveAudio() || this.timerKeepAlive;
+
+    if (shouldStayAlive) {
+      if (this.ctx && (this.ctx.state === 'suspended' || (this.ctx.state as string) === 'interrupted')) {
         this.ctx.resume().catch(() => {});
       }
+
+      if (!this.bgKeepAliveAudio && typeof Audio !== 'undefined') {
+        try {
+          const audio = new Audio(this.buildKeepAliveWavUrl());
+          audio.loop = true;
+          audio.volume = 0.05;
+          audio.setAttribute('playsinline', 'true');
+          audio.setAttribute('webkit-playsinline', 'true');
+          this.bgKeepAliveAudio = audio;
+        } catch {}
+      }
+
+      if (this.bgKeepAliveAudio && this.bgKeepAliveAudio.paused) {
+        this.bgKeepAliveAudio.play().catch(() => {});
+      }
+
+      if (typeof navigator !== 'undefined' && 'mediaSession' in navigator) {
+        try {
+          if (typeof MediaMetadata !== 'undefined' && !navigator.mediaSession.metadata) {
+            navigator.mediaSession.metadata = new MediaMetadata({
+              title: 'LockIn — Derin Odak Seansı',
+              artist: 'Cozy Study Sanctuary',
+              album: 'Ambient Focus & Pomodoro',
+            });
+          }
+          navigator.mediaSession.playbackState = 'playing';
+          navigator.mediaSession.setActionHandler('play', () => {
+            this.ensureRunning();
+            this.bgKeepAliveAudio?.play().catch(() => {});
+          });
+          navigator.mediaSession.setActionHandler('pause', () => {
+            // Keep session alive if timer is running
+            if (this.ctx && this.ctx.state === 'suspended') {
+              this.ctx.resume().catch(() => {});
+            }
+          });
+        } catch {}
+      }
+
+      if (!this.keepAliveWatchdog) {
+        this.keepAliveWatchdog = window.setInterval(() => {
+          if (this.hasActiveAudio() || this.timerKeepAlive) {
+            if (this.ctx && (this.ctx.state === 'suspended' || (this.ctx.state as string) === 'interrupted')) {
+              this.ctx.resume().catch(() => {});
+            }
+            if (this.bgKeepAliveAudio && this.bgKeepAliveAudio.paused) {
+              this.bgKeepAliveAudio.play().catch(() => {});
+            }
+          }
+        }, 3000);
+      }
+    } else {
+      if (this.bgKeepAliveAudio && !this.bgKeepAliveAudio.paused) {
+        try {
+          this.bgKeepAliveAudio.pause();
+        } catch {}
+      }
+      if (this.keepAliveWatchdog) {
+        clearInterval(this.keepAliveWatchdog);
+        this.keepAliveWatchdog = null;
+      }
+      if (typeof navigator !== 'undefined' && 'mediaSession' in navigator) {
+        try {
+          navigator.mediaSession.playbackState = 'paused';
+        } catch {}
+      }
+    }
+  }
+
+  public init() {
+    if (this.isInitialized && this.ctx) {
+      if (this.ctx.state === 'suspended' || (this.ctx.state as string) === 'interrupted') {
+        this.ctx.resume().catch(() => {});
+      }
+      this.syncBackgroundKeepAlive();
       return;
     }
 
@@ -77,26 +217,42 @@ class WebAudioEngine {
 
       this.isInitialized = true;
 
-      // Suspend idle AudioContext on background to eliminate battery drain
+      // Auto-recover AudioContext if iOS/Android interrupts it while ambient sounds or timer are running
+      this.ctx.onstatechange = () => {
+        if (!this.ctx) return;
+        const st = this.ctx.state as string;
+        if ((st === 'suspended' || st === 'interrupted') && (this.hasActiveAudio() || this.timerKeepAlive)) {
+          this.ctx.resume().catch(() => {});
+        }
+      };
+
+      // Suspend idle AudioContext on background ONLY when neither audio nor focus timer is active
       if (typeof document !== 'undefined') {
         document.addEventListener('visibilitychange', () => {
           if (!this.ctx) return;
+          const keepRunning = this.hasActiveAudio() || this.timerKeepAlive;
           if (document.hidden) {
-            const hasAudio = (this.runningChannels.size > 0 || Object.keys(this.naturalSources).length > 0) && !this.isMuted;
-            if (!hasAudio && this.ctx.state === 'running') {
+            if (!keepRunning && this.ctx.state === 'running') {
               this.ctx.suspend().catch(() => {});
+            } else if (keepRunning) {
+              this.ensureRunning();
+              this.syncBackgroundKeepAlive();
             }
           } else {
-            if (this.ctx.state === 'suspended') {
+            if (this.ctx.state === 'suspended' || (this.ctx.state as string) === 'interrupted') {
               this.ctx.resume().catch(() => {});
+            }
+            if (keepRunning) {
+              this.syncBackgroundKeepAlive();
             }
           }
         });
       }
 
-      // Preload the most essential natural audio loops in the background
-      this.loadNaturalBuffer('fireplace').catch(() => {});
-      this.loadNaturalBuffer('rain').catch(() => {});
+      // Preload all natural audio loops in the background so fireplace, rain, wind, forest, thunder start instantaneously
+      (['fireplace', 'rain', 'wind', 'forest', 'thunder'] as AmbientSoundChannel[]).forEach((ch) => {
+        this.loadNaturalBuffer(ch).catch(() => {});
+      });
     } catch (e) {
       console.warn('Web Audio initialization error:', e);
     }
@@ -113,6 +269,7 @@ class WebAudioEngine {
   public setMuted(muted: boolean) {
     this.isMuted = muted;
     this.setMasterVolume(this.masterVolume);
+    this.syncBackgroundKeepAlive();
   }
 
   /**
@@ -403,6 +560,7 @@ class WebAudioEngine {
           if (channel === 'fireplace') {
             this.scheduleFireplaceCrackles();
           }
+          this.syncBackgroundKeepAlive();
         };
 
         if (this.naturalBuffers[channel]) {
@@ -417,6 +575,7 @@ class WebAudioEngine {
       } else {
         this.stopChannelImmediately(channel);
       }
+      this.syncBackgroundKeepAlive();
       return;
     }
 
@@ -434,6 +593,7 @@ class WebAudioEngine {
     if (!gainNode || !this.ctx) return;
     const target = Math.max(0, Math.min(1, volume));
     gainNode.gain.setTargetAtTime(target, this.ctx.currentTime, 0.08);
+    this.syncBackgroundKeepAlive();
   }
 
   public stopChannelImmediately(channel: AmbientSoundChannel) {
@@ -465,6 +625,7 @@ class WebAudioEngine {
     }
 
     this.deactivateChannel(channel);
+    this.syncBackgroundKeepAlive();
   }
 
   public stopThunder() {
@@ -649,6 +810,7 @@ class WebAudioEngine {
             purrFilter.connect(purrGain);
             purrGain.connect(this.ambientGains.catPurr);
             purrSource.start();
+            this.proceduralLoopNodes.catPurr = [purrSource];
           }
         } catch (e) {
           console.warn('Cat purr audio error', e);
@@ -674,6 +836,7 @@ class WebAudioEngine {
             vinylFilter.connect(vinylGain);
             vinylGain.connect(this.ambientGains.vinyl);
             vinylSource.start();
+            this.proceduralLoopNodes.vinyl = [vinylSource];
           }
         } catch (e) {
           console.warn('Vinyl audio error', e);
@@ -695,6 +858,7 @@ class WebAudioEngine {
             toneSource.connect(toneFilter);
             toneFilter.connect(this.ambientGains.roomTone);
             toneSource.start();
+            this.proceduralLoopNodes.roomTone = [toneSource];
           }
         } catch (e) {
           console.warn('Room tone error', e);
@@ -733,6 +897,7 @@ class WebAudioEngine {
 
             oscL.start();
             oscR.start();
+            this.proceduralLoopNodes.binaural = [oscL, oscR];
           }
         } catch (e) {
           console.warn('Binaural beats error', e);
@@ -754,6 +919,7 @@ class WebAudioEngine {
             filter.connect(gain);
             gain.connect(this.ambientGains.whiteNoise);
             whiteSource.start();
+            this.proceduralLoopNodes.whiteNoise = [whiteSource];
           }
         } catch (e) {
           console.warn('White noise error', e);
@@ -775,6 +941,7 @@ class WebAudioEngine {
             filter.connect(gain);
             gain.connect(this.ambientGains.pinkNoise);
             pinkSource.start();
+            this.proceduralLoopNodes.pinkNoise = [pinkSource];
           }
         } catch (e) {
           console.warn('Pink noise error', e);
@@ -796,6 +963,7 @@ class WebAudioEngine {
             filter.connect(gain);
             gain.connect(this.ambientGains.brownNoise);
             brownSource.start();
+            this.proceduralLoopNodes.brownNoise = [brownSource];
           }
         } catch (e) {
           console.warn('Brown noise error', e);
@@ -937,6 +1105,7 @@ class WebAudioEngine {
             cafeGain2.connect(this.ambientGains.cafe);
           }
           cafeSource.start();
+          this.proceduralLoopNodes.cafe = [cafeSource];
 
           const scheduleCupClink = () => {
             if (!this.runningChannels.has('cafe') || !this.ctx || !this.ambientGains.cafe) return;
@@ -1016,6 +1185,7 @@ class WebAudioEngine {
             trainFilter.connect(trainGain);
             trainGain.connect(this.ambientGains.train);
             trainSource.start();
+            this.proceduralLoopNodes.train = [trainSource];
 
             const scheduleTrainClick = () => {
               if (!this.runningChannels.has('train') || !this.ctx || !this.ambientGains.train) return;
@@ -1153,6 +1323,20 @@ class WebAudioEngine {
 
   private deactivateChannel(channel: AmbientSoundChannel) {
     this.runningChannels.delete(channel);
+    const loopNodes = this.proceduralLoopNodes[channel];
+    if (loopNodes && loopNodes.length > 0) {
+      loopNodes.forEach((node) => {
+        try {
+          node.stop();
+          node.disconnect();
+        } catch {}
+      });
+      delete this.proceduralLoopNodes[channel];
+    }
+    if (channel === 'binaural') {
+      this.binauralOscL = null;
+      this.binauralOscR = null;
+    }
     if (channel === 'clock' && this.clockInterval) {
       clearInterval(this.clockInterval);
       this.clockInterval = null;

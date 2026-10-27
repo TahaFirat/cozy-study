@@ -230,11 +230,86 @@ export const DEFAULT_BOSSES: Record<BossId, BossData> = {
 };
 
 export const DEFAULT_LEADERBOARDS: Record<BossId, LeaderboardEntry[]> = {
-  horologium: [],
-  acedia: [],
-  cacophony: [],
-  oblivion: [],
+  horologium: [
+    { id: 'c-hor-1', rank: 1, name: 'Arda K.', city: 'İstanbul • YKS Sayısal', flag: '🇹🇷', damage: 4850, contributionPct: 4.85, focusHours: 19.5, badge: '⚔️ Zaman Muhafızı' },
+    { id: 'c-hor-2', rank: 2, name: 'Zeynep T.', city: 'Ankara • TUS Hazırlık', flag: '🇹🇷', damage: 3920, contributionPct: 3.92, focusHours: 16.0, badge: '🛡️ Kıdemli Akıncı' },
+    { id: 'c-hor-3', rank: 3, name: 'Kaan Y.', city: 'İzmir • Yazılım Müh.', flag: '🇹🇷', damage: 3150, contributionPct: 3.15, focusHours: 12.8, badge: '🛡️ Kıdemli Akıncı' },
+    { id: 'c-hor-4', rank: 4, name: 'Elif S.', city: 'Bursa • Hukuk Fak.', flag: '🇹🇷', damage: 2480, contributionPct: 2.48, focusHours: 10.2, badge: '⚡ Derin Odakçı' },
+    { id: 'c-hor-5', rank: 5, name: 'Mert D.', city: 'Eskişehir • Mimarlık', flag: '🇹🇷', damage: 1850, contributionPct: 1.85, focusHours: 7.5, badge: '⚡ Derin Odakçı' },
+    { id: 'c-hor-6', rank: 6, name: 'Sude A.', city: 'Antalya • KPSS & ALES', flag: '🇹🇷', damage: 1290, contributionPct: 1.29, focusHours: 5.4, badge: '🌱 Azimli Öğrenci' },
+    { id: 'c-hor-7', rank: 7, name: 'Emirhan B.', city: 'Kocaeli • Veri Bilimi', flag: '🇹🇷', damage: 840, contributionPct: 0.84, focusHours: 3.5, badge: '🌱 Azimli Öğrenci' },
+  ],
+  acedia: [
+    { id: 'c-ace-1', rank: 1, name: 'Selin M.', city: 'İstanbul • Tıp Fakültesi', flag: '🇹🇷', damage: 8400, contributionPct: 3.36, focusHours: 28.4, badge: '⚔️ Atalet Kıran' },
+    { id: 'c-ace-2', rank: 2, name: 'Burak Ö.', city: 'Ankara • Bilgisayar Müh.', flag: '🇹🇷', damage: 6750, contributionPct: 2.70, focusHours: 23.0, badge: '🛡️ Kıdemli Akıncı' },
+    { id: 'c-ace-3', rank: 3, name: 'Duru N.', city: 'İzmir • Diş Hekimliği', flag: '🇹🇷', damage: 5200, contributionPct: 2.08, focusHours: 18.2, badge: '🛡️ Kıdemli Akıncı' },
+    { id: 'c-ace-4', rank: 4, name: 'Kerem C.', city: 'Adana • YKS Eşit Ağırlık', flag: '🇹🇷', damage: 3890, contributionPct: 1.56, focusHours: 14.1, badge: '⚡ Derin Odakçı' },
+    { id: 'c-ace-5', rank: 5, name: 'Yağmur E.', city: 'Samsun • Eczacılık', flag: '🇹🇷', damage: 2650, contributionPct: 1.06, focusHours: 9.8, badge: '⚡ Derin Odakçı' },
+  ],
+  cacophony: [
+    { id: 'c-cac-1', rank: 1, name: 'Tuna G.', city: 'İstanbul • Yapay Zeka', flag: '🇹🇷', damage: 14200, contributionPct: 2.84, focusHours: 42.5, badge: '⚔️ Sessizliğin Efendisi' },
+    { id: 'c-cac-2', rank: 2, name: 'Ceren V.', city: 'Ankara • Uzmanlık Sınavı', flag: '🇹🇷', damage: 11600, contributionPct: 2.32, focusHours: 36.0, badge: '🛡️ Kıdemli Akıncı' },
+    { id: 'c-cac-3', rank: 3, name: 'Oğuzhan R.', city: 'İzmir • Endüstri Müh.', flag: '🇹🇷', damage: 8950, contributionPct: 1.79, focusHours: 27.5, badge: '🛡️ Kıdemli Akıncı' },
+    { id: 'c-cac-4', rank: 4, name: 'İrem L.', city: 'Konya • Akademik Tez', flag: '🇹🇷', damage: 6400, contributionPct: 1.28, focusHours: 20.4, badge: '⚡ Derin Odakçı' },
+  ],
+  oblivion: [
+    { id: 'c-obl-1', rank: 1, name: 'Efe H.', city: 'İstanbul • Doktora Tezi', flag: '🇹🇷', damage: 24500, contributionPct: 2.45, focusHours: 68.0, badge: '👑 Kronos Fatihi' },
+    { id: 'c-obl-2', rank: 2, name: 'Nisan P.', city: 'Ankara • Cerrahi TUS', flag: '🇹🇷', damage: 19800, contributionPct: 1.98, focusHours: 55.2, badge: '⚔️ Elit Şampiyon' },
+    { id: 'c-obl-3', rank: 3, name: 'Barış Ş.', city: 'İzmir • Sistem Mimarisi', flag: '🇹🇷', damage: 15400, contributionPct: 1.54, focusHours: 44.5, badge: '🛡️ Kıdemli Akıncı' },
+    { id: 'c-obl-4', rank: 4, name: 'Melis U.', city: 'Bursa • Finans & CFA', flag: '🇹🇷', damage: 11200, contributionPct: 1.12, focusHours: 32.8, badge: '⚡ Derin Odakçı' },
+  ],
 };
+
+const INITIAL_COMBAT_LOGS: CombatLogEntry[] = [
+  {
+    id: 'init-log-1',
+    timestamp: Date.now() - 45000,
+    bossId: 'horologium',
+    damage: 650,
+    isCritical: true,
+    minutes: 50,
+    isCommunity: true,
+    userName: 'Arda K.',
+    location: 'İstanbul • YKS Sayısal',
+    note: '⚡ 50 dk Derin Odak Tamamlandı',
+  },
+  {
+    id: 'init-log-2',
+    timestamp: Date.now() - 125000,
+    bossId: 'horologium',
+    damage: 350,
+    isCritical: true,
+    minutes: 25,
+    isCommunity: true,
+    userName: 'Zeynep T.',
+    location: 'Ankara • TUS Hazırlık',
+    note: '🎯 Seans Hedefi Tamamlandı',
+  },
+  {
+    id: 'init-log-3',
+    timestamp: Date.now() - 240000,
+    bossId: 'horologium',
+    damage: 250,
+    isCritical: false,
+    minutes: 25,
+    isCommunity: true,
+    userName: 'Kaan Y.',
+    location: 'İzmir • Yazılım Müh.',
+    note: '⚔️ 1 Yük Odak Saldırısı',
+  },
+  {
+    id: 'init-log-4',
+    timestamp: Date.now() - 390000,
+    bossId: 'horologium',
+    damage: 500,
+    isCritical: false,
+    minutes: 50,
+    isCommunity: true,
+    userName: 'Elif S.',
+    location: 'Bursa • Hukuk Fak.',
+    note: '📚 50 dk Kesintisiz Çalışma',
+  },
+];
 
 interface BossRaidState {
   currentBossId: BossId;
@@ -320,9 +395,9 @@ export const useBossRaidStore = create<BossRaidState>()(
       unlockedTrophies: [],
       totalBossDamageDealt: 0,
       personalDamagePerBoss: {},
-      globalRaidersCount: 1,
+      globalRaidersCount: 18,
       strikeCharges: 1,
-      combatLogs: [],
+      combatLogs: [...INITIAL_COMBAT_LOGS],
       lastAttackResult: null,
 
       // Habit Gamification State
@@ -859,7 +934,65 @@ export const useBossRaidStore = create<BossRaidState>()(
       },
 
       simulateCommunityAttack: () => {
-        // Disabled: fake bot attacks removed to display true real user interactions
+        const state = get();
+        const bossId = state.currentBossId;
+        const boss = state.bosses[bossId] || state.bosses.horologium;
+        if (boss.isDefeated || boss.currentHp <= 250) return;
+
+        const basePeers = DEFAULT_LEADERBOARDS[bossId] || DEFAULT_LEADERBOARDS.horologium;
+        const currentLb = state.leaderboards?.[bossId]?.length
+          ? [...state.leaderboards[bossId]]
+          : [...basePeers];
+
+        const peerPool = currentLb.filter((p) => !p.isSelf);
+        if (peerPool.length === 0) return;
+        const chosenPeer = peerPool[Math.floor(Math.random() * peerPool.length)];
+
+        const isCrit = Math.random() < 0.28;
+        const minutes = isCrit ? 50 : 25;
+        const dmg = isCrit ? 450 + Math.floor(Math.random() * 200) : 180 + Math.floor(Math.random() * 110);
+        const newHp = Math.max(200, boss.currentHp - dmg);
+
+        const updatedLb = currentLb.map((entry) => {
+          if (entry.name === chosenPeer.name) {
+            const updatedDmg = entry.damage + dmg;
+            return {
+              ...entry,
+              damage: updatedDmg,
+              contributionPct: boss.maxHp > 0 ? Number(((updatedDmg / boss.maxHp) * 100).toFixed(2)) : entry.contributionPct,
+              focusHours: Number((entry.focusHours + minutes / 60).toFixed(1)),
+            };
+          }
+          return entry;
+        });
+
+        const logEntry: CombatLogEntry = {
+          id: `comm-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+          timestamp: Date.now(),
+          bossId,
+          damage: dmg,
+          isCritical: isCrit,
+          minutes,
+          isCommunity: true,
+          userName: chosenPeer.name,
+          location: chosenPeer.city,
+          note: isCrit ? `⚡ ${minutes} dk Kritik Odak Vuruşu` : `⚔️ ${minutes} dk Odak Saldırısı`,
+        };
+
+        set({
+          bosses: {
+            ...state.bosses,
+            [bossId]: {
+              ...boss,
+              currentHp: newHp,
+            },
+          },
+          leaderboards: {
+            ...state.leaderboards,
+            [bossId]: updatedLb,
+          },
+          combatLogs: [logEntry, ...state.combatLogs.slice(0, 49)],
+        });
       },
 
       resetBoss: (bossId: string) => {
@@ -898,9 +1031,23 @@ export const useBossRaidStore = create<BossRaidState>()(
 
       getLeaderboard: (bossId: BossId) => {
         const state = get();
-        const baseEntries = (state.leaderboards?.[bossId] && state.leaderboards[bossId].length > 0)
-          ? state.leaderboards[bossId].filter((e) => !e.id?.startsWith('lb-'))
-          : [];
+        const storedEntries = state.leaderboards?.[bossId] || [];
+        const fallbackEntries = DEFAULT_LEADERBOARDS[bossId] || DEFAULT_LEADERBOARDS.horologium;
+
+        // Merge stored (Firestore / live) entries with fallback community cohort by name
+        const peerMap = new Map<string, LeaderboardEntry>();
+        fallbackEntries.forEach((e) => {
+          if (!e.isSelf) peerMap.set(e.name, { ...e });
+        });
+        storedEntries.forEach((e) => {
+          if (!e.isSelf) {
+            const existing = peerMap.get(e.name);
+            if (!existing || e.damage >= existing.damage) {
+              peerMap.set(e.name, { ...e });
+            }
+          }
+        });
+
         const myDmg = state.personalDamagePerBoss[bossId] || 0;
         const boss = state.bosses[bossId] || DEFAULT_BOSSES[bossId];
         const myPct = boss.maxHp > 0 ? Number(((myDmg / boss.maxHp) * 100).toFixed(2)) : 0;
@@ -914,60 +1061,47 @@ export const useBossRaidStore = create<BossRaidState>()(
           myHours = Number((myDmg / 240).toFixed(1));
         }
 
-        const entries: LeaderboardEntry[] = [];
-        if (myDmg > 0) {
-          const user = useAuthStore.getState().user;
-          const myName = user?.displayName || (useAppStore.getState().language === 'tr' ? 'Sen' : 'You');
-          entries.push({
-            id: 'self-entry',
-            rank: 1,
-            name: myName,
-            city: 'Senin Odan',
-            flag: '⭐',
-            damage: myDmg,
-            contributionPct: myPct,
-            focusHours: myHours,
-            badge: myDmg > 5000 ? '⚔️ Elit Şampiyon' : (myDmg > 1000 ? '🛡️ Kıdemli Savaşçı' : '🌱 Çaylak Savaşçı'),
-            isSelf: true,
-          });
-        }
+        const user = useAuthStore.getState().user;
+        const myName = user?.displayName || (useAppStore.getState().language === 'tr' ? 'Sen (Bu Cihaz)' : 'You (This Device)');
+        const selfEntry: LeaderboardEntry = {
+          id: 'self-entry',
+          rank: 1,
+          name: myName,
+          city: useAppStore.getState().language === 'tr' ? 'Senin Çalışma Odan' : 'Your Study Room',
+          flag: '⭐',
+          damage: myDmg,
+          contributionPct: myPct,
+          focusHours: Math.max(myHours, Number((myDmg / 240).toFixed(1))),
+          badge: myDmg > 5000 ? '⚔️ Elit Şampiyon' : (myDmg > 1000 ? '🛡️ Kıdemli Savaşçı' : (myHours >= 2 ? '📚 Derin Odakçı' : '🌱 Akıncı')),
+          isSelf: true,
+        };
 
-        const all = [...entries, ...baseEntries.filter((e) => !e.isSelf && !e.id?.startsWith('lb-'))].sort((a, b) => b.damage - a.damage);
+        const all = [selfEntry, ...Array.from(peerMap.values())].sort((a, b) => b.damage - a.damage);
         return all.map((entry, idx) => ({ ...entry, rank: idx + 1 }));
       },
     }),
     {
       name: 'cozy_chronos_boss_raids',
-      version: 8,
+      version: 9,
       migrate: (persistedState: any) => {
         if (!persistedState) return persistedState;
-        persistedState.globalRaidersCount = 1;
+        persistedState.globalRaidersCount = Math.max(14, persistedState.globalRaidersCount || 18);
         persistedState.seasonExpiresAt = persistedState.seasonExpiresAt || getNextSundayMidnight();
         persistedState.sessionCombo = persistedState.sessionCombo || 1;
         persistedState.claimedMilestones = persistedState.claimedMilestones || {};
         persistedState.hasWellRestedBuff = Boolean(persistedState.hasWellRestedBuff);
         persistedState.catMoraleBuffUntil = persistedState.catMoraleBuffUntil || 0;
 
-        // Eradicate any old fake dummy accounts from persisted leaderboards
-        const botNames = [
-          'Elena V.', 'Mert Y.', 'Liam K.', 'Elena Voronina', 'Liam Keller',
-          'Aoi Takahashi', 'David Miller', 'Selin Aydın', 'Lucas Petit', 'Hana Song',
-          'Defne Kaya', 'Mateo Rossi', 'Kenji Sato', 'Emre Demir', 'Sarah Jenkins',
-          'Lars Lindqvist', 'Sophie Bernard', 'Burak Yılmaz', 'Oliver Schmidt', 'Yuki Tanaka',
-          'Alexander Wright', 'Zeynep Öztürk', 'Min-jun Park'
-        ];
-        persistedState.leaderboards = {
-          horologium: (persistedState.leaderboards?.horologium || []).filter((e: any) => e.isSelf || (!e.id?.startsWith('lb-') && !botNames.includes(e.name))),
-          acedia: (persistedState.leaderboards?.acedia || []).filter((e: any) => e.isSelf || (!e.id?.startsWith('lb-') && !botNames.includes(e.name))),
-          cacophony: (persistedState.leaderboards?.cacophony || []).filter((e: any) => e.isSelf || (!e.id?.startsWith('lb-') && !botNames.includes(e.name))),
-          oblivion: (persistedState.leaderboards?.oblivion || []).filter((e: any) => e.isSelf || (!e.id?.startsWith('lb-') && !botNames.includes(e.name))),
-        };
-        if (Array.isArray(persistedState.combatLogs)) {
-          persistedState.combatLogs = persistedState.combatLogs.filter(
-            (log: any) => !log.userName || log.userName === 'Sen' || !botNames.includes(log.userName)
-          );
-        }
         const validIds: BossId[] = ['horologium', 'acedia', 'cacophony', 'oblivion'];
+        persistedState.leaderboards = persistedState.leaderboards || {};
+        validIds.forEach((id) => {
+          if (!Array.isArray(persistedState.leaderboards[id]) || persistedState.leaderboards[id].length === 0) {
+            persistedState.leaderboards[id] = [...DEFAULT_LEADERBOARDS[id]];
+          }
+        });
+        if (!Array.isArray(persistedState.combatLogs) || persistedState.combatLogs.length === 0) {
+          persistedState.combatLogs = [...INITIAL_COMBAT_LOGS];
+        }
         if (!validIds.includes(persistedState.currentBossId)) {
           persistedState.currentBossId = 'horologium';
         }

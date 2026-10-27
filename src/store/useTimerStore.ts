@@ -31,6 +31,36 @@ interface TimerStoreState {
 let timerInterval: number | null = null;
 let targetEndTime: number | null = null;
 
+const TIMER_STORAGE_KEY = 'cozy_focus_timer_v1';
+
+interface PersistedTimerSnapshot {
+  durationMinutes: number;
+  secondsRemaining: number;
+  timerState: TimerState;
+  targetEndTime: number | null;
+  currentGoal: string;
+  updatedAt: number;
+}
+
+function saveTimerSnapshot(snapshot: PersistedTimerSnapshot) {
+  try {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      window.localStorage.setItem(TIMER_STORAGE_KEY, JSON.stringify(snapshot));
+    }
+  } catch {}
+}
+
+function loadTimerSnapshot(): PersistedTimerSnapshot | null {
+  try {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      const raw = window.localStorage.getItem(TIMER_STORAGE_KEY);
+      if (!raw) return null;
+      return JSON.parse(raw) as PersistedTimerSnapshot;
+    }
+  } catch {}
+  return null;
+}
+
 export const useTimerStore = create<TimerStoreState>((set, get) => ({
   durationMinutes: 25,
   secondsRemaining: 25 * 60,
@@ -39,15 +69,35 @@ export const useTimerStore = create<TimerStoreState>((set, get) => ({
   isNotePromptOpen: false,
   currentGoal: '',
 
-  setCurrentGoal: (currentGoal) => set({ currentGoal }),
+  setCurrentGoal: (currentGoal) => {
+    set({ currentGoal });
+    const s = get();
+    saveTimerSnapshot({
+      durationMinutes: s.durationMinutes,
+      secondsRemaining: s.secondsRemaining,
+      timerState: s.timerState,
+      targetEndTime,
+      currentGoal,
+      updatedAt: Date.now(),
+    });
+  },
 
   setDuration: (minutes) => {
     if (get().timerState === 'running') return;
     const clampedMins = Math.max(1, Math.min(180, Math.floor(minutes || 25)));
+    targetEndTime = null;
     set({
       durationMinutes: clampedMins,
       secondsRemaining: clampedMins * 60,
       timerState: 'idle',
+    });
+    saveTimerSnapshot({
+      durationMinutes: clampedMins,
+      secondsRemaining: clampedMins * 60,
+      timerState: 'idle',
+      targetEndTime: null,
+      currentGoal: get().currentGoal,
+      updatedAt: Date.now(),
     });
   },
 
@@ -63,6 +113,16 @@ export const useTimerStore = create<TimerStoreState>((set, get) => ({
       timerState: 'running',
     });
 
+    saveTimerSnapshot({
+      durationMinutes: mins,
+      secondsRemaining: totalSecs,
+      timerState: 'running',
+      targetEndTime,
+      currentGoal: get().currentGoal,
+      updatedAt: Date.now(),
+    });
+
+    webAudioEngine.setTimerKeepAlive(true);
     webAudioEngine.playZenChime('start');
     const lang = useAppStore.getState().language;
     useAppStore.getState().showToast(TRANSLATIONS[lang].timer.sessionYours(mins), 4000);
@@ -78,14 +138,35 @@ export const useTimerStore = create<TimerStoreState>((set, get) => ({
       clearInterval(timerInterval);
       timerInterval = null;
     }
+    const remaining = targetEndTime
+      ? Math.max(0, Math.round((targetEndTime - Date.now()) / 1000))
+      : get().secondsRemaining;
     targetEndTime = null;
-    set({ timerState: 'paused' });
+    webAudioEngine.setTimerKeepAlive(false);
+    set({ timerState: 'paused', secondsRemaining: remaining });
+    saveTimerSnapshot({
+      durationMinutes: get().durationMinutes,
+      secondsRemaining: remaining,
+      timerState: 'paused',
+      targetEndTime: null,
+      currentGoal: get().currentGoal,
+      updatedAt: Date.now(),
+    });
   },
 
   resumeTimer: () => {
-    const remaining = Math.max(0, get().secondsRemaining);
+    const remaining = Math.max(1, get().secondsRemaining);
     targetEndTime = Date.now() + remaining * 1000;
-    set({ timerState: 'running' });
+    set({ timerState: 'running', secondsRemaining: remaining });
+    saveTimerSnapshot({
+      durationMinutes: get().durationMinutes,
+      secondsRemaining: remaining,
+      timerState: 'running',
+      targetEndTime,
+      currentGoal: get().currentGoal,
+      updatedAt: Date.now(),
+    });
+    webAudioEngine.setTimerKeepAlive(true);
     if (timerInterval) clearInterval(timerInterval);
     timerInterval = window.setInterval(() => {
       get().tick();
@@ -98,14 +179,24 @@ export const useTimerStore = create<TimerStoreState>((set, get) => ({
       timerInterval = null;
     }
     targetEndTime = null;
+    webAudioEngine.setTimerKeepAlive(false);
+    const totalSecs = get().durationMinutes * 60;
     set({
       timerState: 'idle',
-      secondsRemaining: get().durationMinutes * 60,
+      secondsRemaining: totalSecs,
+    });
+    saveTimerSnapshot({
+      durationMinutes: get().durationMinutes,
+      secondsRemaining: totalSecs,
+      timerState: 'idle',
+      targetEndTime: null,
+      currentGoal: get().currentGoal,
+      updatedAt: Date.now(),
     });
   },
 
   tick: () => {
-    const { secondsRemaining, timerState, durationMinutes } = get();
+    const { secondsRemaining, timerState, durationMinutes, currentGoal } = get();
     if (timerState !== 'running') return;
 
     let nextSeconds = secondsRemaining - 1;
@@ -149,6 +240,17 @@ export const useTimerStore = create<TimerStoreState>((set, get) => ({
       get().finishSession();
     } else {
       set({ secondsRemaining: nextSeconds });
+      // Persist periodically so even abrupt WebView kills preserve wall-clock targetEndTime
+      if (nextSeconds % 5 === 0) {
+        saveTimerSnapshot({
+          durationMinutes,
+          secondsRemaining: nextSeconds,
+          timerState: 'running',
+          targetEndTime,
+          currentGoal,
+          updatedAt: Date.now(),
+        });
+      }
     }
   },
 
@@ -157,6 +259,8 @@ export const useTimerStore = create<TimerStoreState>((set, get) => ({
       clearInterval(timerInterval);
       timerInterval = null;
     }
+    targetEndTime = null;
+    webAudioEngine.setTimerKeepAlive(false);
     const completedMins = get().durationMinutes;
     const currentRoom = useAppStore.getState().activeRoom;
 
@@ -165,6 +269,15 @@ export const useTimerStore = create<TimerStoreState>((set, get) => ({
       secondsRemaining: 0,
       lastCompletedMinutes: completedMins,
       isNotePromptOpen: true,
+    });
+
+    saveTimerSnapshot({
+      durationMinutes: completedMins,
+      secondsRemaining: completedMins * 60,
+      timerState: 'idle',
+      targetEndTime: null,
+      currentGoal: get().currentGoal,
+      updatedAt: Date.now(),
     });
 
     // 1. Immediately record session in stats so XP and badges are awarded without waiting for note prompt
@@ -220,3 +333,82 @@ export const useTimerStore = create<TimerStoreState>((set, get) => ({
     useAppStore.getState().showToast(TRANSLATIONS[lang].toasts.journalSaved, 3000);
   },
 }));
+
+// Hydrate & synchronize Focus Timer across backgrounding, screen lock, or WebView reloads
+if (typeof window !== 'undefined') {
+  const saved = loadTimerSnapshot();
+  if (saved) {
+    const mins = Math.max(1, Math.min(180, Math.floor(saved.durationMinutes || 25)));
+    const goal = saved.currentGoal || '';
+
+    if (saved.timerState === 'running' && saved.targetEndTime) {
+      const remaining = Math.max(0, Math.round((saved.targetEndTime - Date.now()) / 1000));
+      if (remaining > 0) {
+        targetEndTime = saved.targetEndTime;
+        useTimerStore.setState({
+          durationMinutes: mins,
+          secondsRemaining: remaining,
+          timerState: 'running',
+          currentGoal: goal,
+        });
+        if (timerInterval) clearInterval(timerInterval);
+        timerInterval = window.setInterval(() => {
+          useTimerStore.getState().tick();
+        }, 1000);
+      } else {
+        // Timer completed while app was suspended/reloaded in background
+        useTimerStore.setState({
+          durationMinutes: mins,
+          secondsRemaining: 1,
+          timerState: 'running',
+          currentGoal: goal,
+        });
+        window.setTimeout(() => {
+          if (useTimerStore.getState().timerState === 'running') {
+            useTimerStore.getState().finishSession();
+          }
+        }, 450);
+      }
+    } else if (saved.timerState === 'paused' && saved.secondsRemaining > 0) {
+      useTimerStore.setState({
+        durationMinutes: mins,
+        secondsRemaining: Math.min(mins * 60, saved.secondsRemaining),
+        timerState: 'paused',
+        currentGoal: goal,
+      });
+    } else {
+      useTimerStore.setState({
+        durationMinutes: mins,
+        secondsRemaining: mins * 60,
+        timerState: 'idle',
+        currentGoal: goal,
+      });
+    }
+  }
+
+  const syncTimerFromWallClock = () => {
+    const state = useTimerStore.getState();
+    if (state.timerState === 'running') {
+      if (!targetEndTime) {
+        const snap = loadTimerSnapshot();
+        if (snap?.targetEndTime) {
+          targetEndTime = snap.targetEndTime;
+        }
+      }
+      state.tick();
+      if (useTimerStore.getState().timerState === 'running' && !timerInterval) {
+        timerInterval = window.setInterval(() => {
+          useTimerStore.getState().tick();
+        }, 1000);
+      }
+    }
+  };
+
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) {
+      syncTimerFromWallClock();
+    }
+  });
+  window.addEventListener('focus', syncTimerFromWallClock);
+  window.addEventListener('pageshow', syncTimerFromWallClock);
+}

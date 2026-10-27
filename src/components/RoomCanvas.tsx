@@ -435,29 +435,37 @@ export const RoomCanvas: React.FC = () => {
       {/* Stage Card Wrapper (acts as `display: contents` on Desktop/Landscape, and as a Framed Sanctuary Card on Mobile Portrait) */}
       <div className="portrait-stage-card relative z-10">
         {/* Mobile Portrait Stage Header Strip */}
-        <div className="portrait-stage-header hidden items-center justify-between px-3 py-2 bg-stone-950/90 border-b border-white/10 text-[11px]">
-          <div className="flex items-center gap-2 min-w-0">
+        <div className="portrait-stage-header hidden items-center justify-between px-3.5 py-2.5 bg-stone-950/95 border-b border-white/10 text-xs">
+          <button
+            type="button"
+            onClick={() => setActiveModal('rooms')}
+            className="flex items-center gap-2 min-w-0 hover:text-amber-200 transition-colors cursor-pointer"
+          >
             <span className="w-2 h-2 rounded-full bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.8)] shrink-0" />
             <span className="font-bold text-amber-100 truncate">{localizedRoomName}</span>
-            <span className="text-stone-500">•</span>
+            <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-stone-800/90 border border-white/10 text-amber-300 font-semibold shrink-0">
+              {isTr ? 'Oda Seç ▾' : 'Rooms ▾'}
+            </span>
+          </button>
+
+          <div className="flex items-center gap-1.5 shrink-0">
             <button
               type="button"
               onClick={handleCycleWeather}
-              className="flex items-center gap-1 text-stone-300 hover:text-amber-200 font-medium shrink-0 cursor-pointer"
+              className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-stone-900 border border-white/10 text-stone-200 font-medium text-[10px] cursor-pointer active:scale-95"
             >
               <span>{weatherEmoji}</span>
               <span>{localizedWeather}</span>
             </button>
+            <button
+              type="button"
+              onClick={toggleChat}
+              className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-950/70 border border-emerald-500/35 text-emerald-300 font-bold text-[10px] shrink-0 cursor-pointer active:scale-95"
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
+              <span>{onlineCount || 1} {isTr ? 'Canlı' : 'Live'}</span>
+            </button>
           </div>
-
-          <button
-            type="button"
-            onClick={toggleChat}
-            className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-950/60 border border-emerald-500/30 text-emerald-300 font-semibold text-[10px] shrink-0 cursor-pointer"
-          >
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
-            <span>{onlineCount || 1} {isTr ? 'Yayında' : 'Live'}</span>
-          </button>
         </div>
 
         {/* Aspect-ratio preserving 16:9 pixel canvas */}
@@ -480,124 +488,100 @@ export const RoomCanvas: React.FC = () => {
         />
 
         {/* Mobile Portrait Subtle Interactive Hint Footer inside Stage Card */}
-        <div className="portrait-stage-footer hidden items-center justify-between px-3 py-1.5 bg-stone-950/90 border-t border-white/5 text-[10px] text-stone-400">
-          <span>✨ {isTr ? 'Eşyalara doğrudan dokun veya aşağıdaki konsolu kullan' : 'Tap objects directly or use the console below'}</span>
-          <span className="font-mono text-amber-300/90">{localizedTime}</span>
+        <div className="portrait-stage-footer hidden items-center justify-between px-3.5 py-1.5 bg-stone-950/95 border-t border-white/5 text-[10px] text-stone-400">
+          <span>✨ {isTr ? 'Odadaki eşyalara veya aşağıdaki kısayollara dokun' : 'Tap room items or use the quick deck below'}</span>
+          <span className="font-mono font-semibold text-amber-300/90">{localizedTime}</span>
         </div>
       </div>
 
-      {/* Mobile Portrait Sanctuary Console (Fills vertical phone screen with tactile room controls & live widgets) */}
+      {/* Mobile Portrait Sanctuary Console (Clean, Ergonomic One-Handed Study Deck) */}
       {!immersiveMode && (
-        <div className="portrait-sanctuary-console hidden relative z-20 w-full flex-col gap-2.5">
-          {/* 1. Tactile Room Object Quick-Interactions (6 Cozy Pills in 3x2 Grid) */}
-          <div className="grid grid-cols-3 gap-1.5">
+        <div className="portrait-sanctuary-console hidden relative z-20 w-full flex-col gap-2">
+          {/* 1. Tactile 4-Tile Room Interaction Row */}
+          <div className="grid grid-cols-4 gap-1.5">
             <button
               type="button"
               onClick={() => handleInteractiveClick('fireplace')}
-              className={`flex items-center gap-1.5 px-2.5 py-2 rounded-xl border text-left transition-all active:scale-95 cursor-pointer ${
+              className={`flex flex-col items-center justify-center py-2 px-1.5 rounded-2xl border text-center transition-all active:scale-95 cursor-pointer ${
                 isFireSoundOn
                   ? 'bg-amber-500/20 border-amber-500/50 text-amber-100 shadow-[0_0_15px_rgba(245,158,11,0.2)]'
-                  : 'bg-stone-900/85 border-white/10 text-stone-300'
+                  : 'bg-stone-900/90 border-white/10 text-stone-300'
               }`}
             >
-              <span className="text-base leading-none">🔥</span>
-              <div className="min-w-0">
-                <div className="text-[11px] font-bold truncate">{isTr ? 'Şömine' : 'Hearth'}</div>
-                <div className="text-[9px] text-amber-300/90 font-mono">
-                  {isFireSoundOn ? (isTr ? 'Çıtırdıyor' : 'Crackling') : (isTr ? 'Yak / Ses' : 'Ignite')}
-                </div>
-              </div>
+              <span className="text-lg leading-none mb-1">🔥</span>
+              <span className="text-[11px] font-bold truncate w-full">{isTr ? 'Şömine' : 'Hearth'}</span>
+              <span className="text-[9px] text-amber-300/90 font-mono">
+                {isFireSoundOn ? (isTr ? 'Açık' : 'On') : (isTr ? 'Yak' : 'Light')}
+              </span>
             </button>
 
             <button
               type="button"
               onClick={() => handleInteractiveClick('lamp')}
-              className={`flex items-center gap-1.5 px-2.5 py-2 rounded-xl border text-left transition-all active:scale-95 cursor-pointer ${
+              className={`flex flex-col items-center justify-center py-2 px-1.5 rounded-2xl border text-center transition-all active:scale-95 cursor-pointer ${
                 lampOn
                   ? 'bg-amber-400/15 border-amber-400/40 text-amber-100'
-                  : 'bg-stone-900/85 border-white/10 text-stone-300'
+                  : 'bg-stone-900/90 border-white/10 text-stone-300'
               }`}
             >
-              <span className="text-base leading-none">💡</span>
-              <div className="min-w-0">
-                <div className="text-[11px] font-bold truncate">{isTr ? 'Lamba' : 'Lamp'}</div>
-                <div className="text-[9px] text-stone-400 font-mono">
-                  {lampOn ? (isTr ? 'Açık' : 'On') : (isTr ? 'Kapalı' : 'Off')}
-                </div>
-              </div>
+              <span className="text-lg leading-none mb-1">💡</span>
+              <span className="text-[11px] font-bold truncate w-full">{isTr ? 'Lamba' : 'Lamp'}</span>
+              <span className="text-[9px] text-stone-400 font-mono">
+                {lampOn ? (isTr ? 'Açık' : 'On') : (isTr ? 'Kapalı' : 'Off')}
+              </span>
             </button>
 
             <button
               type="button"
               onClick={() => handleInteractiveClick('cat')}
-              className="flex items-center gap-1.5 px-2.5 py-2 rounded-xl border bg-stone-900/85 border-white/10 text-stone-200 text-left transition-all active:scale-95 cursor-pointer"
+              className="flex flex-col items-center justify-center py-2 px-1.5 rounded-2xl border bg-stone-900/90 border-white/10 text-stone-200 text-center transition-all active:scale-95 cursor-pointer"
             >
-              <span className="text-base leading-none">🐾</span>
-              <div className="min-w-0">
-                <div className="text-[11px] font-bold truncate">{isTr ? 'Kediyi Sev' : 'Pet Cat'}</div>
-                <div className="text-[9px] text-amber-300/90 font-mono">+10% DMG</div>
-              </div>
+              <span className="text-lg leading-none mb-1">🐾</span>
+              <span className="text-[11px] font-bold truncate w-full">{isTr ? 'Kedi' : 'Pet Cat'}</span>
+              <span className="text-[9px] text-amber-300/90 font-mono">+10% DMG</span>
             </button>
 
             <button
               type="button"
               onClick={() => handleInteractiveClick('mug')}
-              className="flex items-center gap-1.5 px-2.5 py-2 rounded-xl border bg-stone-900/85 border-white/10 text-stone-200 text-left transition-all active:scale-95 cursor-pointer"
+              className="flex flex-col items-center justify-center py-2 px-1.5 rounded-2xl border bg-stone-900/90 border-white/10 text-stone-200 text-center transition-all active:scale-95 cursor-pointer"
             >
-              <span className="text-base leading-none">☕</span>
-              <div className="min-w-0">
-                <div className="text-[11px] font-bold truncate">{isTr ? 'Kahve İç' : 'Sip Mug'}</div>
-                <div className="text-[9px] text-stone-400 font-mono">{isTr ? 'Zihin Aç' : 'Refresh'}</div>
-              </div>
-            </button>
-
-            <button
-              type="button"
-              onClick={handleCycleWeather}
-              className="flex items-center gap-1.5 px-2.5 py-2 rounded-xl border bg-stone-900/85 border-white/10 text-stone-200 text-left transition-all active:scale-95 cursor-pointer"
-            >
-              <span className="text-base leading-none">{weatherEmoji}</span>
-              <div className="min-w-0">
-                <div className="text-[11px] font-bold truncate">{isTr ? 'Atmosfer' : 'Weather'}</div>
-                <div className="text-[9px] text-sky-300 font-mono truncate">{localizedWeather}</div>
-              </div>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setActiveModal('rooms')}
-              className="flex items-center gap-1.5 px-2.5 py-2 rounded-xl border bg-stone-900/85 border-white/10 text-stone-200 text-left transition-all active:scale-95 cursor-pointer"
-            >
-              <span className="text-base leading-none">🏠</span>
-              <div className="min-w-0">
-                <div className="text-[11px] font-bold truncate">{isTr ? 'Mekanlar' : 'Rooms'}</div>
-                <div className="text-[9px] text-amber-300 font-mono">7 {isTr ? 'Oda' : 'Rooms'}</div>
-              </div>
+              <span className="text-lg leading-none mb-1">☕</span>
+              <span className="text-[11px] font-bold truncate w-full">{isTr ? 'Kahve' : 'Coffee'}</span>
+              <span className="text-[9px] text-stone-400 font-mono">{isTr ? 'Yudumla' : 'Sip'}</span>
             </button>
           </div>
 
           {/* 2. Two-Column Live Bento Status Cards (Tasks/Streak & Boss Raid) */}
           <div className="grid grid-cols-2 gap-2">
-            {/* Left Bento: Focus Goal, Tasks & Streak */}
+            {/* Left Bento: Focus Goal & Tasks */}
             <button
               type="button"
               onClick={toggleTaskDrawer}
-              className="p-2.5 rounded-2xl bg-stone-900/90 border border-white/10 text-left flex flex-col justify-between gap-1.5 shadow-lg active:scale-98 transition-all cursor-pointer"
+              className="p-3 rounded-2xl bg-stone-900/92 border border-amber-500/25 text-left flex flex-col justify-between gap-1.5 shadow-lg active:scale-98 transition-all cursor-pointer"
             >
               <div className="flex items-center justify-between w-full">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-amber-300 flex items-center gap-1">
-                  <span>🎯</span> {isTr ? 'Odak & Görev' : 'Focus & Tasks'}
+                <span className="text-[10.5px] font-bold uppercase tracking-wider text-amber-300 flex items-center gap-1">
+                  <span>📋</span> {isTr ? 'Yapılacaklar' : 'To-Do List'}
                 </span>
                 <span className="text-[10px] font-mono font-bold px-1.5 py-0.2 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30">
-                  {isTr ? `Sv.${playerLevel}` : `Lv.${playerLevel}`}
+                  {pendingTasksCount} {isTr ? 'Aktif' : 'Left'}
                 </span>
               </div>
               <div className="text-xs font-bold text-stone-100 truncate w-full">
-                {currentGoal ? `"${currentGoal}"` : (pendingTasksCount > 0 ? (isTr ? `${pendingTasksCount} Aktif Görev` : `${pendingTasksCount} Active Tasks`) : (isTr ? 'Görev Ekle / Hedef Seç' : 'Add Task / Set Goal'))}
+                {currentGoal
+                  ? `🎯 ${currentGoal}`
+                  : pendingTasksCount > 0
+                    ? isTr
+                      ? `${pendingTasksCount} görev seni bekliyor`
+                      : `${pendingTasksCount} tasks waiting`
+                    : isTr
+                      ? '+ Yeni görev ekle'
+                      : '+ Add study task'}
               </div>
-              <div className="flex items-center justify-between w-full text-[10px] text-stone-400 font-mono">
+              <div className="flex items-center justify-between w-full text-[10px] text-stone-400 font-mono pt-0.5 border-t border-white/5">
                 <span>🔥 {streakDays} {isTr ? 'Gün Seri' : 'Day Streak'}</span>
-                <span className="text-amber-300 font-semibold">{isTr ? 'Aç →' : 'Open →'}</span>
+                <span className="text-amber-300 font-bold">{isTr ? 'Listeyi Aç →' : 'Open →'}</span>
               </div>
             </button>
 
@@ -605,14 +589,14 @@ export const RoomCanvas: React.FC = () => {
             <button
               type="button"
               onClick={() => setActiveModal('boss_raid')}
-              className="p-2.5 rounded-2xl bg-gradient-to-br from-stone-900/95 via-red-950/25 to-stone-900/95 border border-red-500/30 text-left flex flex-col justify-between gap-1.5 shadow-lg active:scale-98 transition-all cursor-pointer"
+              className="p-3 rounded-2xl bg-gradient-to-br from-stone-900/95 via-red-950/30 to-stone-900/95 border border-red-500/35 text-left flex flex-col justify-between gap-1.5 shadow-lg active:scale-98 transition-all cursor-pointer"
             >
               <div className="flex items-center justify-between w-full">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-red-300 flex items-center gap-1 truncate">
+                <span className="text-[10.5px] font-bold uppercase tracking-wider text-red-300 flex items-center gap-1 truncate">
                   <span>⚔️</span> {currentBoss?.name || 'Boss Raid'}
                 </span>
-                <span className="text-[10px] font-mono font-bold text-amber-300 shrink-0">
-                  ⚡{strikeCharges ?? 0}
+                <span className="text-[10px] font-mono font-bold px-1.5 py-0.2 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 shrink-0">
+                  ⚡{strikeCharges ?? 0} {isTr ? 'Yük' : 'Chg'}
                 </span>
               </div>
               <div className="w-full bg-stone-950 h-2 rounded-full overflow-hidden border border-white/10">
@@ -624,10 +608,38 @@ export const RoomCanvas: React.FC = () => {
                   }}
                 />
               </div>
-              <div className="flex items-center justify-between w-full text-[10px] font-mono">
-                <span className="text-stone-300 font-bold">HP: {bossHpPct}%</span>
-                <span className="text-red-300 font-semibold">{isTr ? 'Savaşa Gir →' : 'Join Raid →'}</span>
+              <div className="flex items-center justify-between w-full text-[10px] font-mono pt-0.5 border-t border-white/5">
+                <span className="text-stone-300 font-bold">Can: {bossHpPct}%</span>
+                <span className="text-red-300 font-bold">{isTr ? 'Savaşa Gir →' : 'Raid →'}</span>
               </div>
+            </button>
+          </div>
+
+          {/* 3. Quick Utility Strip (Stats, Live Buddies, Study Journal) */}
+          <div className="grid grid-cols-3 gap-1.5">
+            <button
+              type="button"
+              onClick={() => setActiveModal('stats')}
+              className="py-2 px-2.5 rounded-xl bg-stone-900/90 border border-white/10 text-stone-200 text-[11px] font-semibold flex items-center justify-center gap-1.5 active:scale-95 transition-all cursor-pointer"
+            >
+              <span>📊</span>
+              <span className="truncate">{isTr ? 'İstatistikler' : 'Statistics'}</span>
+            </button>
+            <button
+              type="button"
+              onClick={toggleChat}
+              className="py-2 px-2.5 rounded-xl bg-emerald-950/45 border border-emerald-500/30 text-emerald-200 text-[11px] font-semibold flex items-center justify-center gap-1.5 active:scale-95 transition-all cursor-pointer"
+            >
+              <span>👥</span>
+              <span className="truncate">{isTr ? `${onlineCount || 1} Çalışan` : `${onlineCount || 1} Studying`}</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveModal('journal')}
+              className="py-2 px-2.5 rounded-xl bg-stone-900/90 border border-white/10 text-stone-200 text-[11px] font-semibold flex items-center justify-center gap-1.5 active:scale-95 transition-all cursor-pointer"
+            >
+              <span>📖</span>
+              <span className="truncate">{isTr ? 'Not Defteri' : 'Journal'}</span>
             </button>
           </div>
         </div>

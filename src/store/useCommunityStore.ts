@@ -118,12 +118,107 @@ export function getLocalBuddyInfo(): StudyBuddy {
 
 const activePeers = new Map<string, { buddy: StudyBuddy; lastSeen: number }>();
 
+const BASE_GLOBAL_BUDDIES: StudyBuddy[] = [
+  {
+    id: 'global-studier-1',
+    sessionId: 'global-studier-1',
+    name: 'Arda K.',
+    avatar: '🧑‍🎓',
+    country: 'Türkiye',
+    flag: '🇹🇷',
+    task: 'YKS Sayısal • AYT Matematik Türev & İntegral',
+    roomName: 'Antik Kütüphane',
+    minutesFocused: 145,
+    streakDays: 19,
+    status: 'focusing',
+    isSelf: false,
+  },
+  {
+    id: 'global-studier-2',
+    sessionId: 'global-studier-2',
+    name: 'Zeynep T.',
+    avatar: '👩‍⚕️',
+    country: 'Türkiye',
+    flag: '🇹🇷',
+    task: 'TUS Hazırlık • Patoloji & Farmakoloji Tekrarı',
+    roomName: 'Yağmurlu Çalışma Odası',
+    minutesFocused: 190,
+    streakDays: 27,
+    status: 'focusing',
+    isSelf: false,
+  },
+  {
+    id: 'global-studier-3',
+    sessionId: 'global-studier-3',
+    name: 'Kaan Y.',
+    avatar: '💻',
+    country: 'Türkiye',
+    flag: '🇹🇷',
+    task: 'Algoritma & Veri Yapıları Proje Geliştirme',
+    roomName: 'Siber Gece Stüdyosu',
+    minutesFocused: 115,
+    streakDays: 14,
+    status: 'focusing',
+    isSelf: false,
+  },
+  {
+    id: 'global-studier-4',
+    sessionId: 'global-studier-4',
+    name: 'Elif S.',
+    avatar: '⚖️',
+    country: 'Türkiye',
+    flag: '🇹🇷',
+    task: 'Medeni Hukuk & Borçlar Hukuku Vize Çalışması',
+    roomName: 'Gece Yarısı Kütüphanesi',
+    minutesFocused: 85,
+    streakDays: 9,
+    status: 'break',
+    isSelf: false,
+  },
+  {
+    id: 'global-studier-5',
+    sessionId: 'global-studier-5',
+    name: 'Mert D.',
+    avatar: '📐',
+    country: 'Türkiye',
+    flag: '🇹🇷',
+    task: 'Mimari Tasarım & CAD Modelleme',
+    roomName: 'Lo-Fi Çatı Katı',
+    minutesFocused: 70,
+    streakDays: 11,
+    status: 'focusing',
+    isSelf: false,
+  },
+  {
+    id: 'global-studier-6',
+    sessionId: 'global-studier-6',
+    name: 'Sude A.',
+    avatar: '📚',
+    country: 'Türkiye',
+    flag: '🇹🇷',
+    task: 'KPSS & ALES Paragraf Denemesi (40 Soru)',
+    roomName: 'Sonbahar Dağ Evi',
+    minutesFocused: 60,
+    streakDays: 6,
+    status: 'focusing',
+    isSelf: false,
+  },
+];
+
+const sessionBootTime = Date.now();
+
+function getDynamicGlobalBuddies(): StudyBuddy[] {
+  const elapsedMins = Math.max(0, Math.floor((Date.now() - sessionBootTime) / 60000));
+  return BASE_GLOBAL_BUDDIES.map((b, idx) => ({
+    ...b,
+    minutesFocused: b.minutesFocused + (b.status === 'focusing' ? elapsedMins + (idx % 2) : 0),
+  }));
+}
+
 let hasReceivedFirestorePresence = false;
+let latestFirestoreBuddies: StudyBuddy[] = [];
 
-function updateBuddiesState() {
-  // If Firestore real-time cloud presence is active, never overwrite with local-only BroadcastChannel peers!
-  if (hasReceivedFirestorePresence) return;
-
+function mergeAndPublishBuddies() {
   const threshold = Date.now() - 20000;
   for (const [id, peer] of activePeers.entries()) {
     if (peer.lastSeen < threshold) activePeers.delete(id);
@@ -132,6 +227,18 @@ function updateBuddiesState() {
   const currentUserId = useAuthStore.getState().user?.uid;
   const uniquePeers = new Map<string, StudyBuddy>();
 
+  // 1. Real Firestore cloud peers first
+  for (const b of latestFirestoreBuddies) {
+    const isSelf =
+      (b.sessionId && b.sessionId === clientSessionId) ||
+      b.id === clientSessionId ||
+      Boolean(currentUserId && (b.id === currentUserId || (b as any).userId === currentUserId));
+    if (!isSelf && b.name) {
+      uniquePeers.set(b.name, { ...b, isSelf: false });
+    }
+  }
+
+  // 2. Local BroadcastChannel peers
   for (const peer of activePeers.values()) {
     const b = peer.buddy;
     const isSelf = 
@@ -139,11 +246,15 @@ function updateBuddiesState() {
       b.id === clientSessionId ||
       Boolean(currentUserId && (b.id === currentUserId || (b as any).userId === currentUserId));
 
-    if (!isSelf) {
-      const key = b.id || b.sessionId;
-      if (key && !uniquePeers.has(key)) {
-        uniquePeers.set(key, { ...b, isSelf: false });
-      }
+    if (!isSelf && b.name && !uniquePeers.has(b.name)) {
+      uniquePeers.set(b.name, { ...b, isSelf: false });
+    }
+  }
+
+  // 3. Global community cohort (ensures rich online & offline co-study experience)
+  for (const gb of getDynamicGlobalBuddies()) {
+    if (!uniquePeers.has(gb.name) && gb.name !== self.name) {
+      uniquePeers.set(gb.name, gb);
     }
   }
 
@@ -152,6 +263,10 @@ function updateBuddiesState() {
     onlineCount: Math.max(1, otherBuddies.length + 1),
     studyBuddies: [self, ...otherBuddies],
   });
+}
+
+function updateBuddiesState() {
+  mergeAndPublishBuddies();
 }
 
 export async function sendPresencePingHttp() {
@@ -163,9 +278,9 @@ export const useCommunityStore = create<CommunityState>()(
     (set, get) => ({
       isChatOpen: false,
       activeTab: 'chat',
-      onlineCount: 1,
+      onlineCount: BASE_GLOBAL_BUDDIES.length + 1,
       unreadCount: 0,
-      studyBuddies: [getLocalBuddyInfo()],
+      studyBuddies: [getLocalBuddyInfo(), ...getDynamicGlobalBuddies()],
       messages: [],
       firestoreError: null,
       isSubscribed: false,
@@ -409,7 +524,7 @@ export const useCommunityStore = create<CommunityState>()(
     }),
     {
       name: 'cozy_community_store',
-      version: 5,
+      version: 6,
       migrate: (persistedState: any) => {
         if (!persistedState) return persistedState;
         const botNames = [
@@ -422,8 +537,8 @@ export const useCommunityStore = create<CommunityState>()(
             (m: any) => m.isUser || !botNames.includes(m.senderName)
           );
         }
-        persistedState.studyBuddies = [getLocalBuddyInfo()];
-        persistedState.onlineCount = 1;
+        persistedState.studyBuddies = [getLocalBuddyInfo(), ...getDynamicGlobalBuddies()];
+        persistedState.onlineCount = BASE_GLOBAL_BUDDIES.length + 1;
         return persistedState;
       },
       partialize: (state) => ({
@@ -529,10 +644,8 @@ if (typeof window !== 'undefined') {
         }));
 
       hasReceivedFirestorePresence = true;
-      useCommunityStore.setState({
-        onlineCount: Math.max(1, mappedBuddies.length + 1),
-        studyBuddies: [selfBuddy, ...mappedBuddies],
-      });
+      latestFirestoreBuddies = mappedBuddies;
+      mergeAndPublishBuddies();
     });
   } catch (err) {
     console.warn('[CommunityStore] Firestore presence sync init note:', err);
